@@ -88,6 +88,8 @@ class GoalGenerator:
             goal_type = 'turn-right'
         elif -np.pi / 8 <= heading_change <= np.pi / 8:
             goal_type = 'straight-on'
+            lane.get_heading_at(0)
+            lane.get_heading_at(lane.length)
         else:
             goal_type = 'u-turn'
         return goal_type
