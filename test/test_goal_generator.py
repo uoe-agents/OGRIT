@@ -2,6 +2,7 @@ import numpy as np
 from igp2.agents.agentstate import AgentState
 from igp2.goal import PointGoal
 from igp2.opendrive.map import Map
+from igp2.util import Circle
 
 from core.goal_generator import GoalGenerator, TypedGoal
 
@@ -243,3 +244,21 @@ def test_town01_sideroad():
     assert len(goals) == 2
     assert goal_in_list(goals, 'turn-right', (92.4, -119.9))
     assert goal_in_list(goals, 'turn-left', (88.3, -141.9))
+
+
+def test_town01_view_radius():
+    xodr = "../maps/town01.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(0)
+    speed = 5
+    time = 0
+    position = np.array((106.4, -199.2))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, state, Circle(position, 50.))
+
+    assert len(goals) == 1
+    assert goal_in_list(goals, 'straight-on', (325.7, -199.2))

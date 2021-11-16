@@ -20,20 +20,14 @@ class TypedGoal:
 
 
 class GoalGenerator:
-    def __init__(self, view_radius: float = None):
-        """ Initialise a GoalGenerator object
 
-        Args:
-            view_radius: radius of the region of the map that is visible
-        """
-        self.view_radius = view_radius
-
-    def generate(self, scenario_map: Map, state: AgentState) -> List[TypedGoal]:
+    def generate(self, scenario_map: Map, state: AgentState, visible_region: Circle = None) -> List[TypedGoal]:
         """ Generate the set of possible goals for an agent state
 
         Args:
             scenario_map: local road map
             state: current state of the vehicle
+            visible_region: region of the region of the map that is visible
 
         Returns:
             List of generated goals
@@ -61,6 +55,9 @@ class GoalGenerator:
                     goal_type = 'straight-on'
                     # TODO check if end of lane is outside view radius
                     # TODO adjacent lanes should share same goal
+                elif (visible_region is not None
+                      and not visible_region.contains(np.reshape(goal_location, (2, 1))).all()):
+                    goal_type = 'straight-on'
 
             if goal_type is None:
                 neighbours = lane.traversable_neighbours()
@@ -88,8 +85,6 @@ class GoalGenerator:
             goal_type = 'turn-right'
         elif -np.pi / 8 <= heading_change <= np.pi / 8:
             goal_type = 'straight-on'
-            lane.get_heading_at(0)
-            lane.get_heading_at(lane.length)
         else:
             goal_type = 'u-turn'
         return goal_type
