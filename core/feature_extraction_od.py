@@ -35,13 +35,12 @@ class FeatureExtractor:
             frames: list of observed frames
             goal:  goal of the agent
 
-        Returns: dic of features values
+        Returns: dict of features values
 
         """
 
         current_frame = frames[-1]
         current_state = current_frame[agent_id]
-        initial_state = frames[0][agent_id]
         current_lane = goal.lane_path[0]
         lane_path = goal.lane_path
 
@@ -82,9 +81,10 @@ class FeatureExtractor:
     def get_vehicles_in_route(ego_agent_id: int, path: List[Lane], frame: Dict[int, AgentState]):
         agents = []
         for agent_id, agent in frame.items():
+            agent_point = Point(*agent.position)
             if agent_id != ego_agent_id:
                 for lane in path:
-                    if lane.boundary.contains(agent.position):
+                    if lane.boundary.contains(agent_point):
                         agents.append(agent_id)
         return agents
 
@@ -137,22 +137,28 @@ class FeatureExtractor:
     @classmethod
     def dist_along_path(cls, path: List[Lane], point: np.ndarray):
         # get current lane
+        shapely_point = Point(*point)
         current_lane_idx = cls.get_current_path_lane_idx(path, point)
         completed_lane_dist = sum([l.length for l in path[:current_lane_idx]])
-        dist = path[current_lane_idx].length + completed_lane_dist
+        dist = path[current_lane_idx].midline.project(shapely_point) + completed_lane_dist
         return dist
 
     @staticmethod
     def get_current_path_lane_idx(path: List[Lane], point: np.ndarray) -> int:
         """ Get the index of the lane closest to a point"""
+        if type(point) == Point:
+            shapely_point = point
+        else:
+            shapely_point = Point(point[0], point[1])
+
         for idx, lane in enumerate(path):
-            if lane.boundary.contains(point):
+            if lane.boundary.contains(shapely_point):
                 return idx
 
         closest_lane_dist = np.inf
         closest_lane_idx = None
         for idx, lane in enumerate(path):
-            dist = lane.boundary.exterior.distance(point)
+            dist = lane.boundary.exterior.distance(shapely_point)
             if dist < closest_lane_dist:
                 closest_lane_dist = dist
                 closest_lane_idx = idx
@@ -179,12 +185,13 @@ class FeatureExtractor:
 
         dist = end_lane_dist - start_lane_dist
         if len(path) > 1:
-            prev_lane = start_lane
+            prev_lane = None
             for idx in range(len(path) - 1):
                 lane = path[idx]
-                lane_change = prev_lane.lane_section == lane.lane_section
+                lane_change = prev_lane is not None and prev_lane.lane_section == lane.lane_section
                 if not lane_change:
                     dist += lane.length
+                prev_lane = lane
         return dist
 
     @staticmethod

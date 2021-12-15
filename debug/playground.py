@@ -11,13 +11,11 @@ import matplotlib.pyplot as plt
 xodr = "../maps/heckstrasse.xodr"
 scenario_map = Map.parse_from_opendrive(xodr)
 
-
-
 heading = np.deg2rad(-45)
 speed = 5
 time = 0
 #position = np.array((28.9, -21.9))
-position = np.array((27.7, -11.5))
+position = np.array((28.9, -21.5))
 #position = np.array((69.3, -42.9))
 velocity = speed * np.array((np.cos(heading), np.sin(heading)))
 acceleration = np.array((0, 0))
