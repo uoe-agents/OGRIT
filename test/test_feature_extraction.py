@@ -163,4 +163,39 @@ def test_vehicle_in_front_behind():
     assert dist == np.inf
 
 
-# TODO check oncoming vehicles
+def test_oncoming_vehicle_none():
+    feature_extractor = get_feature_extractor()
+    state = AgentState(time=0,
+                       position=np.array((-7.9, 5.6)),
+                       velocity=np.array((0, 0)),
+                       acceleration=np.array((0, 0)),
+                       heading=-np.pi/4
+                       )
+    path = [feature_extractor.scenario_map.get_lane(1, 2, 0),
+            feature_extractor.scenario_map.get_lane(7, -1, 0)]
+    frame = {0: state}
+    vehicle_in_front = feature_extractor.oncoming_vehicle(0, path, frame)
+    assert vehicle_in_front == (None, 100)
+
+
+def test_oncoming_vehicle():
+    feature_extractor = get_feature_extractor()
+    state0 = AgentState(time=0,
+                       position=np.array((18.0, -8.7)),
+                       velocity=np.array((7.07, -7.07)),
+                       acceleration=np.array((0, 0)),
+                       heading=-np.pi/4
+                       )
+
+    state1 = AgentState(time=0,
+                       position=np.array((68.5, -42.7)),
+                       velocity=np.array((-7.07, 7.07)),
+                       acceleration=np.array((0, 0)),
+                       heading=-np.pi/4
+                       )
+    path = [feature_extractor.scenario_map.get_lane(1, 2, 0),
+            feature_extractor.scenario_map.get_lane(5, -1, 0)]
+    frame = {0: state0, 1: state1}
+    agent_id, dist = feature_extractor.oncoming_vehicle(0, path, frame)
+    assert agent_id == 1
+    assert dist == pytest.approx(32.4, 1)
