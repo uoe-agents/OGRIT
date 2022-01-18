@@ -7,9 +7,10 @@ import sys
 import glob
 import argparse
 import pandas as pd
+from igp2.data.scenario import ScenarioConfig, InDScenario
+from igp2.opendrive.map import Map
 
 from core.base import get_scenario_config_dir, get_data_dir
-from core.scenario import Scenario
 from loguru import logger
 from core.tracks_import import read_from_csv
 from core.track_visualizer import TrackVisualizer
@@ -20,7 +21,7 @@ from goalrecognition.goal_recognition import PriorBaseline
 def create_args():
     config_specification = argparse.ArgumentParser(description="ParameterOptimizer")
     # --- Input paths ---
-    config_specification.add_argument('--input_path', default="../../inD-dataset/data/",
+    config_specification.add_argument('--input_path', default="scenarios/data/ind/",
                                       help="Dir with track files", type=str)
     config_specification.add_argument('--recording_name', default="32",
                                       help="Choose recording name.", type=str)
@@ -87,7 +88,11 @@ def create_args():
 if __name__ == '__main__':
     config = create_args()
 
-    scenario = Scenario.load(get_scenario_config_dir() + config['scenario'] + '.json')
+    scenario_name = config['scenario']
+    scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
+
+    scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+    scenario = InDScenario(scenario_config)
     episode = scenario.load_episode(config["episode"])
 
     episode_dataset = pd.read_csv(
@@ -103,7 +108,7 @@ if __name__ == '__main__':
         goal_recogniser = None
 
     input_root_path = scenario.config.data_root
-    recording_name = scenario.config.episodes[config["episode"]]['recording_id']
+    recording_name = scenario.config.episodes[config["episode"]].recording_id
     config['input_path'] = input_root_path
     config['recording_name'] = recording_name
 
@@ -112,9 +117,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Search csv files
-    tracks_files = glob.glob(input_root_path + recording_name + "*_tracks.csv")
-    static_tracks_files = glob.glob(input_root_path + recording_name + "*_tracksMeta.csv")
-    recording_meta_files = glob.glob(input_root_path + recording_name + "*_recordingMeta.csv")
+    tracks_files = glob.glob(input_root_path + '/' + recording_name + "*_tracks.csv")
+    static_tracks_files = glob.glob(input_root_path + '/' + recording_name + "*_tracksMeta.csv")
+    recording_meta_files = glob.glob(input_root_path + '/' + recording_name + "*_recordingMeta.csv")
     if len(tracks_files) == 0 or len(static_tracks_files) == 0 or len(recording_meta_files) == 0:
         logger.error("Could not find csv files for recording {} in {}. Please check parameters and path!",
                      recording_name, input_root_path)
@@ -128,7 +133,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # Load background image for visualization
-    background_image_path = input_root_path + recording_name + "_background.png"
+    background_image_path = input_root_path + '/' + recording_name + "_background.png"
     if not os.path.exists(background_image_path):
         logger.warning("No background image {} found. Fallback using a black background.".format(background_image_path))
         background_image_path = None

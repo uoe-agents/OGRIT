@@ -3,11 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 
-from core.base import get_scenario_config_dir, get_base_dir
+from core.base import get_base_dir
 from core.data_processing import get_dataset
 from decisiontree.dt_goal_recogniser import TrainedDecisionTrees
 from goalrecognition.goal_recognition import PriorBaseline
-from core.scenario import Scenario
 
 
 def main():
@@ -42,10 +41,7 @@ def main():
 
     for scenario_name in scenario_names:
         dataset = get_dataset(scenario_name, dataset_name)
-        scenario = Scenario.load(get_scenario_config_dir() + scenario_name + '.json')
         dataset_predictions = {}
-        num_goals = len(scenario.config.goals)
-        targets = dataset.true_goal.to_numpy()
 
         for model_name, model in models.items():
             model = model.load(scenario_name)

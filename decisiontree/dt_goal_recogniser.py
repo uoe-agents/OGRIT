@@ -1,4 +1,7 @@
 import pickle
+
+from igp2.data.scenario import ScenarioConfig
+from igp2.opendrive.map import Map
 from sklearn import tree
 
 from core.base import get_data_dir, get_scenario_config_dir, get_img_dir
@@ -6,19 +9,17 @@ from core.data_processing import get_goal_priors, get_dataset
 from decisiontree.decision_tree import Node
 from core.feature_extraction import FeatureExtractor
 from decisiontree.handcrafted_trees import scenario_trees
-from core.scenario import Scenario
 from goalrecognition.goal_recognition import BayesianGoalRecogniser
 
 
 class DecisionTreeGoalRecogniser(BayesianGoalRecogniser):
 
-    def __init__(self, goal_priors, scenario, decision_trees):
-        super().__init__(goal_priors, scenario)
+    def __init__(self, goal_priors, scenario, decision_trees, goal_locs):
+        super().__init__(goal_priors, scenario, goal_locs)
         self.decision_trees = decision_trees
 
-    def goal_likelihood(self, goal_idx, frames, route, agent_id):
-        goal_loc = self.scenario.config.goals[goal_idx]
-        features = self.feature_extractor.extract(agent_id, frames, goal_loc, route, goal_idx)
+    def goal_likelihood(self, goal_idx, frames, goal, agent_id):
+        features = self.feature_extractor.extract(agent_id, frames, goal)
         self.decision_trees[goal_idx][features['goal_type']].reset_reached()
         likelihood = self.decision_trees[goal_idx][features['goal_type']].traverse(features)
         return likelihood
@@ -34,9 +35,10 @@ class DecisionTreeGoalRecogniser(BayesianGoalRecogniser):
     @classmethod
     def load(cls, scenario_name):
         priors = cls.load_priors(scenario_name)
-        scenario = Scenario.load(get_scenario_config_dir() + '{}.json'.format(scenario_name))
+        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+        scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
         decision_trees = cls.load_decision_trees(scenario_name)
-        return cls(priors, scenario, decision_trees)
+        return cls(priors, scenario_map, decision_trees, scenario_config.goals)
 
     @staticmethod
     def load_decision_trees(scenario_name):
@@ -46,10 +48,11 @@ class DecisionTreeGoalRecogniser(BayesianGoalRecogniser):
     def train(cls, scenario_name, alpha=1, criterion='gini', min_samples_leaf=1,
               max_leaf_nodes=None, max_depth=None, training_set=None, ccp_alpha=0):
         decision_trees = {}
-        scenario = Scenario.load(get_scenario_config_dir() + scenario_name + '.json')
+        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+
         if training_set is None:
             training_set = get_dataset(scenario_name, subset='train')
-        goal_priors = get_goal_priors(training_set, scenario.config.goal_types, alpha=alpha)
+        goal_priors = get_goal_priors(training_set, scenario_config.goal_types, alpha=alpha)
 
         for goal_idx in goal_priors.true_goal.unique():
             decision_trees[goal_idx] = {}
@@ -73,7 +76,7 @@ class DecisionTreeGoalRecogniser(BayesianGoalRecogniser):
                     goal_tree = Node(0.5)
 
                 decision_trees[goal_idx][goal_type] = goal_tree
-        return cls(goal_priors, scenario, decision_trees)
+        return cls(goal_priors, scenario_config, decision_trees)
 
     def save(self, scenario_name):
         for goal_idx in self.goal_priors.true_goal.unique():

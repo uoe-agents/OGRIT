@@ -37,7 +37,8 @@ class GoalGenerator:
         # if junction exit, view radius, or lane end is reached, create goal
         typed_goals = []
         visited_goal_locations = {}
-        visited_lanes = set(scenario_map.lanes_at(state.position, drivable_only=True))
+        visited_lanes = set(scenario_map.lanes_within_angle(state.position, state.heading, np.pi/4,
+                                                            drivable_only=True, max_distance=3))
         open_set = [[l] for l in visited_lanes]
 
         while len(open_set) > 0:
@@ -72,6 +73,9 @@ class GoalGenerator:
                 typed_goals.append(typed_goal)
 
         return typed_goals
+
+    def get_nearby_lanlets(self):
+        pass
 
     @staticmethod
     def get_juction_goal_type(lane: Lane):

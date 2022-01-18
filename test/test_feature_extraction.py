@@ -6,7 +6,7 @@ from igp2.agents.agentstate import AgentState
 from igp2.goal import PointGoal
 from igp2.opendrive.map import Map
 
-from core.feature_extraction_od import FeatureExtractor
+from core.feature_extraction import FeatureExtractor
 from core.goal_generator import TypedGoal
 
 

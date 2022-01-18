@@ -299,10 +299,11 @@ class TrackVisualizer(object):
                     age = static_track_information["age"]
                     annotation_text += "Age%d/%d" % (current_index + 1, age)
                 if (self.goal_recogniser is not None
-                        and self.episode.agents[track_id].num_frames < 25 * 120
+                        and len(self.episode.agents[track_id].trajectory.path) < 25 * 120
                         and object_class[0] == 'c'):
                     initial_frame = static_track_information["initialFrame"]
                     frames = self.episode.frames[initial_frame:self.current_frame+1]
+                    frames = [f.agents for f in frames]
                     goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
                     for goal_idx, prob in enumerate(goal_probabilities):
                         if prob > 0:

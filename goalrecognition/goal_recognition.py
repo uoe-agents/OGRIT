@@ -1,42 +1,42 @@
 import numpy as np
 import pandas as pd
+from igp2.opendrive.map import Map
 
 from core.base import get_data_dir, get_scenario_config_dir
 from core.feature_extraction import FeatureExtractor
-from core.scenario import Scenario
 from goalrecognition.metrics import entropy
 
 
 class BayesianGoalRecogniser:
 
-    def __init__(self, goal_priors, scenario):
+    def __init__(self, goal_priors, scenario_map, goal_locs):
         self.goal_priors = goal_priors
-        self.feature_extractor = FeatureExtractor(scenario.lanelet_map,
-                                                  scenario.config.goal_types)
-        self.scenario = scenario
+        self.feature_extractor = FeatureExtractor(scenario_map)
+        self.scenario_map = scenario_map
+        self.goal_locs = goal_locs
 
-    def goal_likelihood(self, goal_idx, frames, route, agent_id):
+    def goal_likelihood(self, goal_idx, frames, goal, agent_id):
         raise NotImplementedError
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
         raise NotImplementedError
 
     def goal_probabilities(self, frames, agent_id):
-        state_history = [f.agents[agent_id] for f in frames]
+        state_history = [f[agent_id] for f in frames]
         current_state = state_history[-1]
-        goal_routes = self.feature_extractor.get_goal_routes(current_state, self.scenario.config.goals)
+        typed_goals = self.feature_extractor.get_typed_goals(current_state, self.goal_locs)
         goal_probs = []
-        for goal_idx, route in enumerate(goal_routes):
-            if route is None:
+        for goal_idx, typed_goal in enumerate(typed_goals):
+            if typed_goal is None:
                 goal_prob = 0
             else:
+                route = typed_goal.lane_path
                 # get un-normalised "probability"
-                goal_types = self.scenario.config.goal_types[goal_idx]
-                prior = self.get_goal_prior(goal_idx, state_history[0], route, goal_types)
+                prior = self.get_goal_prior(goal_idx, route)
                 if prior == 0:
                     goal_prob = 0
                 else:
-                    likelihood = self.goal_likelihood(goal_idx, frames, route, agent_id)
+                    likelihood = self.goal_likelihood(goal_idx, frames, typed_goal, agent_id)
                     goal_prob = likelihood * prior
             goal_probs.append(goal_prob)
         goal_probs = np.array(goal_probs)
@@ -115,16 +115,16 @@ class BayesianGoalRecogniser:
     @classmethod
     def load(cls, scenario_name):
         priors = cls.load_priors(scenario_name)
-        scenario = Scenario.load(get_scenario_config_dir() + '{}.json'.format(scenario_name))
-        return cls(priors, scenario)
+        scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
+
+        return cls(priors, scenario_map)
 
     @staticmethod
     def load_priors(scenario_name):
         return pd.read_csv(get_data_dir() + scenario_name + '_priors.csv')
 
-    def get_goal_prior(self, goal_idx, state, route, goal_types=None):
-        goal_loc = self.scenario.config.goals[goal_idx]
-        goal_type = self.feature_extractor.goal_type(state, goal_loc, route, goal_types)
+    def get_goal_prior(self, goal_idx, route):
+        goal_type = self.feature_extractor.goal_type(route)
         prior_series = self.goal_priors.loc[(self.goal_priors.true_goal == goal_idx) & (self.goal_priors.true_goal_type == goal_type)].prior
         if prior_series.shape[0] == 0:
             return 0
