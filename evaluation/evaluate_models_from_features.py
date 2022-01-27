@@ -17,7 +17,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg']#, 'round']
     else:
         scenario_names = [args.scenario]
 
@@ -94,6 +94,11 @@ def main():
             accuracy.rename(columns={'model_correct': model_name}).plot(ax=ax)
             plt.fill_between(accuracy_sem.index, (accuracy + accuracy_sem).model_correct.to_numpy(),
                              (accuracy - accuracy_sem).model_correct.to_numpy(), alpha=0.2)
+
+            #TODO temporary
+            print(model_name)
+            print(list(accuracy.values.flatten()))
+            print(list(accuracy_sem.values.flatten()))
         plt.xlabel('fraction of trajectory observed')
         plt.title('Accuracy ({})'.format(scenario_name))
         plt.ylim([0, 1])

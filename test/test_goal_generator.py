@@ -12,7 +12,7 @@ def goal_in_list(goals, goal_type, goal_center):
 
 
 def test_heckstrasse_north_west():
-    xodr = "../maps/heckstrasse.xodr"
+    xodr = "../scenarios/maps/heckstrasse.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(-45)
     speed = 5
@@ -31,7 +31,7 @@ def test_heckstrasse_north_west():
 
 
 def test_heckstrasse_south_east():
-    xodr = "../maps/heckstrasse.xodr"
+    xodr = "../scenarios/maps/heckstrasse.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(135)
     speed = 5
@@ -50,7 +50,7 @@ def test_heckstrasse_south_east():
 
 
 def test_heckstrasse_north_east():
-    xodr = "../maps/heckstrasse.xodr"
+    xodr = "../scenarios/maps/heckstrasse.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(-135)
     speed = 5
@@ -69,9 +69,9 @@ def test_heckstrasse_north_east():
 
 
 def test_bendplatz_south_west():
-    xodr = "../maps/bendplatz.xodr"
+    xodr = "../scenarios/maps/bendplatz.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
-    heading = np.deg2rad(-135)
+    heading = np.deg2rad(45)
     speed = 5
     time = 0
     position = np.array((48.5, -43.8))
@@ -89,7 +89,7 @@ def test_bendplatz_south_west():
 
 
 def test_bendplatz_north_east():
-    xodr = "../maps/bendplatz.xodr"
+    xodr = "../scenarios/maps/bendplatz.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(-135)
     speed = 5
@@ -108,30 +108,10 @@ def test_bendplatz_north_east():
     assert goal_in_list(goals, 'straight-on', (46.7, -40.8))
 
 
-def test_bendplatz_southwest():
-    xodr = "../maps/bendplatz.xodr"
-    scenario_map = Map.parse_from_opendrive(xodr)
-    heading = np.deg2rad(-135)
-    speed = 5
-    time = 0
-    position = np.array((47.9, -44.5))
-    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
-    acceleration = np.array((0, 0))
-
-    state = AgentState(time, position, velocity, acceleration, heading)
-    goal_generator = GoalGenerator()
-    goals = goal_generator.generate(scenario_map, state)
-
-    assert len(goals) == 3
-    assert goal_in_list(goals, 'turn-left', (49.3, -20.9))
-    assert goal_in_list(goals, 'turn-right', (63.1, -45.5))
-    assert goal_in_list(goals, 'straight-on', (66.6, -22.2))
-
-
 def test_bendplatz_northwest():
-    xodr = "../maps/bendplatz.xodr"
+    xodr = "../scenarios/maps/bendplatz.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
-    heading = np.deg2rad(-135)
+    heading = np.deg2rad(-45)
     speed = 5
     time = 0
     position = np.array((25.5, -3.5))
@@ -149,9 +129,9 @@ def test_bendplatz_northwest():
 
 
 def test_bendplatz_southeast():
-    xodr = "../maps/bendplatz.xodr"
+    xodr = "../scenarios/maps/bendplatz.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
-    heading = np.deg2rad(-135)
+    heading = np.deg2rad(135)
     speed = 5
     time = 0
     position = np.array((85.1, -64.6))
@@ -169,9 +149,9 @@ def test_bendplatz_southeast():
 
 
 def test_frankenberg_northwest():
-    xodr = "../maps/frankenberg.xodr"
+    xodr = "../scenarios/maps/frankenberg.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
-    heading = np.deg2rad(-135)
+    heading = np.deg2rad(-45)
     speed = 5
     time = 0
     position = np.array((33.6, -10.))
@@ -189,9 +169,9 @@ def test_frankenberg_northwest():
 
 
 def test_frankenberg_southwest():
-    xodr = "../maps/frankenberg.xodr"
+    xodr = "../scenarios/maps/frankenberg.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
-    heading = np.deg2rad(-135)
+    heading = np.deg2rad(20)
     speed = 5
     time = 0
     position = np.array((34.28, -34.88))
@@ -209,7 +189,7 @@ def test_frankenberg_southwest():
 
 
 def test_town01_mainroad():
-    xodr = "../maps/town01.xodr"
+    xodr = "../scenarios/maps/town01.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(90)
     speed = 5
@@ -228,7 +208,7 @@ def test_town01_mainroad():
 
 
 def test_town01_sideroad():
-    xodr = "../maps/town01.xodr"
+    xodr = "../scenarios/maps/town01.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(180)
     speed = 5
@@ -247,7 +227,7 @@ def test_town01_sideroad():
 
 
 def test_town01_view_radius():
-    xodr = "../maps/town01.xodr"
+    xodr = "../scenarios/maps/town01.xodr"
     scenario_map = Map.parse_from_opendrive(xodr)
     heading = np.deg2rad(0)
     speed = 5

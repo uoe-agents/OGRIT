@@ -76,7 +76,7 @@ class DecisionTreeGoalRecogniser(BayesianGoalRecogniser):
                     goal_tree = Node(0.5)
 
                 decision_trees[goal_idx][goal_type] = goal_tree
-        return cls(goal_priors, scenario_config, decision_trees)
+        return cls(goal_priors, scenario_config, decision_trees, scenario_config.goals)
 
     def save(self, scenario_name):
         for goal_idx in self.goal_priors.true_goal.unique():

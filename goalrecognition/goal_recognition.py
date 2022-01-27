@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
 
 from core.base import get_data_dir, get_scenario_config_dir
@@ -116,8 +117,8 @@ class BayesianGoalRecogniser:
     def load(cls, scenario_name):
         priors = cls.load_priors(scenario_name)
         scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
-
-        return cls(priors, scenario_map)
+        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+        return cls(priors, scenario_map, scenario_config.goals)
 
     @staticmethod
     def load_priors(scenario_name):
