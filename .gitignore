@@ -139,7 +139,7 @@ videos/
 data_iros/
 images_iros/
 predictions/
-
+results/
 
 # OSM files
 *.osm
