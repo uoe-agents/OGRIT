@@ -4,7 +4,7 @@ import numpy as np
 from igp2.agents.agentstate import AgentState
 from igp2.opendrive.elements.road_lanes import Lane
 from igp2.opendrive.map import Map
-from igp2.trajectory import Trajectory, StateTrajectory
+from igp2.trajectory import Trajectory, StateTrajectory, VelocityTrajectory
 from shapely.geometry import Point, LineString
 
 from core.goal_generator import TypedGoal, GoalGenerator
@@ -285,10 +285,10 @@ class FeatureExtractor:
                 closest_vehicle_id = agent_id
         return closest_vehicle_id, min_dist
 
-    def get_typed_goals(self, state: AgentState, goals: List[Tuple[int, int]]):
+    def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]]):
         typed_goals = []
         goal_gen = GoalGenerator()
-        gen_goals = goal_gen.generate(self.scenario_map, state)
+        gen_goals = goal_gen.generate(self.scenario_map, trajectory)
         for goal in goals:
             for gen_goal in gen_goals:
                 if gen_goal.goal.reached(Point(*goal)):

@@ -75,7 +75,7 @@ def prepare_episode_dataset(params):
         new_frame = {}
         for agent_id, state in frame.agents.items():
             agent = episode.agents[agent_id]
-            if not agent.parked():
+            if not (agent.parked() or agent.metadata.agent_type == 'pedestrian'):
                 new_frame[agent_id] = state
         episode_frames.append(new_frame)
 
@@ -87,12 +87,13 @@ def prepare_episode_dataset(params):
     # detect goal, and trim trajectory past the goal
     goal_detector = GoalDetector(scenario.config.goals)
     for agent_id, agent in episode.agents.items():
-        agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)
-        if len(agent_goals) > 0:
-            end_idx = min(goal_frame_idxes)
-            trimmed_trajectory = agent.trajectory.slice(0, end_idx)
-            goals[agent_id] = agent_goals[-1]
-            trimmed_trajectories[agent_id] = trimmed_trajectory
+        if agent.metadata.agent_type in ['car', 'truck_bus']:
+            agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)
+            if len(agent_goals) > 0:
+                end_idx = min(goal_frame_idxes)
+                trimmed_trajectory = agent.trajectory.slice(0, end_idx)
+                goals[agent_id] = agent_goals[-1]
+                trimmed_trajectories[agent_id] = trimmed_trajectory
 
 
     # get features and reachable goals
@@ -111,7 +112,9 @@ def prepare_episode_dataset(params):
         for idx in range(0, len(trajectory.path)):
             state = AgentState(trajectory.timesteps[idx], trajectory.path[idx],
                                trajectory.velocity[idx], np.array([0, 0]), trajectory.heading[idx])
-            typed_goals = feature_extractor.get_typed_goals(state, scenario.config.goals)
+
+            typed_goals = feature_extractor.get_typed_goals(trajectory.slice(0, idx+1), scenario.config.goals)
+
             if len([r for r in typed_goals if r is not None]) > 1:
                 reachable_goals_list.append(typed_goals)
             else:
@@ -126,6 +129,8 @@ def prepare_episode_dataset(params):
             # get true goal
             true_goal_loc = scenario.config.goals[true_goal_idx]
             true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
+
+
             true_goal_type = feature_extractor.goal_type(true_goal_route)
 
             step_size = (len(reachable_goals_list) - 1) // samples_per_trajectory
@@ -165,8 +170,8 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        #scenarios = ['bendplatz', 'frankenberg']
-        scenarios = ['heckstrasse']#, 'bendplatz', 'frankenberg', 'round']
+        scenarios = ['round']
+        #scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
     else:
         scenarios = [args.scenario]
 
@@ -176,12 +181,12 @@ def main():
         for episode_idx in range(len(scenario_config.episodes)):
             params_list.append((scenario_name, episode_idx))
 
-    #prepare_episode_dataset(('heckstrasse', 0))
+    prepare_episode_dataset(('round', 0))
     # for params in params_list:
     #     prepare_episode_dataset(params)
-
-    with Pool(4) as p:
-        p.map(prepare_episode_dataset, params_list)
+    #
+    # with Pool(4) as p:
+    #     p.map(prepare_episode_dataset, params_list)
 
 
 if __name__ == '__main__':

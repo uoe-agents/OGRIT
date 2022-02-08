@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import List
 import numpy as np
 from igp2.opendrive.elements.geometry import normalise_angle
+from igp2.trajectory import VelocityTrajectory
 from shapely.geometry import Point
 
 from igp2.goal import Goal, PointGoal
@@ -24,7 +25,8 @@ class TypedGoal:
 
 class GoalGenerator:
 
-    def generate_goals_from_lane(self, lane: Lane, visible_region: Circle = None) -> List[TypedGoal]:
+    @classmethod
+    def generate_goals_from_lane(cls, lane: Lane, scenario_map: Map, visible_region: Circle = None) -> List[TypedGoal]:
         typed_goals = []
         visited_goal_locations = {}
         visited_lanes = {lane}
@@ -39,11 +41,16 @@ class GoalGenerator:
             goal_type = None
             if goal_location not in visited_goal_locations:
                 if junction is not None:
-                    # TODO check if it's a roundabout
-                    goal_type = self.get_juction_goal_type(lane)
+                    if junction.junction_group is not None and junction.junction_group.type == 'roundabout':
+                        # check if it is a roundabout exit
+                        successor_in_roundabout = (len(lane.link.successor) == 1
+                            and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
+                        if not successor_in_roundabout:
+                            goal_type = 'exit-roundabout'
+                    else:
+                        goal_type = cls.get_juction_goal_type(lane)
                 elif lane.link.successor is None:
                     goal_type = 'straight-on'
-                    # TODO check if end of lane is outside view radius
                     # TODO adjacent lanes should share same goal
                 elif (visible_region is not None
                       and not visible_region.contains(np.reshape(goal_location, (2, 1))).all()):
@@ -63,12 +70,20 @@ class GoalGenerator:
 
         return typed_goals
 
-    def generate(self, scenario_map: Map, state: AgentState, visible_region: Circle = None) -> List[TypedGoal]:
+    @staticmethod
+    def is_roundabout_exit(lane: Lane, scenario_map: Map) -> bool:
+        in_roundabout = scenario_map.road_in_roundabout(lane.parent_road)
+        successor_in_roundabout = (len(lane.link.successor) == 1
+                                   and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
+        return in_roundabout and not successor_in_roundabout
+
+    def generate(self, scenario_map: Map, trajectory: VelocityTrajectory, visible_region: Circle = None
+                 ) -> List[TypedGoal]:
         """ Generate the set of possible goals for an agent state
 
         Args:
             scenario_map: local road map
-            state: current state of the vehicle
+            trajectory: trajectory of the vehicle up to the current time
             visible_region: region of the region of the map that is visible
 
         Returns:
@@ -77,36 +92,46 @@ class GoalGenerator:
         # get list of possible lanes
         # build tree of reachable lanes
         # if junction exit, view radius, or lane end is reached, create goal
-
-        possible_lanes = scenario_map.lanes_within_angle(state.position, state.heading, np.pi/4,
+        position = trajectory.path[-1]
+        heading = trajectory.heading[-1]
+        possible_lanes = scenario_map.lanes_within_angle(position, heading, np.pi/4,
                                                          drivable_only=True, max_distance=3)
 
-        lane_goals = [self.generate_goals_from_lane(l, visible_region) for l in possible_lanes]
+        lane_goals = [self.generate_goals_from_lane(l, scenario_map, visible_region) for l in possible_lanes]
 
-        goal_loc_goals = defaultdict(list)
+        # get list of typed goals for each goal locations
+        goal_loc_goals = {}
         for goals in lane_goals:
             for goal in goals:
-                goal_loc_goals[goal.goal.center].append(goal)
+                for goal_loc in goal_loc_goals:
+                    if np.allclose(goal_loc, goal.goal.center, atol=1.):
+                        goal_loc_goals[goal_loc].append(goal)
+                        break
+                else:
+                    goal_loc_goals[goal.goal.center] = [goal]
 
+        # select best typed goal for each goal location
         typed_goals = []
         for goal_loc, goals in goal_loc_goals.items():
             lanes = [g.lane_path[0] for g in goals]
-            best_lane_idx = self.get_best_lane(lanes, state)
+            best_lane_idx = self.get_best_lane(lanes, position, heading)
             typed_goals.append(goals[best_lane_idx])
 
         return typed_goals
 
-    def get_best_lane(self, lanes: List[Lane], state: AgentState) -> int:
+    @staticmethod
+    def get_best_lane(lanes: List[Lane], position: np.ndarray, heading: float) -> int:
         """ Select the most likely current lane from a list of candidates
 
         Args:
             lanes: list of candidate lanes
-            state: current state of the vehicle
+            position: current position of the vehicle
+            heading: current heading of the vehicle
 
         Returns:
             index of the best lane in the list of lanes
         """
-        point = Point(state.position)
+        point = Point(position)
         dists = [l.boundary.distance(point) for l in lanes]
 
         angle_diffs = []
@@ -117,7 +142,7 @@ class GoalGenerator:
                 angle = normalise_angle(original_angle + np.pi)
             else:
                 angle = original_angle
-            angle_diff = np.abs(normalise_angle(state.heading - angle))
+            angle_diff = np.abs(normalise_angle(heading - angle))
             angle_diffs.append(angle_diff)
 
         best_idx = None
@@ -143,4 +168,5 @@ class GoalGenerator:
             goal_type = 'straight-on'
         else:
             goal_type = 'u-turn'
+
         return goal_type

@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
+from igp2.trajectory import VelocityTrajectory
 
 from core.base import get_data_dir, get_scenario_config_dir
 from core.feature_extraction import FeatureExtractor
@@ -25,7 +26,9 @@ class BayesianGoalRecogniser:
     def goal_probabilities(self, frames, agent_id):
         state_history = [f[agent_id] for f in frames]
         current_state = state_history[-1]
-        typed_goals = self.feature_extractor.get_typed_goals(current_state, self.goal_locs)
+        trajectory = VelocityTrajectory.from_agent_states(state_history)
+        #TODO get trajectory from state
+        typed_goals = self.feature_extractor.get_typed_goals(trajectory, self.goal_locs)
         goal_probs = []
         for goal_idx, typed_goal in enumerate(typed_goals):
             if typed_goal is None:

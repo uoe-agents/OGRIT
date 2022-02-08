@@ -62,9 +62,8 @@ def main():
             print('{} accuracy: {:.3f}'.format(model_name, accuracy))
             print('{} cross entropy: {:.3f}'.format(model_name, cross_entropy))
 
-            if model_name == 'trained_trees':
-                unique_samples.to_csv(get_base_dir() + '/predictions/{}_{}_{}.csv'.format(
-                    scenario_name, model_name, dataset_name), index=False)
+            unique_samples.to_csv(get_base_dir() + '/predictions/{}_{}_{}.csv'.format(
+                scenario_name, model_name, dataset_name), index=False)
 
         predictions[scenario_name] = dataset_predictions
 
@@ -85,8 +84,10 @@ def main():
 
     for scenario_name in scenario_names:
 
+        #fig, axs = plt.subplots(2, 2)
         fig, ax = plt.subplots()
-        for model_name, model in models.items():
+        for idx, (model_name, model) in enumerate(models.items()):
+            #ax = axs[idx // 2, idx % 2]
             unique_samples = predictions[scenario_name][model_name]
             fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')
             accuracy = fraction_observed_grouped.mean()
@@ -95,10 +96,9 @@ def main():
             plt.fill_between(accuracy_sem.index, (accuracy + accuracy_sem).model_correct.to_numpy(),
                              (accuracy - accuracy_sem).model_correct.to_numpy(), alpha=0.2)
 
-            #TODO temporary
-            print(model_name)
-            print(list(accuracy.values.flatten()))
-            print(list(accuracy_sem.values.flatten()))
+            # save results
+            accuracy_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
+            accuracy.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
         plt.xlabel('fraction of trajectory observed')
         plt.title('Accuracy ({})'.format(scenario_name))
         plt.ylim([0, 1])
