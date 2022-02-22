@@ -4,9 +4,7 @@ from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
-from igp2.agents.agentstate import AgentState
-from igp2.data.data_loaders import InDDataLoader
-from igp2.data.episode import Frame
+import igp2 as ip
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 
@@ -100,7 +98,7 @@ def prepare_episode_dataset(params):
 
     for agent_idx, (agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
 
-        print('scenario {} episode {} agent_id {}/{}'.format(
+        print('scenario {} episode {} agent {}/{}'.format(
             scenario_name, episode_idx, agent_idx, len(trimmed_trajectories) - 1))
 
 
@@ -110,9 +108,6 @@ def prepare_episode_dataset(params):
 
         # get reachable goals at each timestep
         for idx in range(0, len(trajectory.path)):
-            state = AgentState(trajectory.timesteps[idx], trajectory.path[idx],
-                               trajectory.velocity[idx], np.array([0, 0]), trajectory.heading[idx])
-
             typed_goals = feature_extractor.get_typed_goals(trajectory.slice(0, idx+1), scenario.config.goals)
 
             if len([r for r in typed_goals if r is not None]) > 1:
@@ -122,15 +117,11 @@ def prepare_episode_dataset(params):
 
         # iterate through "samples_per_trajectory" points
         true_goal_idx = goals[agent_id]
-        true_goal_types = scenario.config.goal_types[true_goal_idx]
         if (len(reachable_goals_list) > samples_per_trajectory
                 and reachable_goals_list[0][true_goal_idx] is not None):
 
             # get true goal
-            true_goal_loc = scenario.config.goals[true_goal_idx]
             true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
-
-
             true_goal_type = feature_extractor.goal_type(true_goal_route)
 
             step_size = (len(reachable_goals_list) - 1) // samples_per_trajectory
@@ -139,14 +130,11 @@ def prepare_episode_dataset(params):
                 reachable_goals = reachable_goals_list[idx]
                 initial_frame_id = episode.agents[agent_id].metadata.initial_time
                 current_frame_id = initial_frame_id + idx
-                #state = trajectory[idx]
                 frames = episode_frames[initial_frame_id:current_frame_id + 1]
 
                 # iterate through each goal for that point in time
                 for goal_idx, typed_goal in enumerate(reachable_goals):
                     if typed_goal is not None:
-                        goal = scenario.config.goals[goal_idx]
-
                         features = feature_extractor.extract(agent_id, frames, typed_goal)
 
                         sample = features.copy()
@@ -170,8 +158,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenarios = ['round']
-        #scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
     else:
         scenarios = [args.scenario]
 
@@ -181,12 +168,12 @@ def main():
         for episode_idx in range(len(scenario_config.episodes)):
             params_list.append((scenario_name, episode_idx))
 
-    prepare_episode_dataset(('round', 0))
+    #prepare_episode_dataset(('round', 0))
     # for params in params_list:
     #     prepare_episode_dataset(params)
-    #
-    # with Pool(4) as p:
-    #     p.map(prepare_episode_dataset, params_list)
+
+    with Pool(4) as p:
+        p.map(prepare_episode_dataset, params_list)
 
 
 if __name__ == '__main__':

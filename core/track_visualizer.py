@@ -1,6 +1,7 @@
 """
 Modified version of code from https://github.com/ika-rwth-aachen/drone-dataset-tools
 """
+import io
 import os
 
 import numpy as np
@@ -9,7 +10,7 @@ import skimage.io
 from core.feature_extraction import FeatureExtractor
 from matplotlib.widgets import Button, Slider
 from loguru import logger
-from IPython.display import Image, display
+import matplotlib.image as mpimg
 
 from core.base import get_img_dir
 from decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
@@ -361,6 +362,13 @@ class TrackVisualizer(object):
         track_id_string = text_value[:text_value.index("|")]
         track_id = int(track_id_string[2:])
 
+        # do goal inference to get correct higlighting on tree
+        static_track_information = self.static_info[track_id]
+        initial_frame = static_track_information["initialFrame"]
+        frames = self.episode.frames[initial_frame:self.current_frame + 1]
+        frames = [f.agents for f in frames]
+        goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
+
         agent_data = self.episode_dataset.loc[self.episode_dataset.agent_id==track_id]
         goal_idxes = agent_data.possible_goal.unique()
 
@@ -368,7 +376,7 @@ class TrackVisualizer(object):
 
         for goal_idx in goal_idxes:
             goal_data = agent_data.loc[agent_data.possible_goal==goal_idx]
-
+            goal_type = agent_data.goal_type.iloc[0]
             fig = plt.figure(np.random.randint(0, 5000, 1))
             fig.canvas.mpl_connect('close_event', lambda evt: self.close_track_info_figure(evt, track_id))
             fig.canvas.mpl_connect('resize_event', lambda evt: fig.tight_layout())
@@ -384,6 +392,20 @@ class TrackVisualizer(object):
                 plt.plot([self.current_frame, self.current_frame], borders, "--r")
                 plt.xlabel('frame')
                 sub_plot.grid(True)
+
+            pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
+            png_str = pydot_tree.create_png(prog='dot')
+            sio = io.BytesIO()
+            sio.write(png_str)
+            sio.seek(0)
+            img = mpimg.imread(sio)
+
+            # plot the image
+            fig = plt.figure()
+            imgplot = plt.imshow(img, aspect='equal')
+            title = f'G{goal_idx} {goal_type}'
+            fig.canvas.set_window_title(title)
+            plt.title(title)
 
         plt.show()
 

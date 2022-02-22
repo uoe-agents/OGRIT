@@ -3,14 +3,8 @@ from dataclasses import dataclass
 from typing import List
 import numpy as np
 from igp2.opendrive.elements.geometry import normalise_angle
-from igp2.trajectory import VelocityTrajectory
 from shapely.geometry import Point
-
-from igp2.goal import Goal, PointGoal
-from igp2.opendrive.elements.road_lanes import Lane
-from igp2.opendrive.map import Map
-from igp2.agents.agentstate import AgentState
-from igp2.util import Circle
+from igp2 import Circle, Goal, PointGoal, Lane, Map, VelocityTrajectory
 
 
 @dataclass
@@ -28,7 +22,6 @@ class GoalGenerator:
     @classmethod
     def generate_goals_from_lane(cls, lane: Lane, scenario_map: Map, visible_region: Circle = None) -> List[TypedGoal]:
         typed_goals = []
-        visited_goal_locations = {}
         visited_lanes = {lane}
         open_set = [[lane]]
 
@@ -39,22 +32,21 @@ class GoalGenerator:
 
             goal_location = lane.midline.coords[-1]
             goal_type = None
-            if goal_location not in visited_goal_locations:
-                if junction is not None:
-                    if junction.junction_group is not None and junction.junction_group.type == 'roundabout':
-                        # check if it is a roundabout exit
-                        successor_in_roundabout = (len(lane.link.successor) == 1
-                            and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
-                        if not successor_in_roundabout:
-                            goal_type = 'exit-roundabout'
-                    else:
-                        goal_type = cls.get_juction_goal_type(lane)
-                elif lane.link.successor is None:
-                    goal_type = 'straight-on'
-                    # TODO adjacent lanes should share same goal
-                elif (visible_region is not None
-                      and not visible_region.contains(np.reshape(goal_location, (2, 1))).all()):
-                    goal_type = 'straight-on'
+            if junction is not None:
+                if junction.junction_group is not None and junction.junction_group.type == 'roundabout':
+                    # check if it is a roundabout exit
+                    successor_in_roundabout = (len(lane.link.successor) == 1
+                        and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
+                    if not successor_in_roundabout:
+                        goal_type = 'exit-roundabout'
+                else:
+                    goal_type = cls.get_juction_goal_type(lane)
+            elif lane.link.successor is None:
+                goal_type = 'straight-on'
+                # TODO adjacent lanes should share same goal
+            elif (visible_region is not None
+                  and not visible_region.contains(np.reshape(goal_location, (2, 1))).all()):
+                goal_type = 'straight-on'
 
             if goal_type is None:
                 neighbours = lane.traversable_neighbours()
@@ -104,11 +96,11 @@ class GoalGenerator:
         for goals in lane_goals:
             for goal in goals:
                 for goal_loc in goal_loc_goals:
-                    if np.allclose(goal_loc, goal.goal.center, atol=1.):
+                    if np.allclose(goal_loc, goal.goal.center.coords[0], atol=1.):
                         goal_loc_goals[goal_loc].append(goal)
                         break
                 else:
-                    goal_loc_goals[goal.goal.center] = [goal]
+                    goal_loc_goals[goal.goal.center.coords[0]] = [goal]
 
         # select best typed goal for each goal location
         typed_goals = []
@@ -159,8 +151,11 @@ class GoalGenerator:
         start_heading = lane.get_heading_at(0)
         end_heading = lane.get_heading_at(lane.length)
         heading_change = np.diff(np.unwrap([start_heading, end_heading]))[0]
+        junction = lane.parent_road.junction
 
-        if np.pi * 7 / 8 > heading_change > np.pi / 8:
+        if junction.junction_group is not None and junction.junction_group.type == 'roundabout':
+            goal_type = 'exit-roundabout'
+        elif np.pi * 7 / 8 > heading_change > np.pi / 8:
             goal_type = 'turn-left'
         elif -np.pi * 7 / 8 < heading_change < -np.pi / 8:
             goal_type = 'turn-right'
