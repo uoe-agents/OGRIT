@@ -155,6 +155,7 @@ def prepare_episode_dataset(params):
 def main():
     parser = argparse.ArgumentParser(description='Process the dataset')
     parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
+    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=4)
     args = parser.parse_args()
 
     if args.scenario is None:
@@ -172,7 +173,7 @@ def main():
     # for params in params_list:
     #     prepare_episode_dataset(params)
 
-    with Pool(4) as p:
+    with Pool(args.workers) as p:
         p.map(prepare_episode_dataset, params_list)
 
 
