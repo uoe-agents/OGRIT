@@ -3,9 +3,7 @@ import json
 from multiprocessing import Pool
 from typing import Dict, List
 
-import numpy as np
 import pandas as pd
-import igp2 as ip
 from igp2 import AgentState
 from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
