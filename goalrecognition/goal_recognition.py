@@ -9,43 +9,10 @@ from core.feature_extraction import FeatureExtractor
 from goalrecognition.metrics import entropy
 
 
-class BayesianGoalRecogniser:
-
-    def __init__(self, goal_priors, scenario_map, goal_locs):
-        self.goal_priors = goal_priors
-        self.feature_extractor = FeatureExtractor(scenario_map)
-        self.scenario_map = scenario_map
-        self.goal_locs = goal_locs
-
-    def goal_likelihood(self, goal_idx, frames, goal, agent_id):
-        raise NotImplementedError
+class GoalRecogniser:
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
         raise NotImplementedError
-
-    def goal_probabilities(self, frames, agent_id):
-        state_history = [f[agent_id] for f in frames]
-        current_state = state_history[-1]
-        trajectory = VelocityTrajectory.from_agent_states(state_history)
-        #TODO get trajectory from state
-        typed_goals = self.feature_extractor.get_typed_goals(trajectory, self.goal_locs)
-        goal_probs = []
-        for goal_idx, typed_goal in enumerate(typed_goals):
-            if typed_goal is None:
-                goal_prob = 0
-            else:
-                route = typed_goal.lane_path
-                # get un-normalised "probability"
-                prior = self.get_goal_prior(goal_idx, route)
-                if prior == 0:
-                    goal_prob = 0
-                else:
-                    likelihood = self.goal_likelihood(goal_idx, frames, typed_goal, agent_id)
-                    goal_prob = likelihood * prior
-            goal_probs.append(goal_prob)
-        goal_probs = np.array(goal_probs)
-        goal_probs = goal_probs / goal_probs.sum()
-        return goal_probs
 
     def batch_goal_probabilities(self, dataset):
         """
@@ -84,8 +51,15 @@ class BayesianGoalRecogniser:
                        & (dataset.agent_id == row.agent_id)
                        & (dataset.frame_id == row.frame_id))
             goals = dataset.loc[indices][['possible_goal', 'goal_type', 'model_likelihood']]
-            goals = goals.merge(self.goal_priors, 'left', left_on=['possible_goal', 'goal_type'],
-                                right_on=['true_goal', 'true_goal_type'])
+
+            if isinstance(self.goal_priors, pd.DataFrame):
+                goals = goals.merge(self.goal_priors, 'left', left_on=['possible_goal', 'goal_type'],
+                                    right_on=['true_goal', 'true_goal_type'])
+            else:
+                # use uniform prior for now
+                num_goal_types = goals.goal_type.unique().shape[0]
+                goals['prior'] = 1.0 / num_goal_types
+
             goals['model_prob'] = goals.model_likelihood * goals.prior
             goals['model_prob'] = goals.model_prob / goals.model_prob.sum()
             idx = goals['model_prob'].idxmax()
@@ -118,6 +92,47 @@ class BayesianGoalRecogniser:
 
     @classmethod
     def load(cls, scenario_name):
+        raise NotImplementedError
+
+
+class FixedGoalRecogniser(GoalRecogniser):
+
+    def __init__(self, goal_priors, scenario_map, goal_locs):
+        self.goal_priors = goal_priors
+        self.feature_extractor = FeatureExtractor(scenario_map)
+        self.scenario_map = scenario_map
+        self.goal_locs = goal_locs
+
+    def goal_likelihood(self, goal_idx, frames, goal, agent_id):
+        raise NotImplementedError
+
+    def goal_likelihood_from_features(self, features, goal_type, goal):
+        raise NotImplementedError
+
+    def goal_probabilities(self, frames, agent_id):
+        state_history = [f[agent_id] for f in frames]
+        trajectory = VelocityTrajectory.from_agent_states(state_history)
+        typed_goals = self.feature_extractor.get_typed_goals(trajectory, self.goal_locs)
+        goal_probs = []
+        for goal_idx, typed_goal in enumerate(typed_goals):
+            if typed_goal is None:
+                goal_prob = 0
+            else:
+                route = typed_goal.lane_path
+                # get un-normalised "probability"
+                prior = self.get_goal_prior(goal_idx, route)
+                if prior == 0:
+                    goal_prob = 0
+                else:
+                    likelihood = self.goal_likelihood(goal_idx, frames, typed_goal, agent_id)
+                    goal_prob = likelihood * prior
+            goal_probs.append(goal_prob)
+        goal_probs = np.array(goal_probs)
+        goal_probs = goal_probs / goal_probs.sum()
+        return goal_probs
+
+    @classmethod
+    def load(cls, scenario_name):
         priors = cls.load_priors(scenario_name)
         scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
         scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
@@ -136,7 +151,7 @@ class BayesianGoalRecogniser:
             return float(prior_series)
 
 
-class PriorBaseline(BayesianGoalRecogniser):
+class PriorBaseline(FixedGoalRecogniser):
 
     def goal_likelihood(self, goal_idx, frames, route, agent_id):
         return 0.5

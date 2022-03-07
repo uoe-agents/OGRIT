@@ -5,7 +5,7 @@ import argparse
 
 from core.base import get_base_dir
 from core.data_processing import get_dataset
-from decisiontree.dt_goal_recogniser import TrainedDecisionTrees
+from decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, HandcraftedGoalTrees
 from goalrecognition.goal_recognition import PriorBaseline
 
 
@@ -14,27 +14,35 @@ def main():
 
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenario', type=str, help='Name of scenario to validate', default=None)
+    parser.add_argument('--models', type=str, help='List of models, comma separated', default=None)
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg']#, 'round']
+        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
     else:
         scenario_names = [args.scenario]
 
     # print('loading episodes')
     # episodes = scenario.load_episodes()
 
-    models = {'prior_baseline': PriorBaseline,
-              #'handcrafted_trees': HandcraftedGoalTrees,
-              'trained_trees': TrainedDecisionTrees}
+    model_classes = {'prior_baseline': PriorBaseline,
+                     'handcrafted_trees': HandcraftedGoalTrees,
+                     'grit': Grit,
+                     'generalised_grit': GeneralisedGrit,
+                     'grit_uniform_prior': UniformPriorGrit}
 
-    accuracies = pd.DataFrame(index=models.keys(), columns=scenario_names)
-    accuracies_sem = pd.DataFrame(index=models.keys(), columns=scenario_names)
-    cross_entropies = pd.DataFrame(index=models.keys(), columns=scenario_names)
-    entropies = pd.DataFrame(index=models.keys(), columns=scenario_names)
-    norm_entropies = pd.DataFrame(index=models.keys(), columns=scenario_names)
-    avg_max_prob = pd.DataFrame(index=models.keys(), columns=scenario_names)
-    avg_min_prob = pd.DataFrame(index=models.keys(), columns=scenario_names)
+    if args.models is None:
+        model_names = list(model_classes.keys())
+    else:
+        model_names = args.models.split(',')
+
+    accuracies = pd.DataFrame(index=model_names, columns=scenario_names)
+    accuracies_sem = pd.DataFrame(index=model_names, columns=scenario_names)
+    cross_entropies = pd.DataFrame(index=model_names, columns=scenario_names)
+    entropies = pd.DataFrame(index=model_names, columns=scenario_names)
+    norm_entropies = pd.DataFrame(index=model_names, columns=scenario_names)
+    avg_max_prob = pd.DataFrame(index=model_names, columns=scenario_names)
+    avg_min_prob = pd.DataFrame(index=model_names, columns=scenario_names)
 
     predictions = {}
     dataset_name = 'test'
@@ -43,8 +51,9 @@ def main():
         dataset = get_dataset(scenario_name, dataset_name)
         dataset_predictions = {}
 
-        for model_name, model in models.items():
-            model = model.load(scenario_name)
+        for model_name in model_names:
+            model_class = model_classes[model_name]
+            model = model_class.load(scenario_name)
             unique_samples = model.batch_goal_probabilities(dataset)
             unique_samples['model_correct'] = (unique_samples['model_prediction']
                                                == unique_samples['true_goal'])
@@ -83,10 +92,9 @@ def main():
     print(avg_min_prob)
 
     for scenario_name in scenario_names:
-
         #fig, axs = plt.subplots(2, 2)
         fig, ax = plt.subplots()
-        for idx, (model_name, model) in enumerate(models.items()):
+        for idx, model_name in enumerate(model_names):
             #ax = axs[idx // 2, idx % 2]
             unique_samples = predictions[scenario_name][model_name]
             fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')
@@ -95,7 +103,6 @@ def main():
             accuracy.rename(columns={'model_correct': model_name}).plot(ax=ax)
             plt.fill_between(accuracy_sem.index, (accuracy + accuracy_sem).model_correct.to_numpy(),
                              (accuracy - accuracy_sem).model_correct.to_numpy(), alpha=0.2)
-
             # save results
             accuracy_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
             accuracy.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
@@ -105,7 +112,7 @@ def main():
         plt.show()
 
         fig, ax = plt.subplots()
-        for model_name, model in models.items():
+        for model_name in model_names:
             unique_samples = predictions[scenario_name][model_name]
             fraction_observed_grouped = unique_samples[['model_entropy', 'fraction_observed']].groupby('fraction_observed')
             entropy_norm = fraction_observed_grouped.mean()

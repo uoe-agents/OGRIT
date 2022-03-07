@@ -14,7 +14,7 @@ from core.base import get_scenario_config_dir, get_data_dir
 from loguru import logger
 from core.tracks_import import read_from_csv
 from core.track_visualizer import TrackVisualizer
-from decisiontree.dt_goal_recogniser import TrainedDecisionTrees, HandcraftedGoalTrees
+from decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees
 from goalrecognition.goal_recognition import PriorBaseline
 
 
@@ -99,7 +99,7 @@ if __name__ == '__main__':
         get_data_dir() + '{}_e{}.csv'.format(config['scenario'], config["episode"]))
 
     goal_recognisers = {'prior': PriorBaseline,
-                        'trained_trees': TrainedDecisionTrees,
+                        'trained_trees': Grit,
                         'handcrafted_trees': HandcraftedGoalTrees}
 
     if config['goal_recogniser'] is not None:

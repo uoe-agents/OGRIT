@@ -1,4 +1,8 @@
 import pickle
+from typing import Union
+
+import pandas as pd
+pd.options.mode.chained_assignment = None
 
 import pydot
 from sklearn.tree import _tree
@@ -65,17 +69,20 @@ class Node:
 
         return recurse(0)
 
-    def set_values(self, training_samples, goal, alpha=0):
+    def set_values(self, samples: pd.DataFrame, goal: Union[int, str], alpha=0):
+        # check if we are using generalised goal trees (one tree per goal type)
+        possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
+        samples['has_goal'] = samples.possible_goal == samples.true_goal
+        goal_training_samples = samples.loc[possible_goal == goal]
 
-        goal_training_samples = training_samples.loc[training_samples.possible_goal == goal]
         N = goal_training_samples.shape[0]
-        Ng = (goal_training_samples.true_goal == goal).sum()
+        Ng = goal_training_samples.has_goal.sum()
         goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
         non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
         feature_names = [*FeatureExtractor.feature_names]
 
         def recurse(node, node_samples):
-            Nng = node_samples.loc[node_samples.true_goal == goal].shape[0]
+            Nng = node_samples.loc[node_samples.has_goal].shape[0]
             Nn = node_samples.shape[0]
             Nng_norm = (Nng + alpha) * goal_normaliser
             Nn_norm = Nng_norm + (Nn - Nng + alpha) * non_goal_normaliser

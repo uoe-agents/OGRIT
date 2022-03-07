@@ -3,7 +3,7 @@ import pandas as pd
 
 from decisiontree.decision_tree import Node, ThresholdDecision, BinaryDecision
 from core.feature_extraction import FeatureExtractor
-from decisiontree.dt_goal_recogniser import TrainedDecisionTrees
+from decisiontree.dt_goal_recogniser import Grit
 
 
 def add_tree(root, name, features, solver):
@@ -155,7 +155,7 @@ def verify_proposition(solver, expression):
 
 def main():
     scenario_name = 'heckstrasse'
-    model = TrainedDecisionTrees.load(scenario_name)
+    model = Grit.load(scenario_name)
     reachable_goals = [(1, 'straight-on'), (2, 'turn-left')]
 
     s = Solver()

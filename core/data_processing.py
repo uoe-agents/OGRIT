@@ -29,7 +29,9 @@ def get_dataset(scenario_name, subset='train', features=True):
             get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx, subset))
         episode_training_set['episode'] = episode_idx
         episode_training_sets.append(episode_training_set)
+        break  # TODO temp
     training_set = pd.concat(episode_training_sets)
+
     if features:
         return training_set
     else:
@@ -37,6 +39,16 @@ def get_dataset(scenario_name, subset='train', features=True):
                                             'true_goal', 'true_goal_type', 'fraction_observed']
                                             ].drop_duplicates().reset_index()
         return unique_training_samples
+
+
+def get_multi_scenario_dataset(scenario_names: List[str], subset='train') -> pd.DataFrame:
+    scenario_datasets = []
+    for scenario_idx, scenario_name in enumerate(scenario_names):
+        scenario_dataset = get_dataset(scenario_name, subset)
+        scenario_dataset['scenario'] = scenario_idx
+        scenario_datasets.append(scenario_dataset)
+    dataset = pd.concat(scenario_datasets)
+    return dataset
 
 
 def get_goal_priors(training_set, goal_types, alpha=0):
@@ -49,7 +61,6 @@ def get_goal_priors(training_set, goal_types, alpha=0):
     goal_counts['goal_count'] += agent_goals.groupby(['true_goal', 'true_goal_type']).size()
     goal_counts = goal_counts.fillna(0)
 
-    # plt.show()
     goal_priors = ((goal_counts.goal_count + alpha) / (agent_goals.shape[0] + alpha * goal_counts.shape[0])).rename('prior')
     goal_priors = goal_priors.reset_index()
     return goal_priors
