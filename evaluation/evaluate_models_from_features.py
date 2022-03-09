@@ -22,11 +22,8 @@ def main():
     else:
         scenario_names = [args.scenario]
 
-    # print('loading episodes')
-    # episodes = scenario.load_episodes()
-
     model_classes = {'prior_baseline': PriorBaseline,
-                     'handcrafted_trees': HandcraftedGoalTrees,
+                     #'handcrafted_trees': HandcraftedGoalTrees,
                      'grit': Grit,
                      'generalised_grit': GeneralisedGrit,
                      'grit_uniform_prior': UniformPriorGrit}
@@ -92,38 +89,24 @@ def main():
     print(avg_min_prob)
 
     for scenario_name in scenario_names:
-        #fig, axs = plt.subplots(2, 2)
-        fig, ax = plt.subplots()
         for idx, model_name in enumerate(model_names):
-            #ax = axs[idx // 2, idx % 2]
             unique_samples = predictions[scenario_name][model_name]
             fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')
             accuracy = fraction_observed_grouped.mean()
             accuracy_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
-            accuracy.rename(columns={'model_correct': model_name}).plot(ax=ax)
-            plt.fill_between(accuracy_sem.index, (accuracy + accuracy_sem).model_correct.to_numpy(),
-                             (accuracy - accuracy_sem).model_correct.to_numpy(), alpha=0.2)
+
             # save results
             accuracy_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
             accuracy.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
-        plt.xlabel('fraction of trajectory observed')
-        plt.title('Accuracy ({})'.format(scenario_name))
-        plt.ylim([0, 1])
-        plt.show()
 
-        fig, ax = plt.subplots()
         for model_name in model_names:
             unique_samples = predictions[scenario_name][model_name]
             fraction_observed_grouped = unique_samples[['model_entropy', 'fraction_observed']].groupby('fraction_observed')
             entropy_norm = fraction_observed_grouped.mean()
             entropy_norm_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
-            entropy_norm.rename(columns={'model_entropy': model_name}).plot(ax=ax)
-            plt.fill_between(entropy_norm_sem.index, (entropy_norm + entropy_norm_sem).model_entropy.to_numpy(),
-                             (entropy_norm - entropy_norm_sem).model_entropy.to_numpy(), alpha=0.2)
-        plt.xlabel('fraction of trajectory observed')
-        plt.title('Normalised Entropy ({})'.format(scenario_name))
-        plt.ylim([0, 1])
-        plt.show()
+            # save results
+            entropy_norm_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm_sem.csv')
+            entropy_norm.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm.csv')
 
 
 if __name__ == '__main__':

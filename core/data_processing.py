@@ -29,7 +29,6 @@ def get_dataset(scenario_name, subset='train', features=True):
             get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx, subset))
         episode_training_set['episode'] = episode_idx
         episode_training_sets.append(episode_training_set)
-        break  # TODO temp
     training_set = pd.concat(episode_training_sets)
 
     if features:
