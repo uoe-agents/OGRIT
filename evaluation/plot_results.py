@@ -46,9 +46,9 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
         entropy_norm_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm_sem.csv')
         entropy_norm = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm.csv')
 
-        plt.plot(entropy_norm.fraction_observed, entropy_norm.model_entropy, label=model_name, marker=next(marker))
-        plt.fill_between(entropy_norm_sem.fraction_observed, (entropy_norm + entropy_norm_sem).model_entropy.to_numpy(),
-                         (entropy_norm - entropy_norm_sem).model_entropy.to_numpy(), alpha=0.2)
+        plt.plot(entropy_norm.fraction_observed, entropy_norm.model_entropy_norm, label=model_name, marker=next(marker))
+        plt.fill_between(entropy_norm_sem.fraction_observed, (entropy_norm + entropy_norm_sem).model_entropy_norm.to_numpy(),
+                         (entropy_norm - entropy_norm_sem).model_entropy_norm.to_numpy(), alpha=0.2)
     plt.ylim([0, 1.1])
     plt.legend()
 

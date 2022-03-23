@@ -101,7 +101,7 @@ def main():
 
         for model_name in model_names:
             unique_samples = predictions[scenario_name][model_name]
-            fraction_observed_grouped = unique_samples[['model_entropy', 'fraction_observed']].groupby('fraction_observed')
+            fraction_observed_grouped = unique_samples[['model_entropy_norm', 'fraction_observed']].groupby('fraction_observed')
             entropy_norm = fraction_observed_grouped.mean()
             entropy_norm_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
             # save results
