@@ -1,9 +1,9 @@
 from z3 import *
 import pandas as pd
 
-from decisiontree.decision_tree import Node, ThresholdDecision, BinaryDecision
-from core.feature_extraction import FeatureExtractor
-from decisiontree.dt_goal_recogniser import Grit
+from grit.decisiontree.decision_tree import Node, ThresholdDecision, BinaryDecision
+from grit.core.feature_extraction import FeatureExtractor
+from grit.decisiontree.dt_goal_recogniser import Grit
 
 
 def add_tree(root, name, features, solver):

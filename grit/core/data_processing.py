@@ -1,6 +1,4 @@
-import argparse
 import json
-from multiprocessing import Pool
 from typing import Dict, List
 
 import pandas as pd
@@ -9,13 +7,13 @@ from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 
-from core.feature_extraction import FeatureExtractor, GoalDetector
+from grit.core.feature_extraction import FeatureExtractor, GoalDetector
 
-from core.base import get_data_dir, get_scenario_config_dir, get_base_dir
+from grit.core.base import get_data_dir, get_base_dir
 
 
 def load_dataset_splits():
-    with open(get_base_dir() + '/core/dataset_split.json', 'r') as f:
+    with open(get_base_dir() + '/grit/core/dataset_split.json', 'r') as f:
         return json.load(f)
 
 
@@ -173,30 +171,3 @@ def prepare_episode_dataset(params):
     samples = extract_samples(feature_extractor, scenario, episode)
     samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Process the dataset')
-    parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
-    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=4)
-    args = parser.parse_args()
-
-    if args.scenario is None:
-        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
-    else:
-        scenarios = [args.scenario]
-
-    params_list = []
-    for scenario_name in scenarios:
-        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
-        for episode_idx in range(len(scenario_config.episodes)):
-            params_list.append((scenario_name, episode_idx))
-
-    # prepare_episode_dataset(('heckstrasse', 0))
-
-    with Pool(args.workers) as p:
-        p.map(prepare_episode_dataset, params_list)
-
-
-if __name__ == '__main__':
-    main()

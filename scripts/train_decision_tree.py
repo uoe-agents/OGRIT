@@ -1,6 +1,8 @@
 import argparse
+import json
 
-from decisiontree.dt_goal_recogniser import GeneralisedGrit
+from grit.core.base import get_dt_config_dir
+from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
 
 
 def main():
@@ -13,12 +15,11 @@ def main():
     else:
         scenario_names = [args.scenario]
 
-    grit = GeneralisedGrit.train(scenario_names,
-                                 criterion='entropy',
-                                 min_samples_leaf=10,
-                                 max_depth=7,
-                                 ccp_alpha=0.003)
-    grit.save()
+    for scenario_name in scenario_names:
+        with open(get_dt_config_dir() + scenario_name + '.json') as f:
+            dt_params = json.load(f)
+        model = DecisionTreeGoalRecogniser.train(scenario_name, **dt_params)
+        model.save(scenario_name)
 
 
 if __name__ == '__main__':

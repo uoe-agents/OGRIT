@@ -4,7 +4,7 @@ import numpy as np
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
 from shapely.geometry import Point, LineString
 
-from core.goal_generator import TypedGoal, GoalGenerator
+from grit.core.goal_generator import TypedGoal, GoalGenerator
 
 
 class FeatureExtractor:

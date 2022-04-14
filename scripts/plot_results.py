@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from core.base import get_base_dir
+from grit.core.base import get_base_dir
 import itertools
 
 plt.style.use('ggplot')

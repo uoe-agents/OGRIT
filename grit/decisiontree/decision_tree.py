@@ -7,7 +7,7 @@ pd.options.mode.chained_assignment = None
 import pydot
 from sklearn.tree import _tree
 
-from core.feature_extraction import FeatureExtractor
+from grit.core.feature_extraction import FeatureExtractor
 
 
 class Node:

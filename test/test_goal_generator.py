@@ -1,11 +1,10 @@
 import numpy as np
-from igp2.agents.agentstate import AgentState
-from igp2.goal import PointGoal
+from igp2 import AgentState
 from igp2.opendrive.map import Map
 from igp2.trajectory import VelocityTrajectory
 from igp2.util import Circle
 
-from core.goal_generator import GoalGenerator, TypedGoal
+from grit.core.goal_generator import GoalGenerator
 
 
 def goal_in_list(goals, goal_type, goal_center):

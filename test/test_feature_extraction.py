@@ -1,13 +1,11 @@
-from collections import Counter
-
 import numpy as np
 import pytest
-from igp2.agents.agentstate import AgentState
+from igp2 import AgentState
 from igp2.goal import PointGoal
 from igp2.opendrive.map import Map
 
-from core.feature_extraction import FeatureExtractor
-from core.goal_generator import TypedGoal
+from grit.core.feature_extraction import FeatureExtractor
+from grit.core.goal_generator import TypedGoal
 
 
 def get_feature_extractor():

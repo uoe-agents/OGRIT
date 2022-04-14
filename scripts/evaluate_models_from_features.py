@@ -3,10 +3,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 
-from core.base import get_base_dir
-from core.data_processing import get_dataset
-from decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, HandcraftedGoalTrees
-from goalrecognition.goal_recognition import PriorBaseline
+from grit.core.base import get_base_dir
+from grit.core.data_processing import get_dataset
+from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit
+from grit.goalrecognition.goal_recognition import PriorBaseline
 
 
 def main():

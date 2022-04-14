@@ -1,11 +1,10 @@
 import pandas as pd
 import numpy as np
-from z3 import *
 
-from decisiontree.decision_tree import Node, BinaryDecision, ThresholdDecision
-from decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
+from grit.decisiontree.decision_tree import Node, BinaryDecision, ThresholdDecision
+from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
 from core.scenario import Scenario, ScenarioConfig, Frame, AgentState
-from evaluation.verification import add_goal_tree_model
+from scripts.evaluation.verification import add_goal_tree_model
 from test.lanelet_test_helpers import get_test_map
 
 

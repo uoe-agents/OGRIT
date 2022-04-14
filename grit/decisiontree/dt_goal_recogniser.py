@@ -6,12 +6,12 @@ from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
 from sklearn import tree
 
-from core.base import get_data_dir, get_scenario_config_dir, get_img_dir
-from core.data_processing import get_goal_priors, get_dataset, get_multi_scenario_dataset
-from decisiontree.decision_tree import Node
-from core.feature_extraction import FeatureExtractor
-from decisiontree.handcrafted_trees import scenario_trees
-from goalrecognition.goal_recognition import FixedGoalRecogniser, GoalRecogniser
+from grit.core.base import get_data_dir, get_img_dir
+from grit.core.data_processing import get_goal_priors, get_dataset, get_multi_scenario_dataset
+from grit.decisiontree.decision_tree import Node
+from grit.core.feature_extraction import FeatureExtractor
+from grit.decisiontree.handcrafted_trees import scenario_trees
+from grit.goalrecognition.goal_recognition import FixedGoalRecogniser, GoalRecogniser
 
 
 class DecisionTreeGoalRecogniser(FixedGoalRecogniser):

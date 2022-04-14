@@ -7,13 +7,13 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import skimage.io
-from core.feature_extraction import FeatureExtractor
+from grit.core.feature_extraction import FeatureExtractor
 from matplotlib.widgets import Button, Slider
 from loguru import logger
 import matplotlib.image as mpimg
 
-from core.base import get_img_dir
-from decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
+from grit.core.base import get_img_dir
+from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
 
 
 class TrackVisualizer(object):

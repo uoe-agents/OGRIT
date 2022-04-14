@@ -10,12 +10,12 @@ import pandas as pd
 from igp2.data.scenario import ScenarioConfig, InDScenario
 from igp2.opendrive.map import Map
 
-from core.base import get_scenario_config_dir, get_data_dir
+from grit.core.base import get_data_dir
 from loguru import logger
-from core.tracks_import import read_from_csv
-from core.track_visualizer import TrackVisualizer
-from decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees
-from goalrecognition.goal_recognition import PriorBaseline
+from grit.core.tracks_import import read_from_csv
+from grit.core.track_visualizer import TrackVisualizer
+from grit.decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees
+from grit.goalrecognition.goal_recognition import PriorBaseline
 
 
 def create_args():
