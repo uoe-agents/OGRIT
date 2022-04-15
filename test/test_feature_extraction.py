@@ -9,12 +9,12 @@ from grit.core.goal_generator import TypedGoal
 
 
 def get_feature_extractor():
-    scenario_map = Map.parse_from_opendrive(f"../maps/heckstrasse.xodr")
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/heckstrasse.xodr")
     return FeatureExtractor(scenario_map)
 
 
 def test_angle_in_lane_straight():
-    scenario_map = Map.parse_from_opendrive(f"../maps/heckstrasse.xodr")
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/heckstrasse.xodr")
     state = AgentState(time=0,
                        position=np.array((28.9, -21.5)),
                        velocity=np.array((0, 0)),
@@ -26,7 +26,7 @@ def test_angle_in_lane_straight():
 
 
 def test_angle_in_lane_curved():
-    scenario_map = Map.parse_from_opendrive(f"../maps/heckstrasse.xodr")
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/heckstrasse.xodr")
     state = AgentState(time=0,
                        position=np.array((28.9, -21.5)),
                        velocity=np.array((0, 0)),
@@ -197,3 +197,12 @@ def test_oncoming_vehicle():
     agent_id, dist = feature_extractor.oncoming_vehicle(0, path, frame)
     assert agent_id == 1
     assert dist == pytest.approx(32.4, 1)
+
+
+def test_road_heading():
+    feature_extractor = get_feature_extractor()
+    scenario_map = feature_extractor.scenario_map
+    lane_path = [scenario_map.get_lane(1, 1, 0),
+                 scenario_map.get_lane(5, -1, 0)]
+    road_heading = feature_extractor.road_heading(lane_path)
+    assert road_heading == pytest.approx(np.pi * 0.3, np.pi * 0.01)

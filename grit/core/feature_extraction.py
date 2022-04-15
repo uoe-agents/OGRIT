@@ -19,7 +19,8 @@ class FeatureExtractor:
                      'vehicle_in_front_dist': 'scalar',
                      'vehicle_in_front_speed': 'scalar',
                      'oncoming_vehicle_dist': 'scalar',
-                     'oncoming_vehicle_speed': 'scalar'}
+                     'oncoming_vehicle_speed': 'scalar',
+                     'road_heading': 'scalar'}
 
     def __init__(self, scenario_map: Map):
         self.scenario_map = scenario_map
@@ -47,6 +48,7 @@ class FeatureExtractor:
         in_correct_lane = self.in_correct_lane(lane_path)
         path_to_goal_length = self.path_to_goal_length(current_state, goal, lane_path)
         angle_in_lane = self.angle_in_lane(current_state, current_lane)
+        road_heading = self.road_heading(lane_path)
 
         goal_type = goal.goal_type
 
@@ -73,6 +75,7 @@ class FeatureExtractor:
                 'vehicle_in_front_speed': vehicle_in_front_speed,
                 'oncoming_vehicle_dist': oncoming_vehicle_dist,
                 'oncoming_vehicle_speed': oncoming_vehicle_speed,
+                'road_heading': road_heading,
                 'goal_type': goal_type}
 
     @staticmethod
@@ -100,6 +103,14 @@ class FeatureExtractor:
         lane_heading = lane.get_heading_at(lon)
         angle_diff = np.diff(np.unwrap([lane_heading, state.heading]))[0]
         return angle_diff
+
+    @staticmethod
+    def road_heading(lane_path: List[Lane]):
+        lane = lane_path[-1]
+        start_heading = lane.get_heading_at(0)
+        end_heading = lane.get_heading_at(lane.length)
+        heading_change = np.diff(np.unwrap([start_heading, end_heading]))[0]
+        return heading_change
 
     @staticmethod
     def in_correct_lane(lane_path: List[Lane]):
