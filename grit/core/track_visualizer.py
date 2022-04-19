@@ -376,7 +376,7 @@ class TrackVisualizer(object):
 
         for goal_idx in goal_idxes:
             goal_data = agent_data.loc[agent_data.possible_goal==goal_idx]
-            goal_type = agent_data.goal_type.iloc[0]
+            goal_type = goal_data.goal_type.iloc[0]
             fig = plt.figure(np.random.randint(0, 5000, 1))
             fig.canvas.mpl_connect('close_event', lambda evt: self.close_track_info_figure(evt, track_id))
             fig.canvas.mpl_connect('resize_event', lambda evt: fig.tight_layout())
@@ -386,13 +386,13 @@ class TrackVisualizer(object):
 
             for feature_idx, feature in enumerate(features):
                 feature_data = goal_data[['frame_id', feature]]
-                sub_plot = plt.subplot(3, 3, feature_idx + 1, title=feature)
+                sub_plot = plt.subplot(3, 4, feature_idx + 1, title=feature)
                 plt.plot(feature_data.frame_id, feature_data[feature])
                 borders = [feature_data[feature].min() - 1, feature_data[feature].max() + 1]
                 plt.plot([self.current_frame, self.current_frame], borders, "--r")
                 plt.xlabel('frame')
                 sub_plot.grid(True)
-
+                
             pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
             png_str = pydot_tree.create_png(prog='dot')
             sio = io.BytesIO()
