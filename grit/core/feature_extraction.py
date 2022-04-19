@@ -229,7 +229,7 @@ class FeatureExtractor:
         ego_junction_lane = self.get_junction_lane(lane_path)
         if ego_junction_lane is None:
             return oncoming_vehicles
-
+        ego_junction_lane_boundary = ego_junction_lane.boundary.buffer(0)
         lanes_to_cross = self._get_lanes_to_cross(ego_junction_lane)
 
         agent_lanes = [(i, self.scenario_map.best_lane_at(s.position, s.heading, True)) for i, s in frame.items()]
@@ -237,7 +237,7 @@ class FeatureExtractor:
         for lane_to_cross in lanes_to_cross:
             lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
             midline = self.get_lane_path_midline(lane_sequence)
-            crossing_point = lane_to_cross.boundary.intersection(ego_junction_lane.boundary).centroid
+            crossing_point = lane_to_cross.boundary.buffer(0).intersection(ego_junction_lane_boundary).centroid
             crossing_lon = midline.project(crossing_point)
 
             # find agents in lane to cross
@@ -253,6 +253,7 @@ class FeatureExtractor:
     def _get_lanes_to_cross(self, ego_lane: Lane) -> List[Lane]:
         ego_road = ego_lane.parent_road
         ego_incoming_lane = ego_lane.link.predecessor[0]
+        ego_lane_boundary = ego_lane.boundary.buffer(0)
         lanes = []
         for connection in ego_road.junction.connections:
             for lane_link in connection.lane_links:
@@ -260,7 +261,7 @@ class FeatureExtractor:
                 same_predecessor = (ego_incoming_lane.id == lane_link.from_id
                                     and ego_incoming_lane.parent_road.id == connection.incoming_road.id)
                 if not (same_predecessor or self._has_priority(ego_road, lane.parent_road)):
-                    overlap = ego_lane.boundary.intersection(lane.boundary)
+                    overlap = ego_lane_boundary.intersection(lane.boundary.buffer(0))
                     if overlap.area > 1:
                         lanes.append(lane)
         return lanes
