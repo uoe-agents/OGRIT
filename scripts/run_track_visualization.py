@@ -14,7 +14,7 @@ from grit.core.base import get_data_dir
 from loguru import logger
 from grit.core.tracks_import import read_from_csv
 from grit.core.track_visualizer import TrackVisualizer
-from grit.decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees
+from grit.decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees, GeneralisedGrit
 from grit.goalrecognition.goal_recognition import PriorBaseline
 
 
@@ -100,6 +100,7 @@ if __name__ == '__main__':
 
     goal_recognisers = {'prior': PriorBaseline,
                         'trained_trees': Grit,
+                        'generalised_grit': GeneralisedGrit,
                         'handcrafted_trees': HandcraftedGoalTrees}
 
     if config['goal_recogniser'] is not None:

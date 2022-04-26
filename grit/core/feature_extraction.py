@@ -20,7 +20,8 @@ class FeatureExtractor:
                      'vehicle_in_front_speed': 'scalar',
                      'oncoming_vehicle_dist': 'scalar',
                      'oncoming_vehicle_speed': 'scalar',
-                     'road_heading': 'scalar'}
+                     'road_heading': 'scalar',
+                     'exit_number': 'scalar'}
 
     def __init__(self, scenario_map: Map):
         self.scenario_map = scenario_map
@@ -40,6 +41,7 @@ class FeatureExtractor:
 
         current_frame = frames[-1]
         current_state = current_frame[agent_id]
+        initial_state = frames[0][agent_id]
         current_lane = goal.lane_path[0]
         lane_path = goal.lane_path
 
@@ -49,7 +51,7 @@ class FeatureExtractor:
         path_to_goal_length = self.path_to_goal_length(current_state, goal, lane_path)
         angle_in_lane = self.angle_in_lane(current_state, current_lane)
         road_heading = self.road_heading(lane_path)
-
+        exit_number = self.exit_number(initial_state, lane_path)
         goal_type = goal.goal_type
 
         vehicle_in_front_id, vehicle_in_front_dist = self.vehicle_in_front(agent_id, lane_path, current_frame)
@@ -76,6 +78,7 @@ class FeatureExtractor:
                 'oncoming_vehicle_dist': oncoming_vehicle_dist,
                 'oncoming_vehicle_speed': oncoming_vehicle_speed,
                 'road_heading': road_heading,
+                'exit_number': exit_number,
                 'goal_type': goal_type}
 
     @staticmethod
@@ -294,6 +297,37 @@ class FeatureExtractor:
                 closest_vehicle_id = agent_id
         return closest_vehicle_id, min_dist
 
+    def exit_number(self, initial_state: AgentState, future_lane_path: List[Lane]):
+        # get the exit number in a roundabout
+        if future_lane_path[-1].parent_road.junction.junction_group.type != 'roundabout':
+            return 0
+
+        position = initial_state.position
+        heading = initial_state.heading
+        possible_lanes = self.scenario_map.lanes_within_angle(position, heading, np.pi / 4,
+                                                         drivable_only=True, max_distance=3)
+        initial_lane = possible_lanes[GoalGenerator.get_best_lane(possible_lanes, position, heading)]
+
+        lane_path = self.path_to_lane(initial_lane, future_lane_path[-1])
+
+        # iterate through lane path and count number of junctions
+        exit_number = 0
+        for lane in lane_path:
+            if self.is_roundabout_junction(lane) and not self.is_roundabout_entrance(lane):
+                exit_number += 1
+
+        return exit_number
+
+    def is_roundabout_junction(self, lane: Lane):
+        junction = lane.parent_road.junction
+        return (junction is not None and junction.junction_group is not None
+                and junction.junction_group.type == 'roundabout')
+
+    def is_roundabout_entrance(self, lane: Lane) -> bool:
+        predecessor_in_roundabout = (len(lane.link.predecessor) == 1
+                                   and self.scenario_map.road_in_roundabout(lane.link.predecessor[0].parent_road))
+        return self.is_roundabout_junction(lane) and not predecessor_in_roundabout
+
     def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]]):
         typed_goals = []
         goal_gen = GoalGenerator()
@@ -310,6 +344,30 @@ class FeatureExtractor:
     @staticmethod
     def goal_type(route: List[Lane]):
         return GoalGenerator.get_juction_goal_type(route[-1])
+
+    @staticmethod
+    def path_to_lane(initial_lane: Lane, target_lane: Lane, max_depth=20) -> List[Lane]:
+        visited_lanes = {initial_lane}
+        open_set = [[initial_lane]]
+
+        while len(open_set) > 0:
+            lane_sequence = open_set.pop(0)
+            if len(lane_sequence) > max_depth:
+                break
+
+            lane = lane_sequence[-1]
+            if lane == target_lane:
+                return lane_sequence
+
+            junction = lane.parent_road.junction
+
+            neighbours = lane.traversable_neighbours()
+            for neighbour in neighbours:
+                if neighbour not in visited_lanes:
+                    visited_lanes.add(neighbour)
+                    open_set.append(lane_sequence + [neighbour])
+
+        return None
 
 
 class GoalDetector:

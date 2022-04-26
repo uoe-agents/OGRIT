@@ -33,8 +33,8 @@ class Node:
 
     def __str__(self):
         text = ''
-        #text += '{0:.3f} {1}\n'.format(self.value, self.counts)
-        text += '{0:.3f}\n'.format(self.value)
+        text += '{0:.3f} {1}\n'.format(self.value, self.counts)
+        #text += '{0:.3f}\n'.format(self.value)
         if self.decision is not None:
             text += str(self.decision)
         return text

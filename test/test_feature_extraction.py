@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from igp2 import AgentState
+from igp2 import AgentState, VelocityTrajectory
 from igp2.goal import PointGoal
 from igp2.opendrive.map import Map
 
@@ -206,3 +206,55 @@ def test_road_heading():
                  scenario_map.get_lane(5, -1, 0)]
     road_heading = feature_extractor.road_heading(lane_path)
     assert road_heading == pytest.approx(np.pi * 0.3, np.pi * 0.01)
+
+
+def test_path_to_lane():
+    feature_extractor = get_feature_extractor()
+    scenario_map = feature_extractor.scenario_map
+    lane_path = [scenario_map.get_lane(1, 1, 0),
+                 scenario_map.get_lane(1, 2, 0),
+                 scenario_map.get_lane(7, -1, 0)]
+    path_to_lane = feature_extractor.path_to_lane(lane_path[0], lane_path[-1])
+    assert path_to_lane == lane_path
+
+
+def test_exit_number_1():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
+    feature_extractor = FeatureExtractor(scenario_map)
+    state = AgentState(time=0,
+                       position=np.array((71.9, -76.1)),
+                       velocity=np.array((0., 0.)),
+                       acceleration=np.array((0, 0)),
+                       heading=np.pi * 3/8
+                       )
+    lane_path = [scenario_map.get_lane(18, -1, 0)]
+    exit_number = feature_extractor.exit_number(state, lane_path)
+    assert exit_number == 1
+
+
+def test_exit_number_3():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
+    feature_extractor = FeatureExtractor(scenario_map)
+    state = AgentState(time=0,
+                       position=np.array((71.9, -76.1)),
+                       velocity=np.array((0., 0.)),
+                       acceleration=np.array((0, 0)),
+                       heading=np.pi * 3/8
+                       )
+    lane_path = [scenario_map.get_lane(11, -1, 0)]
+    exit_number = feature_extractor.exit_number(state, lane_path)
+    assert exit_number == 3
+
+
+def test_exit_number_3():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
+    feature_extractor = FeatureExtractor(scenario_map)
+    state = AgentState(time=0,
+                       position=np.array((71.9, -76.1)),
+                       velocity=np.array((0., 0.)),
+                       acceleration=np.array((0, 0)),
+                       heading=np.pi * 3/8
+                       )
+    lane_path = [scenario_map.get_lane(11, -1, 0)]
+    exit_number = feature_extractor.exit_number(state, lane_path)
+    assert exit_number == 3
