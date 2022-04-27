@@ -13,7 +13,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg']#, 'round']
     else:
         scenarios = [args.scenario]
 
@@ -23,7 +23,7 @@ def main():
         for episode_idx in range(len(scenario_config.episodes)):
             params_list.append((scenario_name, episode_idx))
 
-    #prepare_episode_dataset(('round', 0))
+    # prepare_episode_dataset(('round', 14))
 
     with Pool(args.workers) as p:
         p.map(prepare_episode_dataset, params_list)

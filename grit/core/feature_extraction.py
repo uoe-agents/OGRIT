@@ -314,9 +314,10 @@ class FeatureExtractor:
 
         # iterate through lane path and count number of junctions
         exit_number = 0
-        for lane in lane_path:
-            if self.is_roundabout_junction(lane) and not self.is_roundabout_entrance(lane):
-                exit_number += 1
+        if lane_path is not None:
+            for lane in lane_path:
+                if self.is_roundabout_junction(lane) and not self.is_roundabout_entrance(lane):
+                    exit_number += 1
 
         return exit_number
 
