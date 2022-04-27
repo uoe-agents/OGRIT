@@ -299,7 +299,9 @@ class FeatureExtractor:
 
     def exit_number(self, initial_state: AgentState, future_lane_path: List[Lane]):
         # get the exit number in a roundabout
-        if future_lane_path[-1].parent_road.junction.junction_group.type != 'roundabout':
+        if (future_lane_path[-1].parent_road.junction is None
+                or future_lane_path[-1].parent_road.junction.junction_group is None
+                or future_lane_path[-1].parent_road.junction.junction_group.type != 'roundabout'):
             return 0
 
         position = initial_state.position
