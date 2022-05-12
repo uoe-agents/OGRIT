@@ -1,6 +1,6 @@
 import argparse
 
-from grit.decisiontree.dt_goal_recogniser import GeneralisedGrit
+from grit.decisiontree.dt_goal_recogniser import OcclusionGrit
 
 
 def main():
@@ -13,7 +13,7 @@ def main():
     else:
         scenario_names = [args.scenario]
 
-    grit = GeneralisedGrit.train(scenario_names,
+    grit = OcclusionGrit.train(scenario_names,
                                  criterion='entropy',
                                  min_samples_leaf=10,
                                  max_depth=3,

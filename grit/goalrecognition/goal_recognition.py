@@ -4,7 +4,7 @@ from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
 from igp2.trajectory import VelocityTrajectory
 
-from grit.core.base import get_data_dir
+from grit.core.base import get_data_dir, get_base_dir
 from grit.core.feature_extraction import FeatureExtractor
 from grit.goalrecognition.metrics import entropy
 
@@ -134,8 +134,8 @@ class FixedGoalRecogniser(GoalRecogniser):
     @classmethod
     def load(cls, scenario_name):
         priors = cls.load_priors(scenario_name)
-        scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
-        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"scenarios/maps/{scenario_name}.xodr")
+        scenario_config = ScenarioConfig.load(get_base_dir() + f"scenarios/configs/{scenario_name}.json")
         return cls(priors, scenario_map, scenario_config.goals)
 
     @staticmethod

@@ -5,7 +5,7 @@ import argparse
 
 from grit.core.base import get_base_dir
 from grit.core.data_processing import get_dataset
-from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit
+from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit
 from grit.goalrecognition.goal_recognition import PriorBaseline
 
 
@@ -23,7 +23,7 @@ def main():
         scenario_names = [args.scenario]
 
     model_classes = {'prior_baseline': PriorBaseline,
-                     #'handcrafted_trees': HandcraftedGoalTrees,
+                     'occlusion_grit': OcclusionGrit,
                      'grit': Grit,
                      'generalised_grit': GeneralisedGrit,
                      'grit_uniform_prior': UniformPriorGrit}
@@ -31,7 +31,7 @@ def main():
     if args.models is None:
         model_names = list(model_classes.keys())
     else:
-        model_names = args.models.split(',')
+        model_names = args.models._recursive_split(',')
 
     accuracies = pd.DataFrame(index=model_names, columns=scenario_names)
     accuracies_sem = pd.DataFrame(index=model_names, columns=scenario_names)

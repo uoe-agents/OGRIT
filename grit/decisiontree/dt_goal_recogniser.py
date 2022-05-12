@@ -7,7 +7,7 @@ from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
 from sklearn import tree
 
-from grit.core.base import get_data_dir, get_img_dir
+from grit.core.base import get_data_dir, get_img_dir, get_base_dir
 from grit.core.data_processing import get_goal_priors, get_dataset, get_multi_scenario_dataset
 from grit.decisiontree.decision_tree import Node
 from grit.core.feature_extraction import FeatureExtractor
@@ -124,6 +124,10 @@ class GeneralisedGrit(GoalRecogniser):
         self.feature_extractor = feature_extractor
         self.goal_locs = goal_locs
 
+    @staticmethod
+    def get_model_name():
+        return 'generalised_grit'
+
     @classmethod
     def train(cls, scenario_names: List[str], alpha=1, criterion='gini', min_samples_leaf=1,
               max_leaf_nodes=None, max_depth=None, ccp_alpha=0):
@@ -155,8 +159,9 @@ class GeneralisedGrit(GoalRecogniser):
     def save(self):
         for goal_type, goal_tree in self.decision_trees.items():
             pydot_tree = goal_tree.pydot_tree()
-            pydot_tree.write_png(get_img_dir() + f'trained_tree_{goal_type}.png')
-        with open(get_data_dir() + 'trained_trees_generalised.p', 'wb') as f:
+
+            pydot_tree.write_png(get_img_dir() + f'{self.get_model_name()}_{goal_type}.png')
+        with open(get_data_dir() + f'{self.get_model_name()}.p', 'wb') as f:
             pickle.dump(self.decision_trees, f)
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
@@ -169,11 +174,11 @@ class GeneralisedGrit(GoalRecogniser):
 
     @classmethod
     def load(cls, scenario_name):
-        with open(get_data_dir() + 'trained_trees_generalised.p', 'rb') as f:
+        with open(get_data_dir() + f'{cls.get_model_name()}.p', 'rb') as f:
             decision_trees = pickle.load(f)
         priors = np.ones(len(decision_trees)) / len(decision_trees)
-        scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
-        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
+        scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
         feature_extractor = FeatureExtractor(scenario_map)
         return cls(priors, decision_trees, feature_extractor, scenario_config.goals)
 
@@ -200,3 +205,28 @@ class GeneralisedGrit(GoalRecogniser):
         goal_probs = np.array(goal_probs)
         goal_probs = goal_probs / goal_probs.sum()
         return goal_probs
+
+
+class OcclusionGrit(GeneralisedGrit):
+
+    @staticmethod
+    def get_model_name():
+        return 'occlusion_grit'
+
+    @classmethod
+    def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1,
+              max_leaf_nodes=None, max_depth=None, ccp_alpha=0):
+        dataset = get_multi_scenario_dataset(scenario_names)
+        decision_trees = {}
+        goal_types = dataset.goal_type.unique()
+        for goal_type in goal_types:
+            dt_training_set = dataset.loc[dataset.goal_type == goal_type]
+            if dt_training_set.shape[0] > 0:
+                goal_tree = Node.fit(dt_training_set, goal_type, alpha=alpha, min_samples_leaf=min_samples_leaf,
+                                     max_depth=max_depth)
+            else:
+                goal_tree = Node(0.5)
+
+            decision_trees[goal_type] = goal_tree
+        priors = np.ones(len(decision_trees)) / len(decision_trees)
+        return cls(priors, decision_trees)

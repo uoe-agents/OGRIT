@@ -1,7 +1,10 @@
 import pickle
 from typing import Union
 
+import numpy as np
 import pandas as pd
+from scipy.special import xlogy
+
 pd.options.mode.chained_assignment = None
 
 import pydot
@@ -10,12 +13,52 @@ from sklearn.tree import _tree
 from grit.core.feature_extraction import FeatureExtractor
 
 
+class Decision:
+
+    def __init__(self, feature_name, true_child, false_child):
+        self.feature_name = feature_name
+        self.true_child = true_child
+        self.false_child = false_child
+
+    def rule(self, features):
+        raise NotImplementedError
+
+    def select_child(self, features):
+        if self.rule(features):
+            return self.true_child
+        else:
+            return self.false_child
+
+
+class BinaryDecision(Decision):
+
+    def rule(self, features):
+        return features[self.feature_name]
+
+    def __str__(self):
+        return self.feature_name + '\n'
+
+
+class ThresholdDecision(Decision):
+
+    def __init__(self, threshold, *args):
+        super().__init__(*args)
+        self.threshold = threshold
+
+    def rule(self, features):
+        return features[self.feature_name] > self.threshold
+
+    def __str__(self):
+        return '{} > {:.2f}\n'.format(self.feature_name, self.threshold)
+
+
 class Node:
-    def __init__(self, value, decision=None):
+    def __init__(self, value, decision=None, level=0):
         self.value = value
         self.decision = decision
         self.counts = [None, None]
         self.reached = False
+        self.level = level
 
     def traverse(self, features):
         self.reached = True
@@ -34,7 +77,7 @@ class Node:
     def __str__(self):
         text = ''
         text += '{0:.3f} {1}\n'.format(self.value, self.counts)
-        #text += '{0:.3f}\n'.format(self.value)
+        # text += '{0:.3f}\n'.format(self.value)
         if self.decision is not None:
             text += str(self.decision)
         return text
@@ -99,12 +142,93 @@ class Node:
 
         recurse(self, goal_training_samples)
 
+    @classmethod
+    def fit(cls, samples: pd.DataFrame, goal: Union[int, str], alpha=0, min_samples_leaf=1, max_depth=None):
+        possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
+        samples['has_goal'] = samples.possible_goal == samples.true_goal
+        goal_training_samples = samples.loc[possible_goal == goal]
+
+        N = goal_training_samples.shape[0]
+        Ng = goal_training_samples.has_goal.sum()
+        goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
+        non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
+
+        def _recursive_split(node: Node, node_samples: pd.DataFrame):
+
+            if (node_samples.has_goal.nunique() != 1
+                    and node_samples.shape[0] > min_samples_leaf
+                    and (max_depth is None or node.level < max_depth)):
+
+                # find best decision
+                best_impurity_decrease = 0
+                impurity = cls.cross_entropy(node_samples, goal_normaliser, non_goal_normaliser)
+
+                for feature in FeatureExtractor.feature_names.keys():
+                    print(f'depth {node.level}, feature {feature}')
+                    feature_values = node_samples[feature].unique()
+                    if feature_values.shape[0] == 1:
+                        continue
+                    thresholds = (feature_values[:-1] + feature_values[1:]) / 2
+                    for threshold in thresholds.tolist():
+
+                        true_idx = node_samples[feature] > threshold
+                        true_samples = node_samples.loc[true_idx]
+                        false_samples = node_samples.loc[~true_idx]
+                        true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser, non_goal_normaliser, alpha)
+                        false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser, non_goal_normaliser, alpha)
+                        true_impurity = cls.cross_entropy(true_samples, goal_normaliser, non_goal_normaliser)
+                        false_impurity = cls.cross_entropy(false_samples, goal_normaliser, non_goal_normaliser)
+
+                        Nn = node_samples.shape[0]
+                        Nnt = true_samples.shape[0]
+                        Nnf = false_samples.shape[0]
+                        impurity_decrease = Nn / N * (impurity - Nnt / Nn * true_impurity
+                                                               - Nnf / Nn * false_impurity)
+                        if impurity_decrease > best_impurity_decrease:
+                            best_impurity_decrease = impurity_decrease
+                            node.decision = ThresholdDecision(threshold, feature, true_child, false_child)
+
+                    # TODO vectorise if slow
+
+                if node.decision is not None:
+                    true_idx = node.decision.rule(node_samples)
+                    _recursive_split(node.decision.true_child, node_samples.loc[true_idx])
+                    _recursive_split(node.decision.false_child, node_samples.loc[~true_idx])
+            return node
+
+        root = cls.get_node(goal_training_samples, 0, goal_normaliser, non_goal_normaliser, alpha)
+        _recursive_split(root, goal_training_samples)
+        return root
+
+    @staticmethod
+    def cross_entropy(samples: pd.DataFrame, goal_normaliser=1., non_goal_normaliser=1., alpha=0.) -> float:
+        Nng = samples.loc[samples.has_goal].shape[0]
+        Nn = samples.shape[0]
+        Nng_norm = (Nng + alpha) * goal_normaliser
+        Nn_norm = Nng_norm + (Nn - Nng + alpha) * non_goal_normaliser
+        pg = Nng / Nn
+        png = 1 - pg
+        return - goal_normaliser * xlogy(pg, pg) - non_goal_normaliser * xlogy(png, png)
+        #return - (xlogy(value, value) + xlogy(1 - value, 1 - value))
+
+    @classmethod
+    def get_node(cls, node_samples: pd.DataFrame, level, goal_normaliser: float, non_goal_normaliser: float, alpha=0.):
+        Nng = node_samples.loc[node_samples.has_goal].shape[0]
+        Nn = node_samples.shape[0]
+        Nng_norm = (Nng + alpha) * goal_normaliser
+        Nn_norm = Nng_norm + (Nn - Nng + alpha) * non_goal_normaliser
+        value = Nng_norm / Nn_norm
+        #value = Nng / Nn
+        node = cls(value, level=level)
+        node.counts = [Nng, Nn - Nng]
+        return node
+
     def pydot_tree(self):
         graph = pydot.Dot(graph_type='digraph')
 
         def recurse(graph, root, idx='R'):
             if root.reached:
-                node = pydot.Node(idx, label=str(root),  style='filled', color="lightblue")
+                node = pydot.Node(idx, label=str(root), style='filled', color="lightblue")
             else:
                 node = pydot.Node(idx, label=str(root))
             graph.add_node(node)
@@ -128,43 +252,3 @@ class Node:
     def load(cls, filename):
         with open(filename, 'rb') as f:
             return pickle.load(f)
-
-
-class Decision:
-
-    def __init__(self, feature_name, true_child, false_child):
-        self.feature_name = feature_name
-        self.true_child = true_child
-        self.false_child = false_child
-
-    def rule(self, features):
-        raise NotImplementedError
-
-    def select_child(self, features):
-        if self.rule(features):
-            return self.true_child
-        else:
-            return self.false_child
-
-
-class BinaryDecision(Decision):
-
-    def rule(self, features):
-        return features[self.feature_name]
-
-    def __str__(self):
-        return self.feature_name + '\n'
-
-
-class ThresholdDecision(Decision):
-
-    def __init__(self, threshold, *args):
-        super().__init__(*args)
-        self.threshold = threshold
-
-    def rule(self, features):
-        return features[self.feature_name] > self.threshold
-
-    def __str__(self):
-        return '{} > {:.2f}\n'.format(self.feature_name, self.threshold)
-
