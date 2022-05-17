@@ -215,18 +215,26 @@ class OcclusionGrit(GeneralisedGrit):
 
     @classmethod
     def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1,
-              max_leaf_nodes=None, max_depth=None, ccp_alpha=0):
+              max_leaf_nodes=None, max_depth=None, ccp_alpha=0.):
         dataset = get_multi_scenario_dataset(scenario_names)
         decision_trees = {}
         goal_types = dataset.goal_type.unique()
+        decision_trees = cls.load(scenario_names[0]).decision_trees
         for goal_type in goal_types:
+            # TODO tempory for faster debug
+            # if goal_type != 'straight-on':
+            #     goal_tree = Node(0.5)
+            #     decision_trees[goal_type] = goal_tree
+            #     continue
+
             dt_training_set = dataset.loc[dataset.goal_type == goal_type]
             if dt_training_set.shape[0] > 0:
                 goal_tree = Node.fit(dt_training_set, goal_type, alpha=alpha, min_samples_leaf=min_samples_leaf,
-                                     max_depth=max_depth)
+                                     max_depth=max_depth, ccp_alpha=ccp_alpha)
             else:
                 goal_tree = Node(0.5)
 
             decision_trees[goal_type] = goal_tree
+
         priors = np.ones(len(decision_trees)) / len(decision_trees)
         return cls(priors, decision_trees)

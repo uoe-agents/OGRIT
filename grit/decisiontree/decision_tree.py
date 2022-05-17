@@ -143,7 +143,8 @@ class Node:
         recurse(self, goal_training_samples)
 
     @classmethod
-    def fit(cls, samples: pd.DataFrame, goal: Union[int, str], alpha=0, min_samples_leaf=1, max_depth=None):
+    def fit(cls, samples: pd.DataFrame, goal: Union[int, str], alpha=0, min_samples_leaf=1, max_depth=None,
+            ccp_alpha=0.):
         possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
         samples['has_goal'] = samples.possible_goal == samples.true_goal
         goal_training_samples = samples.loc[possible_goal == goal]
@@ -174,8 +175,6 @@ class Node:
                         true_idx = node_samples[feature] > threshold
                         true_samples = node_samples.loc[true_idx]
                         false_samples = node_samples.loc[~true_idx]
-                        true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser, non_goal_normaliser, alpha)
-                        false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser, non_goal_normaliser, alpha)
                         true_impurity = cls.cross_entropy(true_samples, goal_normaliser, non_goal_normaliser)
                         false_impurity = cls.cross_entropy(false_samples, goal_normaliser, non_goal_normaliser)
 
@@ -186,6 +185,10 @@ class Node:
                                                                - Nnf / Nn * false_impurity)
                         if impurity_decrease > best_impurity_decrease:
                             best_impurity_decrease = impurity_decrease
+                            true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser,
+                                                      non_goal_normaliser, alpha)
+                            false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
+                                                       non_goal_normaliser, alpha)
                             node.decision = ThresholdDecision(threshold, feature, true_child, false_child)
 
                     # TODO vectorise if slow
@@ -198,18 +201,54 @@ class Node:
 
         root = cls.get_node(goal_training_samples, 0, goal_normaliser, non_goal_normaliser, alpha)
         _recursive_split(root, goal_training_samples)
+
+        if ccp_alpha > 0:
+            root.prune(goal_training_samples, N, ccp_alpha, goal_normaliser, non_goal_normaliser)
+
         return root
+
+    def post_prune(self, samples: pd.DataFrame, goal: Union[int, str], alpha=0, min_samples_leaf=1, max_depth=None,
+            ccp_alpha=0.):
+        possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
+        samples['has_goal'] = samples.possible_goal == samples.true_goal
+        goal_training_samples = samples.loc[possible_goal == goal]
+        N = goal_training_samples.shape[0]
+        Ng = goal_training_samples.has_goal.sum()
+        goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
+        non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
+        self.prune(goal_training_samples, N, ccp_alpha, goal_normaliser, non_goal_normaliser)
+
+    def prune(self, node_samples: pd.DataFrame, total_samples: int, ccp_alpha=0., goal_normaliser=1.,
+              non_goal_normaliser=1.):
+
+        if self.decision is not None:
+            impurity = self.cross_entropy(node_samples, goal_normaliser, non_goal_normaliser)
+            true_idx = self.decision.rule(node_samples)
+            true_samples = node_samples.loc[true_idx]
+            false_samples = node_samples.loc[~true_idx]
+
+            self.decision.true_child.prune(true_samples, total_samples, ccp_alpha, goal_normaliser, non_goal_normaliser)
+            self.decision.false_child.prune(false_samples, total_samples, ccp_alpha, goal_normaliser, non_goal_normaliser)
+
+            if self.decision.true_child.decision is None and self.decision.true_child.decision is None:
+                true_impurity = self.cross_entropy(true_samples, goal_normaliser, non_goal_normaliser)
+                false_impurity = self.cross_entropy(false_samples, goal_normaliser, non_goal_normaliser)
+
+                Nn = node_samples.shape[0]
+                Nnt = true_samples.shape[0]
+                Nnf = false_samples.shape[0]
+                impurity_decrease = Nn / total_samples * (impurity - Nnt / Nn * true_impurity
+                                                                   - Nnf / Nn * false_impurity)
+                if impurity_decrease <= ccp_alpha:
+                    self.decision = None
 
     @staticmethod
     def cross_entropy(samples: pd.DataFrame, goal_normaliser=1., non_goal_normaliser=1., alpha=0.) -> float:
         Nng = samples.loc[samples.has_goal].shape[0]
         Nn = samples.shape[0]
-        Nng_norm = (Nng + alpha) * goal_normaliser
-        Nn_norm = Nng_norm + (Nn - Nng + alpha) * non_goal_normaliser
-        pg = Nng / Nn
+        pg = (Nng + alpha) / (Nn + 2 * alpha)
         png = 1 - pg
         return - goal_normaliser * xlogy(pg, pg) - non_goal_normaliser * xlogy(png, png)
-        #return - (xlogy(value, value) + xlogy(1 - value, 1 - value))
 
     @classmethod
     def get_node(cls, node_samples: pd.DataFrame, level, goal_normaliser: float, non_goal_normaliser: float, alpha=0.):

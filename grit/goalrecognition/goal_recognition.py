@@ -134,8 +134,8 @@ class FixedGoalRecogniser(GoalRecogniser):
     @classmethod
     def load(cls, scenario_name):
         priors = cls.load_priors(scenario_name)
-        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"scenarios/maps/{scenario_name}.xodr")
-        scenario_config = ScenarioConfig.load(get_base_dir() + f"scenarios/configs/{scenario_name}.json")
+        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
+        scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
         return cls(priors, scenario_map, scenario_config.goals)
 
     @staticmethod
