@@ -164,34 +164,54 @@ class Node:
                 best_impurity_decrease = 0
                 impurity = cls.cross_entropy(node_samples, goal_normaliser, non_goal_normaliser)
 
+                Nn = node_samples.shape[0]
+                Nng = node_samples.loc[node_samples.has_goal].shape[0]
+
                 for feature in FeatureExtractor.feature_names.keys():
                     print(f'depth {node.level}, feature {feature}')
-                    feature_values = node_samples[feature].unique()
-                    if feature_values.shape[0] == 1:
-                        continue
-                    thresholds = (feature_values[:-1] + feature_values[1:]) / 2
-                    for threshold in thresholds.tolist():
 
+                    # find best threshold
+                    df = node_samples[[feature, 'has_goal']].sort_values(feature)
+                    df['Nnt'] = np.arange(1, df.shape[0] + 1)
+                    df['Nng_true'] = df.has_goal.cumsum()
+                    df.drop_duplicates(feature, inplace=True, keep='last')
+                    if df.shape[0] < 2:
+                        continue
+                    df['Nnf'] = Nn - df.Nnt
+                    df['Nng_false'] = Nng - df.Nng_true
+                    df['threshold'] = df[feature].rolling(2).mean().shift(-1)
+                    df = df[:-1]
+
+                    df['pg_true'] = (df.Nng_true + alpha) / (df.Nnt + 2 * alpha)
+                    df['png_true'] = 1 - df.pg_true
+
+                    df['pg_false'] = (df.Nng_false + alpha) / (df.Nnf + 2 * alpha)
+                    df['png_false'] = 1 - df.pg_false
+
+                    df['impurity_true'] = (
+                            - goal_normaliser * xlogy(df.pg_true, df.pg_true)
+                            - non_goal_normaliser * xlogy(df.png_true, df.png_true))
+                    df['impurity_false'] = (
+                            - goal_normaliser * xlogy(df.pg_false, df.pg_false)
+                            - non_goal_normaliser * xlogy(df.png_false, df.png_false))
+                    df['impurity_decrease'] = Nn / N * (
+                            impurity - df.Nnt / Nn * df.impurity_true
+                            - df.Nnf / Nn * df.impurity_false)
+
+                    best = df.loc[df.impurity_decrease.idxmax(), :]
+                    impurity_decrease = float(best.impurity_decrease)
+                    threshold = float(best.threshold)
+
+                    if impurity_decrease > best_impurity_decrease:
+                        best_impurity_decrease = impurity_decrease
                         true_idx = node_samples[feature] > threshold
                         true_samples = node_samples.loc[true_idx]
                         false_samples = node_samples.loc[~true_idx]
-                        true_impurity = cls.cross_entropy(true_samples, goal_normaliser, non_goal_normaliser)
-                        false_impurity = cls.cross_entropy(false_samples, goal_normaliser, non_goal_normaliser)
-
-                        Nn = node_samples.shape[0]
-                        Nnt = true_samples.shape[0]
-                        Nnf = false_samples.shape[0]
-                        impurity_decrease = Nn / N * (impurity - Nnt / Nn * true_impurity
-                                                               - Nnf / Nn * false_impurity)
-                        if impurity_decrease > best_impurity_decrease:
-                            best_impurity_decrease = impurity_decrease
-                            true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser,
-                                                      non_goal_normaliser, alpha)
-                            false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
-                                                       non_goal_normaliser, alpha)
-                            node.decision = ThresholdDecision(threshold, feature, true_child, false_child)
-
-                    # TODO vectorise if slow
+                        true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser,
+                                                  non_goal_normaliser, alpha)
+                        false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
+                                                   non_goal_normaliser, alpha)
+                        node.decision = ThresholdDecision(threshold, feature, true_child, false_child)
 
                 if node.decision is not None:
                     true_idx = node.decision.rule(node_samples)
