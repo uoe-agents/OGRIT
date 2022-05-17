@@ -6,6 +6,7 @@ import itertools
 plt.style.use('ggplot')
 
 model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior']
+#model_names = ['generalised_grit', 'grit_uniform_prior']
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
 
