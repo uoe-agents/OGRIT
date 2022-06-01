@@ -9,11 +9,11 @@ from grit.core.data_processing import prepare_episode_dataset
 def main():
     parser = argparse.ArgumentParser(description='Process the dataset')
     parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
-    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=4)
+    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=2)
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg']#, 'round']
     else:
         scenarios = [args.scenario]
 
@@ -23,7 +23,7 @@ def main():
         for episode_idx in range(len(scenario_config.episodes)):
             params_list.append((scenario_name, episode_idx))
 
-    #prepare_episode_dataset(('frankenberg', 7))
+    # prepare_episode_dataset(('round', 14))
 
     with Pool(args.workers) as p:
         p.map(prepare_episode_dataset, params_list)

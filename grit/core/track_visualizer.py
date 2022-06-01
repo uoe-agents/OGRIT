@@ -13,7 +13,8 @@ from loguru import logger
 import matplotlib.image as mpimg
 
 from grit.core.base import get_img_dir
-from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
+from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser, GeneralisedGrit
+from igp2 import VelocityTrajectory
 
 
 class TrackVisualizer(object):
@@ -338,7 +339,10 @@ class TrackVisualizer(object):
         assert isinstance(self.goal_recogniser, DecisionTreeGoalRecogniser)
         goal_idx = self.goal_idx
         goal_type = self.goal_type
-        pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
+        if isinstance(self.goal_recogniser, GeneralisedGrit):
+            pydot_tree = self.goal_recogniser.decision_trees[goal_type].pydot_tree()
+        else:
+            pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
 
         directory = get_img_dir() + '/video_tree'
         if not os.path.exists(directory):
@@ -367,7 +371,12 @@ class TrackVisualizer(object):
         initial_frame = static_track_information["initialFrame"]
         frames = self.episode.frames[initial_frame:self.current_frame + 1]
         frames = [f.agents for f in frames]
-        goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
+
+        state_history = [f[track_id] for f in frames]
+        trajectory = VelocityTrajectory.from_agent_states(state_history)
+        typed_goals = self.goal_recogniser.feature_extractor.get_typed_goals(trajectory, self.scenario.config.goals)
+
+        #goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
 
         agent_data = self.episode_dataset.loc[self.episode_dataset.agent_id==track_id]
         goal_idxes = agent_data.possible_goal.unique()
@@ -392,8 +401,16 @@ class TrackVisualizer(object):
                 plt.plot([self.current_frame, self.current_frame], borders, "--r")
                 plt.xlabel('frame')
                 sub_plot.grid(True)
-                
-            pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
+
+
+
+            if isinstance(self.goal_recogniser, GeneralisedGrit):
+                self.goal_recogniser.goal_likelihood(frames, typed_goals[goal_idx], track_id)
+                pydot_tree = self.goal_recogniser.decision_trees[goal_type].pydot_tree()
+            else:
+                self.goal_recogniser.goal_likelihood(goal_idx, frames, typed_goals[goal_idx], track_id)
+                pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
+
             png_str = pydot_tree.create_png(prog='dot')
             sio = io.BytesIO()
             sio.write(png_str)
