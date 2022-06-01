@@ -63,15 +63,31 @@ def get_goal_priors(training_set, goal_types, alpha=0):
     return goal_priors
 
 
-def get_episode_frames(episode: Episode) -> List[Dict[int, AgentState]]:
-    """ Get all of the frames in an episode, while removing parked cars and pedestrians """
+def get_episode_frames(episode: Episode, exclude_parked_cars=True, exclude_bicycles=False, step=1) \
+        -> List[Dict[int, AgentState]]:
+    """
+    Get all of the frames in an episode, while removing pedestrians and possibly bicycles and parked cars
+
+    Args:
+        episode: Episode for which we want the frames.
+        exclude_parked_cars: True if we don't want to get the parked vehicles in the frames.
+        exclude_bicycles: True if we don't want the bicycles in the frames.
+        step: Only return a frame every `step` frames in the episode.
+    """
     episode_frames = []
 
-    for frame in episode.frames:
+    for i, frame in enumerate(episode.frames):
+        if i % step != 0:
+            continue
+
         new_frame = {}
         for agent_id, state in frame.agents.items():
             agent = episode.agents[agent_id]
-            if not (agent.parked() or agent.metadata.agent_type == 'pedestrian'):
+
+            if not ((agent.parked() and exclude_parked_cars)
+                    or agent.metadata.agent_type == 'pedestrian'
+                    or (agent.metadata.agent_type == 'bicycle'
+                        and exclude_bicycles)):
                 new_frame[agent_id] = state
         episode_frames.append(new_frame)
 
