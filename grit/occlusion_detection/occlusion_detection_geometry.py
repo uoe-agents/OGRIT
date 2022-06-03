@@ -52,7 +52,7 @@ def main(params):
 
     config = parse_args()
     if config["debug"]:
-        config["debug_steps"] = "False"
+        config["debug_steps"] = False
 
     scenario_name, episode_idx = params
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
@@ -135,7 +135,8 @@ def main(params):
 
                 if config["debug_steps"]:
                     plot_map(scenario_map, frame, obstacle_boxes)
-                    list_intersections = [] # todo:
+                    # store the intersections in the nearby lanes.
+                    list_intersections = []
 
                 for lane in lanes_nearby:
 
