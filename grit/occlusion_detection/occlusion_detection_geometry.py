@@ -1,11 +1,9 @@
-# 2nd method to detect occlusion - using geometry of bird's eye view of the map and vehicles in frame
+# todo INSTRUCTIONS: you must run the script from the base directory (...\GRIT-OpenDrive\)
 
 import igp2 as ip
 import argparse
 import json
-import time
 from typing import List
-from json.decoder import JSONDecodeError
 
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
@@ -19,23 +17,32 @@ import math
 import shapely.geometry
 from shapely.ops import unary_union
 from shapely.geometry import Polygon
-from sympy import Point, Segment # todo: only use shapely
+from sympy import Point, Segment # todo: only use shapely -- remove from requirements
 
-LINE_LENGTH = 50  # todo add description: length of total line including extension
+from scripts.preprocess_data import iterate_through_scenarios
+
+# How many meters away from the vehicle do we want to detect occlusions.
+OCCLUSION_LINE_LENGTH = 50
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="""
     This script detects what parts of the lanes are occluded using a bird's eye view of the map 
-         """, formatter_class=argparse.RawTextHelpFormatter)  # todo: improve description
+         """, formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('--debug',
-                        help="if set, we plot all the occlusions in a frame for each vehicle.",
+                        help="if set, we plot all the occlusions in a frame for each vehicle."
+                             "If --debug_steps is also True, this takes precedence and --debug_steps will be"
+                             "deactivated.",
                         action='store_true')
 
     parser.add_argument('--debug_steps',
-                        help="if set, we plot the occlusions created by each obstacle.",
+                        help="if set, we plot the occlusions created by each obstacle. "
+                             "If --debug is set, --debug_steps will be disabled.",
                         action='store_true')
+
+    parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
+    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=4)
 
     parsed_config_specification = vars(parser.parse_args())
     return parsed_config_specification
@@ -44,6 +51,8 @@ def parse_args():
 def main(params):
 
     config = parse_args()
+    if config["debug"]:
+        config["debug_steps"] = "False"
 
     scenario_name, episode_idx = params
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
@@ -81,6 +90,9 @@ def main(params):
             obstacle_boxes = [list(get_box(vehicle).boundary) for vehicle in other_vehicles] + buildings
             occlusions = {k: {} for k in scenario_map.roads.keys()}
 
+            if config["debug"]:
+                plot_map(scenario_map, frame, obstacle_boxes)
+
             for obstacle_box in obstacle_boxes:
 
                 lines = []
@@ -106,8 +118,8 @@ def main(params):
                 line1 = max_l[0]
                 line2 = max_l[1]
 
-                p1 = get_extended_point(LINE_LENGTH - line1.length, line1.slope, line1.direction, line1.points[1])
-                p2 = get_extended_point(LINE_LENGTH - line2.length, line2.slope, line2.direction, line2.points[1])
+                p1 = get_extended_point(OCCLUSION_LINE_LENGTH - line1.length, line1.slope, line1.direction, line1.points[1])
+                p2 = get_extended_point(OCCLUSION_LINE_LENGTH - line2.length, line2.slope, line2.direction, line2.points[1])
 
                 vertices = [get_shapely_point(line1.points[1]), get_shapely_point(line2.points[1]),
                             get_shapely_point(p2), get_shapely_point(p1)]
@@ -123,26 +135,30 @@ def main(params):
 
                 if config["debug_steps"]:
                     plot_map(scenario_map, frame, obstacle_boxes)
+                    list_intersections = [] # todo:
 
                 for lane in lanes_nearby:
 
-                    intersection = lane.boundary.intersection(occluded_area)
+                    intersection = lane.boundary.buffer(0).intersection(occluded_area)
+
+                    if config["debug_steps"] and intersection:
+                        list_intersections.append(intersection.exterior.xy)
 
                     if not intersection:
                         continue
 
                     road_id = lane.parent_road.id
 
-                    if config["debug_steps"]:
-                        plot_occlusions(line1, line2, occluded_area, intersection.exterior.xy)
-
                     if lane.id not in list(occlusions[road_id].keys()):
                         occlusions[road_id][lane.id] = []
 
                     occlusions[road_id][lane.id].append(intersection)
 
-            if config["debug"]:
-                plot_map(scenario_map, frame, obstacle_boxes)
+                if config["debug_steps"]:
+                    plot_occlusions(line1, line2, occluded_area, list_intersections)
+                    plt.show()
+                if config["debug"]:
+                    plot_occlusions(line1, line2, occluded_area, [])
 
             for road_nr in occlusions.keys():
                 for lane_nr in occlusions[road_nr]:
@@ -167,18 +183,9 @@ def main(params):
 
         all_occlusion_data[frame_id] = frame_occlusions
 
-    json_file_name = f"occlusions/{scenario_name}.json"
-    with open(json_file_name, 'r+') as infile:
-        try:
-            infile.seek(0)
-            json_occlusions = json.load(infile)
-            json_occlusions.update({episode_idx: all_occlusion_data})
-
-            with open(json_file_name, 'w') as outfile:
-                json.dump(json_occlusions, outfile)
-        except JSONDecodeError:
-            with open(json_file_name, 'w') as outfile:
-                json.dump({episode_idx: all_occlusion_data}, outfile)
+    json_file_name = f"occlusions/{scenario_name}_e{episode_idx}.json"
+    with open(json_file_name, 'w+') as json_file:
+        json.dump(all_occlusion_data, json_file, indent=4)
 
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
 
@@ -259,11 +266,7 @@ def plot_occlusions(line1, line2, occluded_area, lane_occlusions):
 
 if __name__ == "__main__":
 
-    start_time = time.time()
-    for scenario_name in ["heckstrasse"]:  # todo: iterate through all scenarios
-        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
-        for episode_idx in range(len(scenario_config.episodes)):
-            main((scenario_name, episode_idx))
-    print(f"Time taken: {time.time() - start_time}")
+    config = parse_args()
+    iterate_through_scenarios(main, config["scenario"], config["workers"])
 
 
