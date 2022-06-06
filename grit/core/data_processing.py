@@ -10,8 +10,11 @@ from igp2.opendrive.map import Map
 
 from grit.core.feature_extraction import FeatureExtractor, GoalDetector
 from grit.occlusion_detection.missing_feature_extraction import MissingFeatureExtractor
+from shapely.geometry import Point, Polygon, MultiPolygon
 
 from grit.core.base import get_data_dir, get_base_dir
+
+FRAME_STEP_SIZE = 25  # take a frame every 25 in the original episode frames (i.e., one per second)
 
 
 def load_dataset_splits():
@@ -126,29 +129,37 @@ def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
     return reachable_goals_list
 
 
-def extract_samples(feature_extractor, scenario, episode, *missing_feature_extractor):
+def get_first_last_frame_ids(episode, vehicle_id):
+    initial_frame_id = episode.agents[vehicle_id].metadata.initial_time / FRAME_STEP_SIZE
+    final_frame_id = episode.agents[vehicle_id].metadata.final_time / FRAME_STEP_SIZE
+    return math.ceil(initial_frame_id), math.floor(final_frame_id)
 
-    FRAME_STEP_SIZE = 25  # take a frame every 25 in the original episode frames (i.e., one per second)
 
+def extract_samples(feature_extractor, scenario, episode, missing_feature_extractor=None):
+
+    scenario_map = missing_feature_extractor.scenario_map
     episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True, step=FRAME_STEP_SIZE)
     trimmed_trajectories, goals = get_trimmed_trajectories(scenario, episode)
 
     samples_list = []
 
-    for ego_agent_idx, (ego_agent_id, _) in enumerate(trimmed_trajectories.items()):
+    for target_agent_idx, (target_agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
 
-        print('ego agent {}/{}'.format(ego_agent_idx, len(trimmed_trajectories) - 1))
+        print('target agent {}/{}'.format(target_agent_idx, len(trimmed_trajectories) - 1))
 
-        # If we don't consider occlusions, we don't care about the ego vehicle. We thus run the rest of the code once.
-        if not missing_feature_extractor and ego_agent_idx != 0:
-            break
+        reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
+        true_goal_idx = goals[target_agent_id]
 
-        for target_agent_idx, (agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
+        for ego_agent_idx, (ego_agent_id, _) in enumerate(trimmed_trajectories.items()):
 
-            print('target agent {}/{}'.format(target_agent_idx, len(trimmed_trajectories) - 1))
+            if ego_agent_id == target_agent_id:
+                continue
 
-            reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
-            true_goal_idx = goals[agent_id]
+            print('ego agent {}/{}'.format(ego_agent_idx, len(trimmed_trajectories) - 1))
+
+            # If we don't consider occlusions, we don't need the ego vehicle. We thus run the rest of the code once.
+            if not missing_feature_extractor and ego_agent_idx != 0:
+                break
 
             if reachable_goals_list[0][true_goal_idx] is not None:
 
@@ -156,29 +167,69 @@ def extract_samples(feature_extractor, scenario, episode, *missing_feature_extra
                 true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
                 true_goal_type = feature_extractor.goal_type(true_goal_route)
 
-                # iterate through "samples_per_trajectory" points
+                if missing_feature_extractor:
+                    initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
+                    initial_frame_id_ego, last_frame_id_ego = get_first_last_frame_ids(episode, ego_agent_id)
+                    initial_frame_id = max(initial_frame_id_target, initial_frame_id_ego)
+                    last_frame_id = min(last_frame_id_target, last_frame_id_ego)
+                else:
+                    initial_frame_id, last_frame_id = get_first_last_frame_ids(episode, target_agent_id)
+
                 for idx, reachable_goals in enumerate(reachable_goals_list):
-                    initial_frame_id = episode.agents[agent_id].metadata.initial_time
-                    initial_frame_id = math.ceil(initial_frame_id / FRAME_STEP_SIZE)
                     current_frame_id = initial_frame_id + idx
+
+                    if current_frame_id > last_frame_id:
+                        break
+
+                    if missing_feature_extractor:
+                        occlusions = []
+
+                        frame_occlusions = missing_feature_extractor.occlusions[str(current_frame_id)]
+                        for vehicle_occlusions in frame_occlusions:
+                            if vehicle_occlusions["ego_agent_id"] == ego_agent_id:
+                                occlusions = vehicle_occlusions["occlusions"]
+
+                        target_agent_position = episode.agents[target_agent_id].state.position
+                        l = scenario_map.lanes_at(target_agent_position)[0]
+
+                        try:
+                            lane_occlusion = occlusions[str(l.parent_road.id)][str(l.id)]
+                            lane_occlusion = [Polygon(list(zip(*xy))) for xy in lane_occlusion]
+
+                            if len(lane_occlusion) > 1:
+                                lane_occlusion = MultiPolygon(lane_occlusion)
+                            else:
+                                lane_occlusion = lane_occlusion[0]
+
+                            if lane_occlusion.contains(Point(target_agent_position)):
+                                break
+
+                        except KeyError:
+                            pass
+
                     frames = episode_frames[initial_frame_id:current_frame_id + 1]
 
-                    # iterate through each goal for that point in time
+                    # iterate through each goal for that point in time.
                     for goal_idx, typed_goal in enumerate(reachable_goals):
                         if typed_goal is not None:
 
                             if missing_feature_extractor:
-                                occlusion_features = missing_feature_extractor.extract(agent_id, frames, typed_goal, ego_agent_id)
-                            features = feature_extractor.extract(agent_id, frames, typed_goal)
+                                occlusion_features = missing_feature_extractor.extract(target_agent_id,
+                                                                                       ego_agent_id,
+                                                                                       frames,
+                                                                                       typed_goal)
+                            features = feature_extractor.extract(target_agent_id, frames, typed_goal)
 
                             sample = features.copy()
-                            sample['agent_id'] = agent_id
+                            sample['agent_id'] = target_agent_id
                             sample['possible_goal'] = goal_idx
                             sample['true_goal'] = true_goal_idx
                             sample['true_goal_type'] = true_goal_type
                             sample['frame_id'] = current_frame_id
                             sample['initial_frame_id'] = initial_frame_id
                             sample['fraction_observed'] = idx / len(reachable_goals_list)
+
+                            # todo: add the occluded features.
                             samples_list.append(sample)
 
     samples = pd.DataFrame(data=samples_list)
@@ -193,8 +244,9 @@ def prepare_episode_dataset(params):
     scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
     scenario = InDScenario(scenario_config)
     feature_extractor = FeatureExtractor(scenario_map)
-    missing_feature_extractor = MissingFeatureExtractor(scenario_map)
+    missing_feature_extractor = MissingFeatureExtractor(scenario_map, scenario_name, episode_idx)
     episode = scenario.load_episode(episode_idx)
+
 
     samples = extract_samples(feature_extractor, scenario, episode, missing_feature_extractor) # todo: always pass
     # todo: missing feature extractor?
