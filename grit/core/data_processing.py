@@ -2,12 +2,14 @@ import json
 from typing import Dict, List
 
 import pandas as pd
+import math
 from igp2 import AgentState
 from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 
 from grit.core.feature_extraction import FeatureExtractor, GoalDetector
+from grit.occlusion_detection.missing_feature_extraction import MissingFeatureExtractor
 
 from grit.core.base import get_data_dir, get_base_dir
 
@@ -124,51 +126,60 @@ def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
     return reachable_goals_list
 
 
-def extract_samples(feature_extractor, scenario, episode):
-    episode_frames = get_episode_frames(episode)
+def extract_samples(feature_extractor, scenario, episode, *missing_feature_extractor):
+
+    FRAME_STEP_SIZE = 25  # take a frame every 25 in the episode frames (i.e., one per second)
+
+    episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True, step=FRAME_STEP_SIZE)
     trimmed_trajectories, goals = get_trimmed_trajectories(scenario, episode)
 
-    samples_per_trajectory = 10
     samples_list = []
 
-    for agent_idx, (agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
+    for ego_agent_idx, (ego_agent_id, _) in enumerate(trimmed_trajectories.items()):
 
-        print('agent {}/{}'.format(agent_idx, len(trimmed_trajectories) - 1))
+        print('ego agent {}/{}'.format(ego_agent_idx, len(trimmed_trajectories) - 1))
 
-        reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
-        true_goal_idx = goals[agent_id]
+        # If we don't consider occlusions, we don't care about the ego vehicle. We thus run the rest of the code once.
+        if not missing_feature_extractor and ego_agent_idx != 0:
+            break
 
-        if (len(reachable_goals_list) > samples_per_trajectory
-                and reachable_goals_list[0][true_goal_idx] is not None):
+        for target_agent_idx, (agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
 
-            # get true goal
-            true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
-            true_goal_type = feature_extractor.goal_type(true_goal_route)
+            print('target agent {}/{}'.format(target_agent_idx, len(trimmed_trajectories) - 1))
 
-            step_size = (len(reachable_goals_list) - 1) // samples_per_trajectory
-            max_idx = step_size * samples_per_trajectory
+            reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
+            true_goal_idx = goals[agent_id]
 
-            # iterate through "samples_per_trajectory" points
-            for idx in range(0, max_idx + 1, step_size):
-                reachable_goals = reachable_goals_list[idx]
-                initial_frame_id = episode.agents[agent_id].metadata.initial_time
-                current_frame_id = initial_frame_id + idx
-                frames = episode_frames[initial_frame_id:current_frame_id + 1]
+            if reachable_goals_list[0][true_goal_idx] is not None:
 
-                # iterate through each goal for that point in time
-                for goal_idx, typed_goal in enumerate(reachable_goals):
-                    if typed_goal is not None:
-                        features = feature_extractor.extract(agent_id, frames, typed_goal)
+                # get true goal
+                true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
+                true_goal_type = feature_extractor.goal_type(true_goal_route)
 
-                        sample = features.copy()
-                        sample['agent_id'] = agent_id
-                        sample['possible_goal'] = goal_idx
-                        sample['true_goal'] = true_goal_idx
-                        sample['true_goal_type'] = true_goal_type
-                        sample['frame_id'] = current_frame_id
-                        sample['initial_frame_id'] = initial_frame_id
-                        sample['fraction_observed'] = idx / max_idx
-                        samples_list.append(sample)
+                # iterate through "samples_per_trajectory" points
+                for idx, reachable_goals in enumerate(reachable_goals_list):
+                    initial_frame_id = episode.agents[agent_id].metadata.initial_time
+                    initial_frame_id = math.floor(initial_frame_id / FRAME_STEP_SIZE)
+                    current_frame_id = initial_frame_id + idx
+                    frames = episode_frames[initial_frame_id:current_frame_id + 1]
+
+                    # iterate through each goal for that point in time
+                    for goal_idx, typed_goal in enumerate(reachable_goals):
+                        if typed_goal is not None:
+
+                            if missing_feature_extractor:
+                                occlusion_features = missing_feature_extractor.extract(agent_id, frames, typed_goal, ego_agent_id)
+                            features = feature_extractor.extract(agent_id, frames, typed_goal)
+
+                            sample = features.copy()
+                            sample['agent_id'] = agent_id
+                            sample['possible_goal'] = goal_idx
+                            sample['true_goal'] = true_goal_idx
+                            sample['true_goal_type'] = true_goal_type
+                            sample['frame_id'] = current_frame_id
+                            sample['initial_frame_id'] = initial_frame_id
+                            sample['fraction_observed'] = idx / len(reachable_goals_list)
+                            samples_list.append(sample)
 
     samples = pd.DataFrame(data=samples_list)
     return samples
@@ -182,8 +193,10 @@ def prepare_episode_dataset(params):
     scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
     scenario = InDScenario(scenario_config)
     feature_extractor = FeatureExtractor(scenario_map)
+    missing_feature_extractor = MissingFeatureExtractor(scenario_map)
     episode = scenario.load_episode(episode_idx)
 
-    samples = extract_samples(feature_extractor, scenario, episode)
+    samples = extract_samples(feature_extractor, scenario, episode, missing_feature_extractor) # todo: always pass
+    # todo: missing feature extractor?
     samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
