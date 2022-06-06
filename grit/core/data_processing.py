@@ -128,7 +128,7 @@ def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
 
 def extract_samples(feature_extractor, scenario, episode, *missing_feature_extractor):
 
-    FRAME_STEP_SIZE = 25  # take a frame every 25 in the episode frames (i.e., one per second)
+    FRAME_STEP_SIZE = 25  # take a frame every 25 in the original episode frames (i.e., one per second)
 
     episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True, step=FRAME_STEP_SIZE)
     trimmed_trajectories, goals = get_trimmed_trajectories(scenario, episode)
@@ -159,7 +159,7 @@ def extract_samples(feature_extractor, scenario, episode, *missing_feature_extra
                 # iterate through "samples_per_trajectory" points
                 for idx, reachable_goals in enumerate(reachable_goals_list):
                     initial_frame_id = episode.agents[agent_id].metadata.initial_time
-                    initial_frame_id = math.floor(initial_frame_id / FRAME_STEP_SIZE)
+                    initial_frame_id = math.ceil(initial_frame_id / FRAME_STEP_SIZE)
                     current_frame_id = initial_frame_id + idx
                     frames = episode_frames[initial_frame_id:current_frame_id + 1]
 
