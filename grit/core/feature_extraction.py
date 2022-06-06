@@ -2,7 +2,7 @@ from typing import List, Dict, Union, Tuple
 
 import numpy as np
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 
 from grit.core.goal_generator import TypedGoal, GoalGenerator
 
@@ -225,7 +225,8 @@ class FeatureExtractor:
         lane_ls = LineString(midline_points)
         return lane_ls
 
-    def _get_oncoming_vehicles(self, lane_path: List[Lane], ego_agent_id: int, frame: Dict[int, AgentState]) \
+    def _get_oncoming_vehicles(self, lane_path: List[Lane], ego_agent_id: int, frame: Dict[int, AgentState],
+                               occlusions:MultiPolygon=None) \
             -> Dict[int, Tuple[AgentState, float]]:
         oncoming_vehicles = {}
 
@@ -250,7 +251,16 @@ class FeatureExtractor:
                     agent_lon = midline.project(Point(agent_state.position))
                     dist = crossing_lon - agent_lon
                     if 0 < dist < self.MAX_ONCOMING_VEHICLE_DIST:
-                        oncoming_vehicles[agent_id] = (agent_state, dist)
+
+                        if occlusions:
+                            occluded_area = occlusions.intersection(midline)
+                            occlusion_start_dist = occluded_area.distance(crossing_point)
+
+                            if dist < occlusion_start_dist:
+                                oncoming_vehicles[agent_id] = (agent_state, dist)
+                        else:
+                            oncoming_vehicles[agent_id] = (agent_state, dist)
+
         return oncoming_vehicles
 
     def _get_lanes_to_cross(self, ego_lane: Lane) -> List[Lane]:
