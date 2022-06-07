@@ -8,6 +8,8 @@ plt.style.use('ggplot')
 model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior', 'uniform_prior_baseline']
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
+model_names = ['generalised_grit', 'occlusion_grit']
+scenario_names = ['round']
 
 # plot accuracy
 fig, axes = plt.subplots(2, 2)

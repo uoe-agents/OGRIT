@@ -32,7 +32,7 @@ class GoalRecogniser:
         model_likelihoods = []
 
         for index, row in dataset.iterrows():
-            features = row[FeatureExtractor.feature_names]
+            features = row[list(FeatureExtractor.feature_names) + FeatureExtractor.indicator_features]
             goal_type = row['goal_type']
             goal = row['possible_goal']
             model_likelihood = self.goal_likelihood_from_features(features, goal_type, goal)
