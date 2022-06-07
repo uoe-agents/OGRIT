@@ -5,8 +5,7 @@ import itertools
 
 plt.style.use('ggplot')
 
-model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior']
-#model_names = ['generalised_grit', 'grit_uniform_prior']
+model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior', 'uniform_prior_baseline']
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
 
@@ -22,12 +21,13 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
-        accuracy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
-        accuracy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
+        if model_name != 'uniform_prior_baseline':
+            accuracy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
+            accuracy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
 
-        plt.plot(accuracy.fraction_observed, accuracy.model_correct, label=model_name, marker=next(marker))
-        plt.fill_between(accuracy_sem.fraction_observed, (accuracy + accuracy_sem).model_correct.to_numpy(),
-                         (accuracy - accuracy_sem).model_correct.to_numpy(), alpha=0.2)
+            plt.plot(accuracy.fraction_observed, accuracy.model_correct, label=model_name, marker=next(marker))
+            plt.fill_between(accuracy_sem.fraction_observed, (accuracy + accuracy_sem).model_correct.to_numpy(),
+                             (accuracy - accuracy_sem).model_correct.to_numpy(), alpha=0.2)
     plt.ylim([0, 1])
     plt.legend()
 
@@ -50,6 +50,49 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
         plt.plot(entropy_norm.fraction_observed, entropy_norm.model_entropy_norm, label=model_name, marker=next(marker))
         plt.fill_between(entropy_norm_sem.fraction_observed, (entropy_norm + entropy_norm_sem).model_entropy_norm.to_numpy(),
                          (entropy_norm - entropy_norm_sem).model_entropy_norm.to_numpy(), alpha=0.2)
+    plt.ylim([0, 1.1])
+    plt.legend()
+
+
+# plot true goal probability
+fig, axes = plt.subplots(2, 2)
+
+for scenario_idx, scenario_name in enumerate(scenario_names):
+    ax = axes[scenario_idx % 2, scenario_idx // 2]
+    plt.sca(ax)
+    if scenario_idx % 2 == 1:
+        plt.xlabel('fraction of trajectory observed')
+    plt.title('True Goal Probability ({})'.format(scenario_name))
+    marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
+
+    for model_name in model_names:
+        true_goal_prob_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+        true_goal_prob = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob.csv')
+
+        plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, label=model_name, marker=next(marker))
+        plt.fill_between(true_goal_prob_sem.fraction_observed, (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
+                         (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
+    plt.ylim([0, 1.1])
+    plt.legend()
+
+# plot cross entropy
+fig, axes = plt.subplots(2, 2)
+
+for scenario_idx, scenario_name in enumerate(scenario_names):
+    ax = axes[scenario_idx % 2, scenario_idx // 2]
+    plt.sca(ax)
+    if scenario_idx % 2 == 1:
+        plt.xlabel('fraction of trajectory observed')
+    plt.title('Cross Entropy ({})'.format(scenario_name))
+    marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
+
+    for model_name in model_names:
+        cross_entropy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy_sem.csv')
+        cross_entropy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy.csv')
+
+        plt.plot(cross_entropy.fraction_observed, cross_entropy.cross_entropy, label=model_name, marker=next(marker))
+        plt.fill_between(cross_entropy.fraction_observed, (cross_entropy + cross_entropy_sem).cross_entropy.to_numpy(),
+                         (cross_entropy - cross_entropy_sem).cross_entropy.to_numpy(), alpha=0.2)
     plt.ylim([0, 1.1])
     plt.legend()
 

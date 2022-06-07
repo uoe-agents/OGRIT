@@ -16,8 +16,8 @@ def main():
     grit = OcclusionGrit.train(scenario_names,
                                  criterion='entropy',
                                  min_samples_leaf=10,
-                                 max_depth=3,
-                                 alpha=1, ccp_alpha=0.03)
+                                 max_depth=7,
+                                 alpha=1, ccp_alpha=0.003)
     grit.save()
 
 
