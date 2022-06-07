@@ -110,7 +110,7 @@ def get_trimmed_trajectories(scenario, episode):
             agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)
             if len(agent_goals) > 0:
                 end_idx = min(goal_frame_idxes)
-                trimmed_trajectory = agent.trajectory.slice(0, end_idx)
+                trimmed_trajectory = agent.trajectory ## todo modified
                 goals[agent_id] = agent_goals[-1]
                 trimmed_trajectories[agent_id] = trimmed_trajectory
     return trimmed_trajectories, goals
@@ -130,15 +130,15 @@ def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
 
 
 def get_first_last_frame_ids(episode, vehicle_id):
-    initial_frame_id = episode.agents[vehicle_id].metadata.initial_time / FRAME_STEP_SIZE
-    final_frame_id = episode.agents[vehicle_id].metadata.final_time / FRAME_STEP_SIZE
-    return math.ceil(initial_frame_id), math.floor(final_frame_id)
+    initial_frame_id = episode.agents[vehicle_id].metadata.initial_time
+    final_frame_id = episode.agents[vehicle_id].metadata.final_time
+    return initial_frame_id, final_frame_id
 
 
 def extract_samples(feature_extractor, scenario, episode, missing_feature_extractor=None):
 
     scenario_map = missing_feature_extractor.scenario_map
-    episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True, step=FRAME_STEP_SIZE)
+    episode_frames = get_episode_frames(episode)
     trimmed_trajectories, goals = get_trimmed_trajectories(scenario, episode)
 
     samples_list = []
@@ -146,9 +146,6 @@ def extract_samples(feature_extractor, scenario, episode, missing_feature_extrac
     for target_agent_idx, (target_agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
 
         print('target agent {}/{}'.format(target_agent_idx, len(trimmed_trajectories) - 1))
-
-        reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
-        true_goal_idx = goals[target_agent_id]
 
         for ego_agent_idx, (ego_agent_id, _) in enumerate(trimmed_trajectories.items()):
 
@@ -161,30 +158,47 @@ def extract_samples(feature_extractor, scenario, episode, missing_feature_extrac
             if not missing_feature_extractor and ego_agent_idx != 0:
                 break
 
-            if reachable_goals_list[0][true_goal_idx] is not None:
+            if missing_feature_extractor:
+                initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
+                initial_frame_id_ego, last_frame_id_ego = get_first_last_frame_ids(episode, ego_agent_id)
+                initial_frame_id = max(initial_frame_id_target, initial_frame_id_ego)
+                last_frame_id = min(last_frame_id_target, last_frame_id_ego)
+
+                # If the vehicles aren't alive for at least 1s, we may not have their occlusions. todo: do both have to be alive?
+                if last_frame_id_ego - initial_frame_id_ego < FRAME_STEP_SIZE or initial_frame_id > last_frame_id:
+                    continue
+
+            else:
+                initial_frame_id, last_frame_id = get_first_last_frame_ids(episode, target_agent_id)
+
+            start_trajectory_idx = initial_frame_id - initial_frame_id_target
+            end_trajectory_idx = start_trajectory_idx + min(last_frame_id, last_frame_id_target) - initial_frame_id
+            reachable_goals_list = get_trajectory_reachable_goals(trajectory.slice(start_trajectory_idx,
+                                                                                   end_trajectory_idx+1),
+                                                                  feature_extractor,
+                                                                  scenario)
+            true_goal_idx = goals[target_agent_id]
+
+            if reachable_goals_list and reachable_goals_list[0][true_goal_idx] is not None: # todo: sometimes list is empty. is it expected?
 
                 # get true goal
                 true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
                 true_goal_type = feature_extractor.goal_type(true_goal_route)
 
-                if missing_feature_extractor:
-                    initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
-                    initial_frame_id_ego, last_frame_id_ego = get_first_last_frame_ids(episode, ego_agent_id)
-                    initial_frame_id = max(initial_frame_id_target, initial_frame_id_ego)
-                    last_frame_id = min(last_frame_id_target, last_frame_id_ego)
-                else:
-                    initial_frame_id, last_frame_id = get_first_last_frame_ids(episode, target_agent_id)
-
-                for idx, reachable_goals in enumerate(reachable_goals_list):
+                for idx in range(0, len(reachable_goals_list)+1, FRAME_STEP_SIZE):
+                    reachable_goals = reachable_goals_list[idx]
                     current_frame_id = initial_frame_id + idx
 
                     if current_frame_id > last_frame_id:
                         break
 
+                    # Don't include target vehicles occluded to the ego vehicle.
                     if missing_feature_extractor:
                         occlusions = []
 
-                        frame_occlusions = missing_feature_extractor.occlusions[str(current_frame_id)]
+                        # todo: assumes that occlusions don't change much within 1 second.
+                        occlusion_frame_id = math.ceil(current_frame_id / FRAME_STEP_SIZE)
+                        frame_occlusions = missing_feature_extractor.occlusions[str(occlusion_frame_id)]
                         for vehicle_occlusions in frame_occlusions:
                             if vehicle_occlusions["ego_agent_id"] == ego_agent_id:
                                 occlusions = vehicle_occlusions["occlusions"]
@@ -205,6 +219,7 @@ def extract_samples(feature_extractor, scenario, episode, missing_feature_extrac
                                 break
 
                         except KeyError:
+                            # The lane has no occlusions and thus the vehicle is observable.
                             pass
 
                     frames = episode_frames[initial_frame_id:current_frame_id + 1]
@@ -214,10 +229,25 @@ def extract_samples(feature_extractor, scenario, episode, missing_feature_extrac
                         if typed_goal is not None:
 
                             if missing_feature_extractor:
+
+                                # plot parked vehicles # todo: delete
+                                import matplotlib.pyplot as plt
+                                from grit.occlusion_detection.occlusion_detection_geometry import get_box
+                                from igp2 import plot_map
+                                occlusion_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True,
+                                                   step=FRAME_STEP_SIZE)
+
+                                plot_map(scenario_map, scenario_config=scenario.config, plot_buildings=True)
+
+                                for agent_id, state in occlusion_frames[occlusion_frame_id].items():
+                                    plt.text(*state.position, agent_id)
+                                    plt.plot(*list(zip(*get_box(state).boundary)), color="black")
+
                                 occlusion_features = missing_feature_extractor.extract(target_agent_id,
                                                                                        ego_agent_id,
                                                                                        frames,
-                                                                                       typed_goal)
+                                                                                       typed_goal,
+                                                                                       occlusions) # todo: remove 'occlusions'
                             features = feature_extractor.extract(target_agent_id, frames, typed_goal)
 
                             sample = features.copy()
