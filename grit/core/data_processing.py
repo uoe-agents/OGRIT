@@ -9,7 +9,7 @@ from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 
 from grit.core.feature_extraction import FeatureExtractor, GoalDetector
-from grit.occlusion_detection.missing_feature_extraction import MissingFeatureExtractor
+#from grit.occlusion_detection.missing_feature_extraction import MissingFeatureExtractor
 from shapely.geometry import Point, Polygon, MultiPolygon
 
 from grit.core.base import get_data_dir, get_base_dir

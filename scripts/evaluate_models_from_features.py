@@ -6,7 +6,7 @@ import argparse
 from grit.core.base import get_base_dir
 from grit.core.data_processing import get_dataset
 from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit
-from grit.goalrecognition.goal_recognition import PriorBaseline
+from grit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
 def main():
@@ -23,6 +23,7 @@ def main():
         scenario_names = [args.scenario]
 
     model_classes = {'prior_baseline': PriorBaseline,
+                     'uniform_prior_baseline': UniformPriorBaseline,
                      'occlusion_grit': OcclusionGrit,
                      'grit': Grit,
                      'generalised_grit': GeneralisedGrit,
@@ -31,7 +32,7 @@ def main():
     if args.models is None:
         model_names = list(model_classes.keys())
     else:
-        model_names = args.models._recursive_split(',')
+        model_names = args.models.split(',')
 
     accuracies = pd.DataFrame(index=model_names, columns=scenario_names)
     accuracies_sem = pd.DataFrame(index=model_names, columns=scenario_names)
@@ -40,6 +41,7 @@ def main():
     norm_entropies = pd.DataFrame(index=model_names, columns=scenario_names)
     avg_max_prob = pd.DataFrame(index=model_names, columns=scenario_names)
     avg_min_prob = pd.DataFrame(index=model_names, columns=scenario_names)
+    true_goal_prob = pd.DataFrame(index=model_names, columns=scenario_names)
 
     predictions = {}
     dataset_name = 'test'
@@ -56,10 +58,12 @@ def main():
                                                == unique_samples['true_goal'])
             cross_entropy = -np.mean(np.log(unique_samples.loc[
                                                         unique_samples.model_probs != 0, 'model_probs']))
+
+            true_goal_prob.loc[model_name, scenario_name] = unique_samples.true_goal_prob.mean()
             accuracy = unique_samples.model_correct.mean()
             accuracies_sem.loc[model_name, scenario_name] = unique_samples.model_correct.sem()
             accuracies.loc[model_name, scenario_name] = accuracy
-            cross_entropies.loc[model_name, scenario_name] = cross_entropy
+            cross_entropies.loc[model_name, scenario_name] = unique_samples.cross_entropy.mean()
             entropies.loc[model_name, scenario_name] = unique_samples.model_entropy.mean()
             norm_entropies.loc[model_name, scenario_name] = unique_samples.model_entropy_norm.mean()
             avg_max_prob.loc[model_name, scenario_name] = unique_samples.max_probs.mean()
@@ -87,26 +91,40 @@ def main():
     print(avg_max_prob)
     print('\naverage min probability:')
     print(avg_min_prob)
+    print('\ntrue goal probability:')
+    print(true_goal_prob)
 
     for scenario_name in scenario_names:
-        for idx, model_name in enumerate(model_names):
+        for model_name in model_names:
             unique_samples = predictions[scenario_name][model_name]
+
+            # save accuracy
             fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')
             accuracy = fraction_observed_grouped.mean()
             accuracy_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
-
-            # save results
             accuracy_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
             accuracy.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
 
-        for model_name in model_names:
-            unique_samples = predictions[scenario_name][model_name]
+            # save entropy norm
             fraction_observed_grouped = unique_samples[['model_entropy_norm', 'fraction_observed']].groupby('fraction_observed')
             entropy_norm = fraction_observed_grouped.mean()
             entropy_norm_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
-            # save results
             entropy_norm_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm_sem.csv')
             entropy_norm.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm.csv')
+
+            # save true goal probability
+            fraction_observed_grouped = unique_samples[['true_goal_prob', 'fraction_observed']].groupby('fraction_observed')
+            true_goal_prob = fraction_observed_grouped.mean()
+            true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
+            true_goal_prob_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+            true_goal_prob.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob.csv')
+
+            # save cross entropy
+            fraction_observed_grouped = unique_samples[['cross_entropy', 'fraction_observed']].groupby('fraction_observed')
+            cross_entropy = fraction_observed_grouped.mean()
+            cross_entropy_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
+            cross_entropy_sem.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy_sem.csv')
+            cross_entropy.to_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy.csv')
 
 
 if __name__ == '__main__':

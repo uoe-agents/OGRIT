@@ -219,13 +219,7 @@ class OcclusionGrit(GeneralisedGrit):
         dataset = get_multi_scenario_dataset(scenario_names)
         decision_trees = {}
         goal_types = dataset.goal_type.unique()
-        decision_trees = cls.load(scenario_names[0]).decision_trees
         for goal_type in goal_types:
-            # TODO tempory for faster debug
-            # if goal_type != 'straight-on':
-            #     goal_tree = Node(0.5)
-            #     decision_trees[goal_type] = goal_tree
-            #     continue
 
             dt_training_set = dataset.loc[dataset.goal_type == goal_type]
             if dt_training_set.shape[0] > 0:

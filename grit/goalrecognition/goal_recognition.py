@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from scipy.special import xlogy
+
 from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
 from igp2.trajectory import VelocityTrajectory
@@ -30,7 +32,7 @@ class GoalRecogniser:
         model_likelihoods = []
 
         for index, row in dataset.iterrows():
-            features = row[FeatureExtractor.feature_names]
+            features = row[list(FeatureExtractor.feature_names) + FeatureExtractor.indicator_features]
             goal_type = row['goal_type']
             goal = row['possible_goal']
             model_likelihood = self.goal_likelihood_from_features(features, goal_type, goal)
@@ -46,6 +48,9 @@ class GoalRecogniser:
         max_probs = []
         model_entropys = []
         model_norm_entropys = []
+        true_goal_probs = []
+        cross_entropies = []
+
         for index, row in unique_samples.iterrows():
             indices = ((dataset.episode == row.episode)
                        & (dataset.agent_id == row.agent_id)
@@ -57,7 +62,7 @@ class GoalRecogniser:
                                     right_on=['true_goal', 'true_goal_type'])
             else:
                 # use uniform prior for now
-                num_goal_types = goals.goal_type.unique().shape[0]
+                num_goal_types = goals.possible_goal.unique().shape[0]
                 goals['prior'] = 1.0 / num_goal_types
 
             goals['model_prob'] = goals.model_likelihood * goals.prior
@@ -73,6 +78,12 @@ class GoalRecogniser:
             predicted_goal_types.append(predicted_goal_type)
             model_predictions.append(model_prediction)
             model_prob = goals['model_prob'].loc[idx]
+            true_goal_prob_df = goals['model_prob'].loc[goals.possible_goal == row.true_goal]
+            if true_goal_prob_df.shape[0] == 0:
+                true_goal_prob = 0
+            else:
+                true_goal_prob = float(goals['model_prob'].loc[goals.possible_goal == row.true_goal])
+            cross_entropy = -(xlogy(goals.possible_goal == row.true_goal, goals.model_prob)).mean()
             max_prob = goals.model_prob.max()
             min_prob = goals.model_prob.min()
             max_probs.append(max_prob)
@@ -80,6 +91,8 @@ class GoalRecogniser:
             model_probs.append(model_prob)
             model_entropys.append(goal_prob_entropy)
             model_norm_entropys.append(norm_entropy)
+            true_goal_probs.append(true_goal_prob)
+            cross_entropies.append(cross_entropy)
 
         unique_samples['model_prediction'] = model_predictions
         unique_samples['predicted_goal_type'] = predicted_goal_types
@@ -88,6 +101,8 @@ class GoalRecogniser:
         unique_samples['min_probs'] = min_probs
         unique_samples['model_entropy'] = model_entropys
         unique_samples['model_entropy_norm'] = model_norm_entropys
+        unique_samples['true_goal_prob'] = true_goal_probs
+        unique_samples['cross_entropy'] = cross_entropies
         return unique_samples
 
     @classmethod
@@ -158,3 +173,10 @@ class PriorBaseline(FixedGoalRecogniser):
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
         return 0.5
+
+
+class UniformPriorBaseline(PriorBaseline):
+
+    def __init__(self, goal_priors, scenario_map, goal_locs):
+        super().__init__(goal_priors, scenario_map, goal_locs)
+        self.goal_priors['prior'] = 1.0 / self.goal_priors.shape[0]
