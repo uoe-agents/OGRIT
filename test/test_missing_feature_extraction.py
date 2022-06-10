@@ -25,7 +25,7 @@ def get_feature_extractor(episode_idx=1):
     return FeatureExtractor(scenario_map, scenario_name, episode_idx)
 
 
-def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, all_vehicles=False,):
+def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, all_vehicles=False):
     feature_extractor = get_feature_extractor(episode_idx)
     occlusions = feature_extractor.occlusions
 
@@ -127,6 +127,10 @@ def test_occluded_area_no_vehicle_in_oncoming_lanes():
 
 
 def set_up_frame_ep3_frame100(third_agent_position, third_agent_heading):
+    """
+    The third agent is the possible oncoming vehicle.
+    State 1 is the target vehicle.
+    """
     episode_idx = 3
     frame_id = 100
 
@@ -157,9 +161,10 @@ def set_up_frame_ep3_frame100(third_agent_position, third_agent_heading):
                            heading=np.deg2rad(45)
                            )
 
-    frame = {0: state0, 1: state1, ego_id: state_ego}
+    target_id = 0
+    frame = {target_id: state0, 1: state1, ego_id: state_ego}
     plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_oncoming_vehicle_missing(state1, lane_path, frame, occlusions)
+    missing = mfe.is_oncoming_vehicle_missing(target_id, lane_path, frame, occlusions)
     plt.show()
 
     return missing
@@ -202,5 +207,189 @@ def test_occluded_area_vehicle_in_oncoming_lanes_6():
 
 
 # Tests for missing vehicle ahead.
+def test_the_vehicle_in_front_is_hidden():
+    """
+    State1 is the possible vehicle in front.
+    """
+    episode_idx = 6
+    frame_id = 50
 
+    mfe = get_feature_extractor(episode_idx=episode_idx)
 
+    lane_path = [mfe.scenario_map.get_lane(1, 1, 0)]
+    ego_id, occlusions = get_occlusions_and_ego(frame=frame_id, episode_idx=episode_idx)
+
+    state_target = AgentState(time=0,
+                              position=np.array((34.58, -56.93)),
+                              velocity=np.array((0, 0)),
+                              acceleration=np.array((0, 0)),
+                              heading=lane_path[0].get_heading_at(45.67, -46.72)
+                              )
+
+    state1 = AgentState(time=0,
+                        position=np.array((39.90, -52.22)),
+                        velocity=np.array((0, 0)),
+                        acceleration=np.array((0, 0)),
+                        heading=np.deg2rad(45)
+                        )
+
+    state_ego = AgentState(time=0,
+                           position=np.array((34.62, -11.01)),
+                           velocity=np.array((0, 0)),
+                           acceleration=np.array((0, 0)),
+                           heading=np.deg2rad(-45)
+                           )
+    target_id = 0
+    frame = {target_id: state_target, 1: state1, ego_id: state_ego}
+    plot_occlusion(frame_id, episode_idx, frame)
+    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    plt.show()
+
+    assert missing
+
+def test_vehicle_is_behind():
+    """
+    State1 is the possible vehicle in front.
+    """
+    episode_idx = 6
+    frame_id = 50
+
+    mfe = get_feature_extractor(episode_idx=episode_idx)
+
+    lane_path = [mfe.scenario_map.get_lane(3, -1, 0)]
+    ego_id, occlusions = get_occlusions_and_ego(frame=frame_id, episode_idx=episode_idx)
+
+    state_target = AgentState(time=0,
+                              position=np.array((76.54, -11.56)),
+                              velocity=np.array((0, 0)),
+                              acceleration=np.array((0, 0)),
+                              heading=lane_path[0].get_heading_at(76.54, -11.56)
+                              )
+
+    state1 = AgentState(time=0,
+                        position=np.array((68.24, -20.61)),
+                        velocity=np.array((0, 0)),
+                        acceleration=np.array((0, 0)),
+                        heading=np.deg2rad(45)
+                        )
+
+    state_ego = AgentState(time=0,
+                           position=np.array((34.62, -11.01)),
+                           velocity=np.array((0, 0)),
+                           acceleration=np.array((0, 0)),
+                           heading=np.deg2rad(-45)
+                           )
+    target_id = 0
+    frame = {target_id: state_target, 1: state1, ego_id: state_ego}
+    plot_occlusion(frame_id, episode_idx, frame)
+    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    plt.show()
+
+    assert missing
+
+def test_no_vehicle_in_front_2():
+    """
+    State1 is the possible vehicle in front.
+    """
+    episode_idx = 6
+    frame_id = 50
+
+    mfe = get_feature_extractor(episode_idx=episode_idx)
+
+    lane_path = [mfe.scenario_map.get_lane(3, -1, 0)]
+    ego_id, occlusions = get_occlusions_and_ego(frame=frame_id, episode_idx=episode_idx)
+
+    state_target = AgentState(time=0,
+                              position=np.array((72.77, -9.44)),
+                              velocity=np.array((0, 0)),
+                              acceleration=np.array((0, 0)),
+                              heading=lane_path[0].get_heading_at(72.77, -9.44)
+                              )
+
+    state1 = AgentState(time=0,
+                        position=np.array((66.29, -16.77)),
+                        velocity=np.array((0, 0)),
+                        acceleration=np.array((0, 0)),
+                        heading=np.deg2rad(45)
+                        )
+
+    state_ego = AgentState(time=0,
+                           position=np.array((34.62, -11.01)),
+                           velocity=np.array((0, 0)),
+                           acceleration=np.array((0, 0)),
+                           heading=np.deg2rad(-45)
+                           )
+    target_id = 0
+    frame = {target_id: state_target, 1: state1, ego_id: state_ego}
+    plot_occlusion(frame_id, episode_idx, frame)
+    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    plt.show()
+
+    assert not missing
+
+def test_occlusion_far_away():
+    """
+    State1 is the possible vehicle in front.
+    """
+    episode_idx = 7
+    frame_id = 200
+
+    mfe = get_feature_extractor(episode_idx=episode_idx)
+
+    lane_path = [mfe.scenario_map.get_lane(2, 2, 0),
+                 mfe.scenario_map.get_lane(10, -1, 0)]
+    ego_id, occlusions = get_occlusions_and_ego(frame=frame_id, episode_idx=episode_idx)
+
+    state_target = AgentState(time=0,
+                              position=np.array((84.70, -60.43)),
+                              velocity=np.array((0, 0)),
+                              acceleration=np.array((0, 0)),
+                              heading=lane_path[0].get_heading_at(84.70, -60.43)
+                              )
+
+    state_ego = AgentState(time=0,
+                           position=np.array((73.39, -56.32)),
+                           velocity=np.array((0, 0)),
+                           acceleration=np.array((0, 0)),
+                           heading=np.deg2rad(-45)
+                           )
+    target_id = 0
+    frame = {target_id: state_target, ego_id: state_ego}
+    plot_occlusion(frame_id, episode_idx, frame)
+    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    plt.show()
+
+    assert not missing
+
+def test_occlusion_close_enough():
+    """
+    State1 is the possible vehicle in front.
+    """
+    episode_idx = 7
+    frame_id = 200
+
+    mfe = get_feature_extractor(episode_idx=episode_idx)
+
+    lane_path = [mfe.scenario_map.get_lane(10, -1, 0)]
+    ego_id, occlusions = get_occlusions_and_ego(frame=frame_id, episode_idx=episode_idx)
+
+    state_target = AgentState(time=0,
+                              position=np.array((61.59, -34.41)),
+                              velocity=np.array((0, 0)),
+                              acceleration=np.array((0, 0)),
+                              heading=lane_path[0].get_heading_at(61.59, -34.41)
+                              )
+
+    state_ego = AgentState(time=0,
+                           position=np.array((73.39, -56.32)),
+                           velocity=np.array((0, 0)),
+                           acceleration=np.array((0, 0)),
+                           heading=np.deg2rad(-45)
+                           )
+    target_id = 0
+    frame = {target_id: state_target, ego_id: state_ego}
+    plot_occlusion(frame_id, episode_idx, frame)
+    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    plt.show()
+
+    assert missing

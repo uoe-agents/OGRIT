@@ -243,8 +243,8 @@ class FeatureExtractor:
                 # The occlusion is far away, and won't affect the target vehicle decisions.
                 return self.NON_MISSING
 
-            # Otherwise, the feature is not missing if there is a vehicle closer to the target than to the occlusions.
-            return not dist < distance_to_occlusion
+            # Otherwise, the feature is missing if there is an occlusion closer than the vehicle in front.
+            return not dist < distance_to_occlusion + 2.5
 
         else:
             # "occlusions" is not None only if they are large enough to fit a hidden vehicle. Then, the feature is not
