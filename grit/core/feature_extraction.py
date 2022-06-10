@@ -182,18 +182,18 @@ class FeatureExtractor:
         return cls.path_to_point_length(state, end_point, path)
 
     @classmethod
-    def vehicle_in_front(cls, ego_agent_id: int, lane_path: List[Lane], frame: Dict[int, AgentState]):
-        state = frame[ego_agent_id]
-        vehicles_in_route = cls.get_vehicles_in_route(ego_agent_id, lane_path, frame)
+    def vehicle_in_front(cls, target_agent_id: int, lane_path: List[Lane], frame: Dict[int, AgentState]):
+        state = frame[target_agent_id]
+        vehicles_in_route = cls.get_vehicles_in_route(target_agent_id, lane_path, frame)
         min_dist = np.inf
         vehicle_in_front = None
-        ego_dist_along = cls.dist_along_path(lane_path, state.position)
+        target_dist_along = cls.dist_along_path(lane_path, state.position)
 
         # find vehicle in front with closest distance
         for agent_id in vehicles_in_route:
             agent_point = frame[agent_id].position
             agent_dist = cls.dist_along_path(lane_path, agent_point)
-            dist = agent_dist - ego_dist_along
+            dist = agent_dist - target_dist_along
             if 1e-4 < dist < min_dist:
                 vehicle_in_front = agent_id
                 min_dist = dist
@@ -253,11 +253,9 @@ class FeatureExtractor:
 
     @classmethod
     def dist_along_path(cls, path: List[Lane], point: np.ndarray):
-        # get current lane
         shapely_point = Point(*point)
-        current_lane_idx = cls.get_current_path_lane_idx(path, point)
-        completed_lane_dist = sum([l.length for l in path[:current_lane_idx]])
-        dist = path[current_lane_idx].midline.project(shapely_point) + completed_lane_dist
+        midline = cls.get_lane_path_midline(path)
+        dist = midline.project(shapely_point)
         return dist
 
     @staticmethod
@@ -325,8 +323,12 @@ class FeatureExtractor:
 
     @staticmethod
     def get_lane_path_midline(lane_path: List[Lane]) -> LineString:
-        final_point = lane_path[-1].midline.coords[-1]
-        midline_points = [p for ll in lane_path for p in ll.midline.coords[:-1]] + [final_point]
+        midline_points = []
+        for idx, lane in enumerate(lane_path[:-1]):
+            # check if next lane is adjacent
+            if lane_path[idx + 1] not in lane.lane_section.all_lanes:
+                midline_points.extend(lane.midline.coords[:-1])
+        midline_points.extend(lane_path[-1].midline.coords)
         lane_ls = LineString(midline_points)
         return lane_ls
 
