@@ -36,7 +36,7 @@ class FeatureExtractor:
                      'road_heading': 'scalar',
                      'exit_number': 'scalar'}
 
-    indicator_features = ['exit_number_`missing`']
+    indicator_features = ['exit_number_missing']
     possibly_missing_features = {'exit_number': 'exit_number_missing'}
 
     def __init__(self, scenario_map: Map, *args):
