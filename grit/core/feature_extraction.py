@@ -402,14 +402,13 @@ class FeatureExtractor:
             crossing_point = crossing_points[i]
             crossing_lon = midline.project(crossing_point)
 
-            if occluded_oncoming_areas is not None:
+            if check_occlusions:
                 if isinstance(occluded_oncoming_areas, Polygon):
                     plt.plot(*occluded_oncoming_areas.exterior.xy, color="b")
                 elif isinstance(occluded_oncoming_areas, MultiPolygon):
                     [plt.plot(*lane.exterior.xy, color="b") for lane in occluded_oncoming_areas.geoms]
                 plt.plot(*crossing_point.coords.xy, marker="x", color="b")
 
-            if check_occlusions:
                 occlusion_start_dist = crossing_point.distance(occluded_oncoming_areas)
                 occlusion_start_dists.append(occlusion_start_dist)
 
@@ -566,8 +565,8 @@ class FeatureExtractor:
                 min_dist = dist
 
         # If there is a vehicle that is further away to any of the crossing points that the occlusion, then the feature
-        # is missing.
-        return min_occlusion_distance < min_dist + 2.5  # the 2.5 meters are in case the vehicle is partially occluded
+        # is missing. The 2.5 meters offset is in case the vehicle is partially occluded.
+        return min_occlusion_distance + 2.5 < min_dist
 
     def exit_number(self, initial_state: AgentState, future_lane_path: List[Lane]):
         # get the exit number in a roundabout
@@ -579,7 +578,7 @@ class FeatureExtractor:
         position = initial_state.position
         heading = initial_state.heading
         possible_lanes = self.scenario_map.lanes_within_angle(position, heading, np.pi / 4,
-                                                         drivable_only=True, max_distance=3)
+                                                              drivable_only=True, max_distance=3)
         initial_lane = possible_lanes[GoalGenerator.get_best_lane(possible_lanes, position, heading)]
 
         lane_path = self.path_to_lane(initial_lane, future_lane_path[-1])
