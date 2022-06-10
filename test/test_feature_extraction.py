@@ -161,6 +161,30 @@ def test_vehicle_in_front_behind():
     assert dist == np.inf
 
 
+def test_vehicle_in_front_with_lane_change():
+    feature_extractor = get_feature_extractor()
+    state0 = AgentState(time=0,
+                        position=np.array((19.61, -13.96)),
+                        velocity=np.array((0, 0)),
+                        acceleration=np.array((0, 0)),
+                        heading=-np.pi / 4
+                        )
+
+    state1 = AgentState(time=0,
+                        position=np.array((12.25, -5.08)),
+                        velocity=np.array((0, 0)),
+                        acceleration=np.array((0, 0)),
+                        heading=-np.pi / 4
+                        )
+    path = [feature_extractor.scenario_map.get_lane(1, 2, 0),
+            feature_extractor.scenario_map.get_lane(1, 1, 0),
+            feature_extractor.scenario_map.get_lane(5, -1, 0)]
+    frame = {0: state0, 1: state1}
+    agent_id, dist = feature_extractor.vehicle_in_front(0, path, frame)
+    assert agent_id is None
+    assert dist == np.inf
+
+
 def test_oncoming_vehicle_none():
     feature_extractor = get_feature_extractor()
     state = AgentState(time=0,
