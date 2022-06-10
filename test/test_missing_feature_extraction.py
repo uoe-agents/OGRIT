@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 from igp2 import AgentState, VelocityTrajectory, plot_map
@@ -23,7 +25,7 @@ def get_feature_extractor(episode_idx=1):
     return FeatureExtractor(scenario_map, scenario_name, episode_idx)
 
 
-def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=False, all_vehicles=False,):
+def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, all_vehicles=False,):
     feature_extractor = get_feature_extractor(episode_idx)
     occlusions = feature_extractor.occlusions
 
@@ -157,7 +159,7 @@ def set_up_frame_ep3_frame100(third_agent_position, third_agent_heading):
 
     frame = {0: state0, 1: state1, ego_id: state_ego}
     plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_oncoming_vehicle_missing(ego_id, lane_path, frame, occlusions)
+    missing = mfe.is_oncoming_vehicle_missing(state1, lane_path, frame, occlusions)
     plt.show()
 
     return missing
@@ -192,8 +194,13 @@ def test_occluded_area_vehicle_in_oncoming_lanes_5():
     missing = set_up_frame_ep3_frame100((56.46, -38.11), -45)
     assert missing
 
+
 def test_occluded_area_vehicle_in_oncoming_lanes_6():
 
-    missing = set_up_frame_ep3_frame100((55.75, -37.73), 30)
+    missing = set_up_frame_ep3_frame100((55.75, -37.73), 180)
     assert not missing
+
+
+# Tests for missing vehicle ahead.
+
 
