@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 from igp2 import Map, plot_map
 from igp2.data.scenario import ScenarioConfig
 
-config = ScenarioConfig.load("scenarios/configs/frankenberg.json")
-scenario = Map.parse_from_opendrive(f"scenarios/maps/frankenberg.xodr")
+config = ScenarioConfig.load("scenarios/configs/round.json")
+scenario = Map.parse_from_opendrive(f"scenarios/maps/round.xodr")
 plot_map(scenario, scenario_config=config, plot_background=True)
 plt.show()
 

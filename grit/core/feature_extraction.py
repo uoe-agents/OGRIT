@@ -327,9 +327,12 @@ class FeatureExtractor:
 
         # iterate through lane path and count number of junctions
         exit_number = 0
+        entrance_passed = False
         if lane_path is not None:
             for lane in lane_path:
-                if self.is_roundabout_junction(lane) and not self.is_roundabout_entrance(lane):
+                if self.is_roundabout_entrance(lane):
+                    entrance_passed = True
+                elif entrance_passed and self.is_roundabout_junction(lane):
                     exit_number += 1
 
         return exit_number
@@ -341,7 +344,7 @@ class FeatureExtractor:
                 and junction.junction_group.type == 'roundabout')
 
     def is_roundabout_entrance(self, lane: Lane) -> bool:
-        predecessor_in_roundabout = (len(lane.link.predecessor) == 1
+        predecessor_in_roundabout = (lane.link.predecessor is not None and len(lane.link.predecessor) == 1
                                    and self.scenario_map.road_in_roundabout(lane.link.predecessor[0].parent_road))
         return self.is_roundabout_junction(lane) and not predecessor_in_roundabout
 

@@ -246,15 +246,29 @@ def test_exit_number_3():
     assert exit_number == 3
 
 
-def test_exit_number_3():
+def test_exit_number_0():
     scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
     feature_extractor = FeatureExtractor(scenario_map)
     state = AgentState(time=0,
-                       position=np.array((71.9, -76.1)),
+                       position=np.array((88.5, -62.9)),
                        velocity=np.array((0., 0.)),
                        acceleration=np.array((0, 0)),
-                       heading=np.pi * 3/8
+                       heading=np.pi * 1/4
                        )
     lane_path = [scenario_map.get_lane(11, -1, 0)]
     exit_number = feature_extractor.exit_number(state, lane_path)
-    assert exit_number == 3
+    assert exit_number == 0
+
+
+def test_exit_number_no_roundabout():
+    feature_extractor = get_feature_extractor()
+    state = AgentState(time=0,
+                       position=np.array((-7.9, 5.6)),
+                       velocity=np.array((0, 0)),
+                       acceleration=np.array((0, 0)),
+                       heading=-np.pi/4
+                       )
+    lane = feature_extractor.scenario_map.get_lane(1, 2, 0)
+    lane_path = [lane]
+    exit_number = feature_extractor.exit_number(state, lane_path)
+    assert exit_number == 0
