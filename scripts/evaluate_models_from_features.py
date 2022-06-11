@@ -5,7 +5,8 @@ import argparse
 
 from grit.core.base import get_base_dir
 from grit.core.data_processing import get_dataset
-from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit
+from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit, \
+    OcclusionBaseline
 from grit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -27,7 +28,8 @@ def main():
                      'occlusion_grit': OcclusionGrit,
                      'grit': Grit,
                      'generalised_grit': GeneralisedGrit,
-                     'grit_uniform_prior': UniformPriorGrit}
+                     'grit_uniform_prior': UniformPriorGrit,
+                     'occlusion_baseline': OcclusionBaseline}
 
     if args.models is None:
         model_names = list(model_classes.keys())

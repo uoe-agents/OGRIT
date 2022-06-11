@@ -60,10 +60,14 @@ class Node:
         self.reached = False
         self.level = level
 
-    def traverse(self, features):
+    def traverse(self, features, terminate_on_missing=False):
         self.reached = True
         current_node = self
         while current_node.decision is not None:
+            if (terminate_on_missing
+                    and FeatureExtractor.possibly_missing_features.get(current_node.decision.feature, False)):
+                # feature is missing
+                return current_node.value
             current_node = current_node.decision.select_child(features)
             current_node.reached = True
         return current_node.value

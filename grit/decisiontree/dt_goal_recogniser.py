@@ -232,3 +232,14 @@ class OcclusionGrit(GeneralisedGrit):
 
         priors = np.ones(len(decision_trees)) / len(decision_trees)
         return cls(priors, decision_trees)
+
+
+class OcclusionBaseline(GeneralisedGrit):
+
+    def goal_likelihood_from_features(self, features, goal_type, goal):
+        if goal_type in self.decision_trees:
+            tree = self.decision_trees[goal_type]
+            tree_likelihood = tree.traverse(features, terminate_on_missing=True)
+        else:
+            tree_likelihood = 0.5
+        return tree_likelihood
