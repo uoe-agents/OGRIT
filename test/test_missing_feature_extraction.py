@@ -328,9 +328,6 @@ def test_no_vehicle_in_front_2():
     assert not missing
 
 def test_occlusion_far_away():
-    """
-    State1 is the possible vehicle in front.
-    """
     episode_idx = 7
     frame_id = 200
 
@@ -362,9 +359,7 @@ def test_occlusion_far_away():
     assert not missing
 
 def test_occlusion_close_enough():
-    """
-    State1 is the possible vehicle in front.
-    """
+
     episode_idx = 7
     frame_id = 200
 
@@ -393,3 +388,45 @@ def test_occlusion_close_enough():
     plt.show()
 
     assert missing
+
+def test_occlusion_between_vehicle_in_front():
+    """
+    State1 is the possible vehicle in front.
+    """
+    episode_idx = 6
+    frame_id = 42
+
+    mfe = get_feature_extractor(episode_idx=episode_idx)
+
+    lane_path = [mfe.scenario_map.get_lane(1, 1, 0),
+                 mfe.scenario_map.get_lane(7, -1, 0)]
+    ego_id, occlusions = get_occlusions_and_ego(frame=frame_id, episode_idx=episode_idx)
+
+    state_target = AgentState(time=0,
+                              position=np.array((33.07, -58.33)),
+                              velocity=np.array((0, 0)),
+                              acceleration=np.array((0, 0)),
+                              heading=lane_path[0].get_heading_at(33.07, -58.33)
+                              )
+
+    state1 = AgentState(time=0,
+                        position=np.array((43.62, -48.47)),
+                        velocity=np.array((0, 0)),
+                        acceleration=np.array((0, 0)),
+                        heading=np.deg2rad(45)
+                        )
+
+    state_ego = AgentState(time=0,
+                           position=np.array((73.39, -56.32)),
+                           velocity=np.array((0, 0)),
+                           acceleration=np.array((0, 0)),
+                           heading=np.deg2rad(-45)
+                           )
+    target_id = 0
+    frame = {target_id: state_target, ego_id: state_ego, 1: state1}
+    plot_occlusion(frame_id, episode_idx, frame)
+    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    plt.show()
+
+    assert missing
+

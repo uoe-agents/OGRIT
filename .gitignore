@@ -143,3 +143,4 @@ results/
 
 # OSM files
 *.osm
+/occlusions/
