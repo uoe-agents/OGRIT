@@ -7,7 +7,6 @@ from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
 
 from grit.core.goal_generator import TypedGoal, GoalGenerator
-import matplotlib.pyplot as plt
 
 
 class FeatureExtractor:
@@ -95,7 +94,7 @@ class FeatureExtractor:
         else:
             oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
 
-        base_features = {'path_to_goal_length': path_to_goal_length,
+        features = {'path_to_goal_length': path_to_goal_length,
                          'in_correct_lane': in_correct_lane,
                          'speed': speed,
                          'acceleration': acceleration,
@@ -114,26 +113,24 @@ class FeatureExtractor:
             frame_id = math.ceil(current_state.time / self.FRAME_STEP_SIZE)
             frame_occlusions = self.occlusions[str(frame_id)]
 
-            occlusions = unary_union(self.get_occlusions_ego(frame_occlusions, ego_agent_id))
+            occlusions = unary_union(self.get_occlusions_ego_polygon(frame_occlusions, ego_agent_id))
 
-            vehicle_in_front_occluded = self.is_vehicle_in_front_missing(ego_agent_id, agent_id, lane_path,
+            vehicle_in_front_occluded = self.is_vehicle_in_front_missing(agent_id, lane_path,
                                                                          current_frame, occlusions)
 
-            oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(ego_agent_id, lane_path, current_frame,
-                                                                         occlusions)
+            oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(agent_id, lane_path, current_frame, occlusions)
 
             initial_state = initial_frame[agent_id]
 
-            exit_number_occluded = self.is_exit_number_missing(initial_state, goal)
+            exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
+                if self.scenario_name == "round" else False
 
-            indicator_features = {'vehicle_in_front_dist': vehicle_in_front_occluded,
-                                  'vehicle_in_front_speed': vehicle_in_front_occluded,
-                                  'oncoming_vehicle_dist': oncoming_vehicle_occluded,
-                                  'oncoming_vehicle_speed': oncoming_vehicle_occluded,
-                                  'exit_number': exit_number_occluded}
+            indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
+                                  'oncoming_vehicle_missing': oncoming_vehicle_occluded,
+                                  'exit_number_missing': exit_number_occluded}
 
-            return base_features.update(indicator_features)
-        return base_features
+            features.update(indicator_features)
+        return features
 
     @staticmethod
     def get_vehicles_in_route(ego_agent_id: int, path: List[Lane], frame: Dict[int, AgentState]):
@@ -228,13 +225,6 @@ class FeatureExtractor:
             return self.NON_MISSING
 
         occlusions = self.get_significant_occlusions(occlusions)
-
-        if isinstance(occlusions, Polygon):
-            plt.plot(*occlusions.exterior.xy, color="b")
-        elif isinstance(occlusions, MultiPolygon):
-            [plt.plot(*lane.exterior.xy, color="b") for lane in occlusions.geoms]
-
-        plt.show()
 
         if occlusions:
             distance_to_occlusion = occlusions.distance(target_point)
@@ -388,7 +378,8 @@ class FeatureExtractor:
             # Only take the occlusions that could fit a hidden vehicle.
             occluded_oncoming_areas = self.get_significant_occlusions(occluded_oncoming_areas)
 
-        elif check_occlusions:
+        # Make sure there are significant occluded areas
+        if not occluded_oncoming_areas and check_occlusions:
             # The feature cannot be missing as there are no occlusions.
             # We consider the occlusions to be infinitely away.
             return oncoming_vehicles, np.inf
@@ -397,18 +388,11 @@ class FeatureExtractor:
             lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
 
             midline = self.get_lane_path_midline(lane_sequence)
-            plt.plot(*midline.coords.xy, color="g")  # todo
 
             crossing_point = crossing_points[i]
             crossing_lon = midline.project(crossing_point)
 
             if check_occlusions:
-                if isinstance(occluded_oncoming_areas, Polygon):
-                    plt.plot(*occluded_oncoming_areas.exterior.xy, color="b")
-                elif isinstance(occluded_oncoming_areas, MultiPolygon):
-                    [plt.plot(*lane.exterior.xy, color="b") for lane in occluded_oncoming_areas.geoms]
-                plt.plot(*crossing_point.coords.xy, marker="x", color="b")
-
                 occlusion_start_dist = crossing_point.distance(occluded_oncoming_areas)
                 occlusion_start_dists.append(occlusion_start_dist)
 
@@ -508,7 +492,7 @@ class FeatureExtractor:
         return point.translate(delta_x, delta_y)
 
     @staticmethod
-    def get_occlusions_ego(frame_occlusions, ego_id):
+    def get_occlusions_ego_polygon(frame_occlusions, ego_id):
         for vehicle_occlusions in frame_occlusions:
             if vehicle_occlusions["ego_agent_id"] == ego_id:
                 occlusions_vehicle_frame = vehicle_occlusions["occlusions"]

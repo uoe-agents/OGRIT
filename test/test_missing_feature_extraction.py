@@ -1,32 +1,25 @@
-import math
-
 import numpy as np
-import pytest
-from igp2 import AgentState, VelocityTrajectory, plot_map
+from igp2 import AgentState, plot_map
 from igp2.data import ScenarioConfig, InDScenario
-from igp2.goal import PointGoal
 from igp2.opendrive.map import Map
 
 import matplotlib.pyplot as plt
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
 from grit.core.data_processing import get_episode_frames
 from grit.core.feature_extraction import FeatureExtractor
 from grit.occlusion_detection.occlusion_detection_geometry import get_box
-from grit.core.goal_generator import TypedGoal
 
 
-scenario_name = "bendplatz"
-
-
-def get_feature_extractor(episode_idx=1):
+def get_feature_extractor(episode_idx=1, scenario_name="bendplatz"):
     scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
     return FeatureExtractor(scenario_map, scenario_name, episode_idx)
 
 
-def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, all_vehicles=False):
-    feature_extractor = get_feature_extractor(episode_idx)
+def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, all_vehicles=False,
+                   scenario_name="bendplatz"):
+    feature_extractor = get_feature_extractor(episode_idx=episode_idx, scenario_name=scenario_name)
     occlusions = feature_extractor.occlusions
 
     scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
@@ -63,7 +56,7 @@ def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, al
     plt.plot(*list(zip(*get_box(ego).boundary)))
 
 
-def find_lane_at(point):
+def find_lane_at(point, scenario_name="bendplatz"):
     scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
     lanes = scenario_map.lanes_at(point)
 
@@ -247,6 +240,7 @@ def test_the_vehicle_in_front_is_hidden():
 
     assert missing
 
+
 def test_vehicle_is_behind():
     """
     State1 is the possible vehicle in front.
@@ -358,6 +352,7 @@ def test_occlusion_far_away():
 
     assert not missing
 
+
 def test_occlusion_close_enough():
 
     episode_idx = 7
@@ -430,3 +425,8 @@ def test_occlusion_between_vehicle_in_front():
 
     assert missing
 
+# TEST Missing exit number
+
+# find_lane_at((32.7, -59.4))
+plot_occlusion(42, 5, scenario_name="bendplatz")
+plt.show()
