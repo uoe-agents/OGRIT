@@ -10,7 +10,6 @@ from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 
 from grit.core.feature_extraction import FeatureExtractor, GoalDetector
-from grit.occlusion_detection.missing_feature_extraction import MissingFeatureExtractor
 from shapely.geometry import MultiPoint, Polygon
 from shapely.ops import unary_union
 
@@ -101,7 +100,7 @@ def get_episode_frames(episode: Episode, exclude_parked_cars=True, exclude_bicyc
     return episode_frames
 
 
-def get_trimmed_trajectories(scenario, episode):
+def get_trajectories(scenario, episode, trimmed=False):
     goals = {}  # key: agent id, value: goal idx
     trimmed_trajectories = {}
 
@@ -111,8 +110,12 @@ def get_trimmed_trajectories(scenario, episode):
         if agent.metadata.agent_type in ['car', 'truck_bus']:
             agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)
             if len(agent_goals) > 0:
-                end_idx = min(goal_frame_idxes) # todo: delete
-                trimmed_trajectory = agent.trajectory ## todo modified - we now take the entire trajectory
+
+                if trimmed:
+                    end_idx = min(goal_frame_idxes)
+                    trimmed_trajectory = agent.trajectory.slice(0, end_idx)
+                else:
+                    trimmed_trajectory = agent.trajectory
                 goals[agent_id] = agent_goals[-1]
                 trimmed_trajectories[agent_id] = trimmed_trajectory
     return trimmed_trajectories, goals
@@ -137,51 +140,96 @@ def get_first_last_frame_ids(episode, vehicle_id):
     return initial_frame_id, final_frame_id
 
 
-def extract_samples(feature_extractor, scenario, episode, missing_feature_extractor=None):
+def get_frame_ids_and_goals(scenario, episode, trajectory, target_agent_id, feature_extractor, ego_agent_id=None):
 
-    scenario_map = missing_feature_extractor.scenario_map
+    if ego_agent_id:
+
+        # Get the frames in which both the ego and the target vehicles are alive.
+        initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
+        initial_frame_id_ego, last_frame_id_ego = get_first_last_frame_ids(episode, ego_agent_id)
+        initial_frame_id = max(initial_frame_id_target, initial_frame_id_ego)
+        last_frame_id = min(last_frame_id_target, last_frame_id_ego)
+
+        # Only take samples in which the two vehicles are alive for at least FRAME_STEP_SIZE number of frames.
+        if last_frame_id_ego - initial_frame_id_ego < FRAME_STEP_SIZE or initial_frame_id > last_frame_id:
+            return None
+
+        # For each of the time steps, take the goals that are reachable for the target.
+        start_trajectory_idx = initial_frame_id - initial_frame_id_target
+        end_trajectory_idx = start_trajectory_idx + min(last_frame_id, last_frame_id_target) - initial_frame_id
+        reachable_goals_list = get_trajectory_reachable_goals(trajectory.slice(start_trajectory_idx,
+                                                                               end_trajectory_idx + 1),
+                                                              feature_extractor,
+                                                              scenario)
+
+    else:
+        initial_frame_id, last_frame_id = get_first_last_frame_ids(episode, target_agent_id)
+        reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
+
+    return initial_frame_id, last_frame_id, reachable_goals_list
+
+
+def is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id, ego_agent_id, episode_frames):
+    occlusion_frame_id = math.ceil(current_frame_id / FRAME_STEP_SIZE)
+    frame_occlusions = feature_extractor.occlusions[str(occlusion_frame_id)]
+
+    occlusions = get_vehicle_occlusions(frame_occlusions, ego_agent_id)
+
+    target_agent = episode_frames[current_frame_id][target_agent_id]
+
+    try:
+        l = feature_extractor.scenario_map.lanes_at(target_agent.position)[0]
+    except IndexError:
+        # Treat it as if occluded, as the vehicle is outside any lane
+        return True
+
+    try:
+        # We have an exception if there are no occlusions on that lane.
+        lane_occlusion = occlusions[str(l.parent_road.id)][str(l.id)]
+        lane_occlusion = unary_union([Polygon(list(zip(*xy))) for xy in lane_occlusion])
+
+        vehicle_boundary = MultiPoint(get_vehicle_boundary(target_agent))
+
+        # If the vehicle is inside the occluded area,
+        if lane_occlusion.contains(vehicle_boundary):
+            return True
+
+    finally:
+        return False
+
+
+def extract_samples(feature_extractor, scenario, episode, extract_missing_features=False):
+
     episode_frames = get_episode_frames(episode)
-    trimmed_trajectories, goals = get_trimmed_trajectories(scenario, episode)
+    trajectories, goals = get_trajectories(scenario, episode, trimmed=not extract_missing_features)
 
     samples_list = []
 
-    for target_agent_idx, (target_agent_id, trajectory) in enumerate(trimmed_trajectories.items()):
+    for target_agent_idx, (target_agent_id, trajectory) in enumerate(trajectories.items()):
+        print('target agent {}/{}'.format(target_agent_idx, len(trajectories) - 1))
 
-        print('target agent {}/{}'.format(target_agent_idx, len(trimmed_trajectories) - 1))
-
-        for ego_agent_idx, (ego_agent_id, _) in enumerate(trimmed_trajectories.items()):
-
+        for ego_agent_idx, (ego_agent_id, _) in enumerate(trajectories.items()):
             if ego_agent_id == target_agent_id:
                 continue
 
-            print('ego agent {}/{}'.format(ego_agent_idx, len(trimmed_trajectories) - 1))
+            print('ego agent {}/{}'.format(ego_agent_idx, len(trajectories) - 1))
 
             # If we don't consider occlusions, we don't need the ego vehicle. We thus run the rest of the code once.
-            if not missing_feature_extractor and ego_agent_idx != 0:
+            if not extract_missing_features and ego_agent_idx != 0:
                 break
 
-            if missing_feature_extractor:
-                initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
-                initial_frame_id_ego, last_frame_id_ego = get_first_last_frame_ids(episode, ego_agent_id)
-                initial_frame_id = max(initial_frame_id_target, initial_frame_id_ego)
-                last_frame_id = min(last_frame_id_target, last_frame_id_ego)
+            ids_goals = get_frame_ids_and_goals(scenario, episode, trajectory, target_agent_id, feature_extractor,
+                                                ego_agent_id if extract_missing_features else None)
 
-                # If the vehicles aren't alive for at least 1s, we may not have their occlusions. todo: do both have to be alive?
-                if last_frame_id_ego - initial_frame_id_ego < FRAME_STEP_SIZE or initial_frame_id > last_frame_id:
-                    continue
+            if ids_goals is None:
+                # We have no frames in which both vehicles are alive at the same time.
+                continue
 
-            else:
-                initial_frame_id, last_frame_id = get_first_last_frame_ids(episode, target_agent_id)
+            initial_frame_id, final_frame_id, reachable_goals_list = ids_goals
 
-            start_trajectory_idx = initial_frame_id - initial_frame_id_target
-            end_trajectory_idx = start_trajectory_idx + min(last_frame_id, last_frame_id_target) - initial_frame_id
-            reachable_goals_list = get_trajectory_reachable_goals(trajectory.slice(start_trajectory_idx,
-                                                                                   end_trajectory_idx+1),
-                                                                  feature_extractor,
-                                                                  scenario)
             true_goal_idx = goals[target_agent_id]
 
-            if reachable_goals_list and reachable_goals_list[0][true_goal_idx] is not None: # todo: sometimes list is empty. is it expected?
+            if reachable_goals_list and reachable_goals_list[0][true_goal_idx] is not None:
 
                 # get true goal
                 true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
@@ -189,83 +237,45 @@ def extract_samples(feature_extractor, scenario, episode, missing_feature_extrac
 
                 # Align the frames with those for which we have occlusions (one every second).
                 initial_frame_offset = FRAME_STEP_SIZE * math.ceil(initial_frame_id/FRAME_STEP_SIZE) - initial_frame_id
-                first_frame_target_not_occluded = None
+                # Save the first frame in which the target vehicle wasn't occluded w.r.t the ego.
+                first_frame_target_not_occluded_id = None
 
                 for idx in range(initial_frame_offset, len(reachable_goals_list)+1, FRAME_STEP_SIZE):
 
                     try:
                         reachable_goals = reachable_goals_list[idx]
                     except IndexError:
-                        continue  # todo: there are no goal at that time step
+                        # There is no goal recognition to perform at this time step.
+                        continue
 
                     current_frame_id = initial_frame_id + idx
 
-                    if current_frame_id > last_frame_id:
+                    if current_frame_id > final_frame_id:
                         break
 
-                    # Don't include target vehicles occluded to the ego vehicle.
-                    if missing_feature_extractor:
-                        occlusions = []
+                    # Don't include the frames in which the target vehicle is occluded w.r.t the ego.
+                    if extract_missing_features:
 
-                        # todo: assumes that occlusions don't change much within 1 second.
-                        occlusion_frame_id = math.ceil(current_frame_id / FRAME_STEP_SIZE)
-                        frame_occlusions = missing_feature_extractor.occlusions[str(occlusion_frame_id)]
-                        for vehicle_occlusions in frame_occlusions:
-                            if vehicle_occlusions["ego_agent_id"] == ego_agent_id:
-                                occlusions = vehicle_occlusions["occlusions"]
+                        if is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id,
+                                                      ego_agent_id, episode_frames):
+                            continue
 
-                        target_agent = episode_frames[current_frame_id][target_agent_id]
-                        l = scenario_map.lanes_at(target_agent.position)[0]
-
-                        try:
-                            lane_occlusion = occlusions[str(l.parent_road.id)][str(l.id)]
-                            lane_occlusion = unary_union([Polygon(list(zip(*xy))) for xy in lane_occlusion])
-
-                            vehicle_boundary = MultiPoint(get_vehicle_boundary(target_agent))
-
-                            # If the vehicle is inside the occluded area,
-                            if lane_occlusion.contains(vehicle_boundary):
-                                continue
-                            elif first_frame_target_not_occluded is None:
-                                first_frame_target_not_occluded = episode_frames[current_frame_id]
-
-                        except KeyError:
-                            # The lane has no occlusions and thus the vehicle is observable.
-                            pass
+                        if first_frame_target_not_occluded_id is None:
+                            first_frame_target_not_occluded_id = episode_frames[current_frame_id]
 
                     # Take the frames of what the ego has seen from the moment both the ego and target became alive.
-                    if first_frame_target_not_occluded is not None:
-                        frames = episode_frames[initial_frame_id:current_frame_id + 1]
-                    else:
-                        # The ego can never see the target vehicle, and thus we can't infer its goal.
-                        continue
+                    frames = episode_frames[initial_frame_id:current_frame_id + 1]
 
                     # iterate through each goal for that point in time.
                     for goal_idx, typed_goal in enumerate(reachable_goals):
                         if typed_goal is not None:
 
-                            if missing_feature_extractor:
-
-                                # plot parked vehicles # todo: delete
-                                """
-                                import matplotlib.pyplot as plt
-                                from grit.occlusion_detection.occlusion_detection_geometry import get_box
-                                from igp2 import plot_map
-                                occlusion_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True,
-                                                   step=FRAME_STEP_SIZE)
-
-                                plot_map(scenario_map, scenario_config=scenario.config, plot_buildings=True)
-
-                                for agent_id, state in occlusion_frames[occlusion_frame_id].items():
-                                    plt.text(*state.position, agent_id)
-                                    plt.plot(*list(zip(*get_box(state).boundary)), color="black"
-                                """
-                                occlusion_features = missing_feature_extractor.extract(target_agent_id,
-                                                                                       ego_agent_id,
-                                                                                       first_frame_target_not_occluded,
-                                                                                       frames,
-                                                                                       typed_goal)
-                            features = feature_extractor.extract(target_agent_id, frames, typed_goal)
+                            if extract_missing_features:
+                                features = feature_extractor.extract(target_agent_id, frames, typed_goal,
+                                                                     ego_agent_id=ego_agent_id,
+                                                                     initial_frame=episode_frames[initial_frame_id])
+                            else:
+                                features = feature_extractor.extract(target_agent_id, frames, typed_goal)
 
                             sample = features.copy()
                             sample['agent_id'] = target_agent_id
@@ -276,11 +286,18 @@ def extract_samples(feature_extractor, scenario, episode, missing_feature_extrac
                             sample['initial_frame_id'] = initial_frame_id
                             sample['fraction_observed'] = idx / len(reachable_goals_list)
 
-                            # todo: add the occluded features.
                             samples_list.append(sample)
 
     samples = pd.DataFrame(data=samples_list)
     return samples
+
+
+def get_vehicle_occlusions(frame_occlusions, ego_agent_id):
+    occlusions = []
+    for vehicle_occlusions in frame_occlusions:
+        if vehicle_occlusions["ego_agent_id"] == ego_agent_id:
+            occlusions = vehicle_occlusions["occlusions"]
+    return occlusions
 
 
 def get_vehicle_boundary(vehicle):
@@ -290,19 +307,22 @@ def get_vehicle_boundary(vehicle):
                vehicle.metadata.width,
                vehicle.heading).boundary
 
+
 def prepare_episode_dataset(params):
-    scenario_name, episode_idx = params
+    scenario_name, episode_idx, extract_missing_features = params
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
 
     scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
     scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
     scenario = InDScenario(scenario_config)
-    feature_extractor = FeatureExtractor(scenario_map)
-    missing_feature_extractor = MissingFeatureExtractor(scenario_map, scenario_name, episode_idx)
+
+    if extract_missing_features:
+        feature_extractor = FeatureExtractor(scenario_map, scenario_name, episode_idx)
+    else:
+        feature_extractor = FeatureExtractor(scenario_map)
+
     episode = scenario.load_episode(episode_idx)
 
-
-    samples = extract_samples(feature_extractor, scenario, episode, missing_feature_extractor) # todo: always pass
-    # todo: missing feature extractor?
+    samples = extract_samples(feature_extractor, scenario, episode, extract_missing_features)
     samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
