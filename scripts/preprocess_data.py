@@ -23,10 +23,10 @@ def main():
         for episode_idx in range(len(scenario_config.episodes)):
             params_list.append((scenario_name, episode_idx))
 
-    # prepare_episode_dataset(('round', 14))
+    prepare_episode_dataset(('heckstrasse', 0))
 
-    with Pool(args.workers) as p:
-        p.map(prepare_episode_dataset, params_list)
+    # with Pool(args.workers) as p:
+    #     p.map(prepare_episode_dataset, params_list)
 
 
 if __name__ == '__main__':
