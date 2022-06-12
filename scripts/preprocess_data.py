@@ -48,5 +48,4 @@ def iterate_through_scenarios(function, scenario, workers, *boolean_flag):
 
 
 if __name__ == '__main__':
-    # main()
-    prepare_episode_dataset(('bendplatz', 0, True))
+    main()

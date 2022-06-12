@@ -212,8 +212,6 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
             if ego_agent_id == target_agent_id:
                 continue
 
-            print('ego agent {}/{}'.format(ego_agent_idx, len(trajectories) - 1))
-
             # If we don't consider occlusions, we don't need the ego vehicle. We thus run the rest of the code once.
             if not extract_missing_features and ego_agent_idx != 0:
                 break
