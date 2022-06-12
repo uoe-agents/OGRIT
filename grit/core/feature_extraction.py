@@ -95,17 +95,17 @@ class FeatureExtractor:
             oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
 
         features = {'path_to_goal_length': path_to_goal_length,
-                         'in_correct_lane': in_correct_lane,
-                         'speed': speed,
-                         'acceleration': acceleration,
-                         'angle_in_lane': angle_in_lane,
-                         'vehicle_in_front_dist': vehicle_in_front_dist,
-                         'vehicle_in_front_speed': vehicle_in_front_speed,
-                         'oncoming_vehicle_dist': oncoming_vehicle_dist,
-                         'oncoming_vehicle_speed': oncoming_vehicle_speed,
-                         'road_heading': road_heading,
-                         'exit_number': exit_number,
-                         'goal_type': goal_type}
+                    'in_correct_lane': in_correct_lane,
+                    'speed': speed,
+                    'acceleration': acceleration,
+                    'angle_in_lane': angle_in_lane,
+                    'vehicle_in_front_dist': vehicle_in_front_dist,
+                    'vehicle_in_front_speed': vehicle_in_front_speed,
+                    'oncoming_vehicle_dist': oncoming_vehicle_dist,
+                    'oncoming_vehicle_speed': oncoming_vehicle_speed,
+                    'road_heading': road_heading,
+                    'exit_number': exit_number,
+                    'goal_type': goal_type}
 
         # We pass the ego_agent_id only if we want to extract the indicator_features.
         if ego_agent_id:
@@ -209,16 +209,12 @@ class FeatureExtractor:
         vehicle_in_front, dist = self.vehicle_in_front(target_id, lane_path, frame)
 
         target_state = frame[target_id]
-        current_lane = self.scenario_map.best_lane_at(target_state.position, target_state.heading, True)
-
         target_point = Point(*target_state.position)
-
+        current_lane = self.scenario_map.best_lane_at(target_state.position, target_state.heading, True)
         midline = current_lane.midline
-        crossing_point_on_midline = midline.interpolate(midline.project(target_point)).buffer(0.0001)
 
         # Remove all the occlusions that are behind the target vehicle as we want possible hidden vehicles in front.
-        _, _, area_after = split(midline, crossing_point_on_midline)
-
+        area_before, area_after = self.get_split_at(midline, target_point)
         occlusions = self.get_occlusions_past_point(current_lane, lane_path, occlusions, target_point, area_after)
 
         if occlusions is None:
@@ -322,7 +318,20 @@ class FeatureExtractor:
         lane_ls = LineString(midline_points)
         return lane_ls
 
-    # todo: refactor function
+    @staticmethod
+    def get_split_at(midline, point):
+        point_on_midline = midline.interpolate(midline.project(point)).buffer(0.0001)
+
+        split_lanes = split(midline, point_on_midline)
+
+        if len(split_lanes) == 2:
+            # Handle the case in which the split point is at the start/end of the lane.
+            area_before, area_after = split_lanes
+        else:
+            area_before, _, area_after = split_lanes
+
+        return area_before, area_after
+
     def _get_oncoming_vehicles(self, lane_path: List[Lane], ego_agent_id: int, frame: Dict[int, AgentState],
                                occlusions: MultiPolygon = None, check_occlusions: bool = False) \
             -> Dict[int, Tuple[AgentState, float]]:
@@ -345,20 +354,17 @@ class FeatureExtractor:
             crossing_points.append(crossing_point)
             lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
             midline = self.get_lane_path_midline(lane_sequence)
-            crossing_lon = midline.project(crossing_point)
 
             # Find the occlusions on the lanes that the ego vehicle will cross.
             if occlusions:
 
+                # Get the part of the midline of the lanes in which there could be oncoming vehicles, that is before
+                # the crossing point.
                 # Ignore the occlusions that are on the "opposite" (w.r.t traffic direction) side of the crossing point.
                 # We only want to check if there is a hidden vehicle that could collide with the ego.
                 # This can only happen with vehicles that are driving in the lane's direction of traffic
                 # and have not passed the crossing point that the ego will drive through.
-                crossing_point_on_midline = midline.interpolate(crossing_lon).buffer(0.0001)
-
-                # Get the part of the midline of the lanes in which there could be oncoming vehicles, that is before
-                # the crossing point.
-                area_before, _, area_after = split(midline, crossing_point_on_midline)
+                area_before, area_after = self.get_split_at(midline, crossing_point)
 
                 # Get the significant occlusions.
                 lane_occlusions = self.get_occlusions_past_point(ego_junction_lane,
