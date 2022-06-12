@@ -35,8 +35,12 @@ class FeatureExtractor:
                      'road_heading': 'scalar',
                      'exit_number': 'scalar'}
 
-    indicator_features = ['exit_number_missing']
-    possibly_missing_features = {'exit_number': 'exit_number_missing'}
+    indicator_features = ['exit_number_missing', 'vehicle_in_front_missing', 'oncoming_vehicle_missing']
+    possibly_missing_features = {'exit_number': 'exit_number_missing',
+                                 'oncoming_vehicle_dist': 'oncoming_vehicle_missing',
+                                 'oncoming_vehicle_speed': 'oncoming_vehicle_missing',
+                                 'vehicle_in_front_dist': 'vehicle_in_front_missing',
+                                 'vehicle_in_front_speed': 'vehicle_in_front_missing'}
 
     def __init__(self, scenario_map: Map, *args):
         self.scenario_map = scenario_map
