@@ -8,13 +8,14 @@ plt.style.use('ggplot')
 model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior', 'uniform_prior_baseline']
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
-model_names = ['generalised_grit', 'occlusion_grit', 'occlusion_baseline', 'uniform_prior_baseline']
+model_names = ['generalised_grit', 'occlusion_grit', 'occlusion_baseline']
 
 
-label_map = {'generalised_grit': 'priviledged baseline',
+label_map = {'generalised_grit': 'privileged baseline',
              'occlusion_grit': 'OGRIT',
              'occlusion_baseline': 'simple baseline',
-             'uniform_prior_baseline': 'uniform prior baseline'}
+             'uniform_prior_baseline': 'uniform prior baseline',
+             'grit_uniform_prior': 'GRIT (privileged)'}
 
 # plot accuracy
 fig, axes = plt.subplots(2, 2)

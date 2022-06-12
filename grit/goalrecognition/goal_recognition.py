@@ -29,6 +29,9 @@ class GoalRecogniser:
 
         """
         dataset = dataset.copy()
+        if 'ego_agent_id' not in dataset.columns:
+            dataset['ego_agent_id'] = 0
+
         model_likelihoods = []
 
         for index, row in dataset.iterrows():
@@ -39,7 +42,7 @@ class GoalRecogniser:
 
             model_likelihoods.append(model_likelihood)
         dataset['model_likelihood'] = model_likelihoods
-        unique_samples = dataset[['episode', 'agent_id', 'frame_id', 'true_goal',
+        unique_samples = dataset[['episode', 'agent_id', 'ego_agent_id', 'frame_id', 'true_goal',
                                   'true_goal_type', 'fraction_observed']].drop_duplicates()
         model_predictions = []
         predicted_goal_types = []
@@ -54,6 +57,7 @@ class GoalRecogniser:
         for index, row in unique_samples.iterrows():
             indices = ((dataset.episode == row.episode)
                        & (dataset.agent_id == row.agent_id)
+                       & (dataset.ego_agent_id == row.ego_agent_id)
                        & (dataset.frame_id == row.frame_id))
             goals = dataset.loc[indices][['possible_goal', 'goal_type', 'model_likelihood']]
 
