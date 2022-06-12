@@ -277,6 +277,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
 
                             sample = features.copy()
                             sample['agent_id'] = target_agent_id
+                            sample['ego_agent_id'] = ego_agent_id
                             sample['possible_goal'] = goal_idx
                             sample['true_goal'] = true_goal_idx
                             sample['true_goal_type'] = true_goal_type
