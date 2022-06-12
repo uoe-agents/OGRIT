@@ -435,7 +435,7 @@ class FeatureExtractor:
 
         possible_occlusions = []
         for lane in other_lanes:
-            o = all_occlusions.intersection(lane.boundary)
+            o = all_occlusions.intersection(lane.boundary.buffer(0))
             if isinstance(o, MultiPolygon):
                 possible_occlusions.extend(list(o.geoms))
             elif isinstance(o, Polygon):
