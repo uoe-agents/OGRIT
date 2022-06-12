@@ -15,8 +15,8 @@ def main():
                         action='store_true')
     args = parser.parse_args()
 
-    iterate_through_scenarios(prepare_episode_dataset, args["scenario"], args["workers"],
-                              args["extract_indicator_features"])
+    iterate_through_scenarios(prepare_episode_dataset, args.scenario, args.workers,
+                              args.extract_indicator_features)
 
 
 def iterate_through_scenarios(function, scenario, workers, *boolean_flag):
