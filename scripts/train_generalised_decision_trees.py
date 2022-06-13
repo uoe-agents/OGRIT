@@ -9,7 +9,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg']#, 'round']
     else:
         scenario_names = [args.scenario]
 
@@ -17,7 +17,7 @@ def main():
                                  criterion='entropy',
                                  min_samples_leaf=10,
                                  max_depth=7,
-                                 alpha=1, ccp_alpha=0.00001)
+                                 alpha=1, ccp_alpha=0.0001)
     grit.save()
 
 

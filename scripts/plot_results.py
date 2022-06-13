@@ -3,19 +3,20 @@ import matplotlib.pyplot as plt
 from grit.core.base import get_base_dir
 import itertools
 
+plt.rcParams["figure.figsize"] = (8,8)
 plt.style.use('ggplot')
 
 model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior', 'uniform_prior_baseline']
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
-model_names = ['generalised_grit', 'occlusion_grit', 'occlusion_baseline']
+model_names = ['generalised_grit', 'occlusion_baseline', 'occlusion_grit']
 
 
-label_map = {'generalised_grit': 'privileged baseline',
+label_map = {'generalised_grit': 'G-GRIT',
              'occlusion_grit': 'OGRIT',
-             'occlusion_baseline': 'simple baseline',
+             'occlusion_baseline': 'truncated G-GRIT',
              'uniform_prior_baseline': 'uniform prior baseline',
-             'grit_uniform_prior': 'GRIT (privileged)'}
+             'grit_uniform_prior': 'GRIT'}
 
 # plot accuracy
 fig, axes = plt.subplots(2, 2)
@@ -64,13 +65,13 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
 
 # plot true goal probability
 fig, axes = plt.subplots(2, 2)
-
 for scenario_idx, scenario_name in enumerate(scenario_names):
     ax = axes[scenario_idx % 2, scenario_idx // 2]
     plt.sca(ax)
     if scenario_idx % 2 == 1:
         plt.xlabel('fraction of trajectory observed')
-    plt.title('True Goal Probability ({})'.format(scenario_name))
+    plt.ylabel('Probability assigned to true goal')
+    plt.title(scenario_name)
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
@@ -81,7 +82,9 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
         plt.fill_between(true_goal_prob_sem.fraction_observed, (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
                          (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
     plt.ylim([0, 1.1])
-    plt.legend()
+    if scenario_idx == 0:
+        plt.legend()
+plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')
 
 # plot cross entropy
 fig, axes = plt.subplots(2, 2)
