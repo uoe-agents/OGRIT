@@ -5,7 +5,6 @@ import json, math
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
-from shapely.errors import TopologicalError
 
 from grit.core.goal_generator import TypedGoal, GoalGenerator
 
@@ -446,10 +445,7 @@ class FeatureExtractor:
 
         possible_occlusions = []
         for lane in other_lanes:
-            try:
-                o = all_occlusions.intersection(lane.boundary.buffer(0))
-            except TopologicalError:
-                return all_occlusions
+            o = all_occlusions.intersection(lane.boundary.buffer(0))
 
             if isinstance(o, MultiPolygon):
                 possible_occlusions.extend(list(o.geoms))

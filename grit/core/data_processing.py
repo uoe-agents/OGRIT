@@ -12,6 +12,7 @@ from igp2.opendrive.map import Map
 
 from grit.core.feature_extraction import FeatureExtractor, GoalDetector
 from shapely.geometry import MultiPoint, Polygon
+from shapely.errors import TopologicalError
 from shapely.ops import unary_union
 
 from grit.core.base import get_data_dir, get_base_dir
@@ -270,9 +271,14 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                         if typed_goal is not None:
 
                             if extract_missing_features:
-                                features = feature_extractor.extract(target_agent_id, frames, typed_goal,
-                                                                     ego_agent_id=ego_agent_id,
-                                                                     initial_frame=episode_frames[initial_frame_id])
+
+                                try:
+                                    features = feature_extractor.extract(target_agent_id, frames, typed_goal,
+                                                                         ego_agent_id=ego_agent_id,
+                                                                         initial_frame=episode_frames[initial_frame_id])
+                                except TopologicalError:
+                                    continue
+
                             else:
                                 features = feature_extractor.extract(target_agent_id, frames, typed_goal)
 

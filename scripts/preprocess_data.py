@@ -8,9 +8,9 @@ from grit.core.data_processing import prepare_episode_dataset
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Process the dataset') # todo: see github
+    parser = argparse.ArgumentParser(description='Process the dataset')
     parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
-    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=4)
+    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=8)
     parser.add_argument('--extract_indicator_features', help='If you want to extract the indicator features',
                         action='store_true')
     args = parser.parse_args()
