@@ -4,6 +4,7 @@ from typing import Dict, List
 import pandas as pd
 import numpy as np
 import math
+import os
 from igp2 import AgentState, Box
 from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
@@ -308,20 +309,26 @@ def get_vehicle_boundary(vehicle):
 
 
 def prepare_episode_dataset(params):
-    scenario_name, episode_idx, extract_missing_features = params
+    scenario_name, episode_idx, extract_indicator_features = params
+
+    # Skip files for which we already have data.
+    file_name = get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx)
+    if os.path.isfile(file_name):
+        return
+
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
 
     scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
     scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
     scenario = InDScenario(scenario_config)
 
-    if extract_missing_features:
+    if extract_indicator_features:
         feature_extractor = FeatureExtractor(scenario_map, scenario_name, episode_idx)
     else:
         feature_extractor = FeatureExtractor(scenario_map)
 
     episode = scenario.load_episode(episode_idx)
 
-    samples = extract_samples(feature_extractor, scenario, episode, extract_missing_features)
-    samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
+    samples = extract_samples(feature_extractor, scenario, episode, extract_indicator_features)
+    samples.to_csv(file_name, index=False)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
