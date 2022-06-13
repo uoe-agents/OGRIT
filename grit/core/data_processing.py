@@ -283,7 +283,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             sample['true_goal_type'] = true_goal_type
                             sample['frame_id'] = current_frame_id
                             sample['initial_frame_id'] = initial_frame_id
-                            sample['fraction_observed'] = idx / len(reachable_goals_list)
+                            sample['fraction_observed'] = (idx - initial_frame_offset) / (len(reachable_goals_list) - initial_frame_offset)
 
                             samples_list.append(sample)
 
