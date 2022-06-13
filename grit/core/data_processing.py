@@ -144,7 +144,7 @@ def get_first_last_frame_ids(episode, vehicle_id):
 
 def get_frame_ids_and_goals(scenario, episode, trajectory, target_agent_id, feature_extractor, ego_agent_id=None):
 
-    if ego_agent_id:
+    if ego_agent_id is not None:
 
         # Get the frames in which both the ego and the target vehicles are alive.
         initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
