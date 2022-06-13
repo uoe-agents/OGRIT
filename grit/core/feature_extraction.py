@@ -112,7 +112,7 @@ class FeatureExtractor:
                     'goal_type': goal_type}
 
         # We pass the ego_agent_id only if we want to extract the indicator_features.
-        if ego_agent_id:
+        if ego_agent_id is not None:
 
             frame_id = math.ceil(current_state.time / self.FRAME_STEP_SIZE)
             frame_occlusions = self.occlusions[str(frame_id)]
@@ -446,6 +446,7 @@ class FeatureExtractor:
         possible_occlusions = []
         for lane in other_lanes:
             o = all_occlusions.intersection(lane.boundary.buffer(0))
+
             if isinstance(o, MultiPolygon):
                 possible_occlusions.extend(list(o.geoms))
             elif isinstance(o, Polygon):

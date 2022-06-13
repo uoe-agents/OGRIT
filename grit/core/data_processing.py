@@ -4,6 +4,7 @@ from typing import Dict, List
 import pandas as pd
 import numpy as np
 import math
+import os
 from igp2 import AgentState, Box
 from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
@@ -11,6 +12,7 @@ from igp2.opendrive.map import Map
 
 from grit.core.feature_extraction import FeatureExtractor, GoalDetector
 from shapely.geometry import MultiPoint, Polygon
+from shapely.errors import TopologicalError
 from shapely.ops import unary_union
 
 from grit.core.base import get_data_dir, get_base_dir
@@ -142,7 +144,7 @@ def get_first_last_frame_ids(episode, vehicle_id):
 
 def get_frame_ids_and_goals(scenario, episode, trajectory, target_agent_id, feature_extractor, ego_agent_id=None):
 
-    if ego_agent_id:
+    if ego_agent_id is not None:
 
         # Get the frames in which both the ego and the target vehicles are alive.
         initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
@@ -269,9 +271,14 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                         if typed_goal is not None:
 
                             if extract_missing_features:
-                                features = feature_extractor.extract(target_agent_id, frames, typed_goal,
-                                                                     ego_agent_id=ego_agent_id,
-                                                                     initial_frame=episode_frames[initial_frame_id])
+
+                                try:
+                                    features = feature_extractor.extract(target_agent_id, frames, typed_goal,
+                                                                         ego_agent_id=ego_agent_id,
+                                                                         initial_frame=episode_frames[initial_frame_id])
+                                except TopologicalError:
+                                    continue
+
                             else:
                                 features = feature_extractor.extract(target_agent_id, frames, typed_goal)
 
@@ -308,20 +315,26 @@ def get_vehicle_boundary(vehicle):
 
 
 def prepare_episode_dataset(params):
-    scenario_name, episode_idx, extract_missing_features = params
+    scenario_name, episode_idx, extract_indicator_features = params
+
+    # Skip files for which we already have data.
+    file_name = get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx)
+    if os.path.isfile(file_name):
+        return
+
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
 
     scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
     scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
     scenario = InDScenario(scenario_config)
 
-    if extract_missing_features:
+    if extract_indicator_features:
         feature_extractor = FeatureExtractor(scenario_map, scenario_name, episode_idx)
     else:
         feature_extractor = FeatureExtractor(scenario_map)
 
     episode = scenario.load_episode(episode_idx)
 
-    samples = extract_samples(feature_extractor, scenario, episode, extract_missing_features)
-    samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
+    samples = extract_samples(feature_extractor, scenario, episode, extract_indicator_features)
+    samples.to_csv(file_name, index=False)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
