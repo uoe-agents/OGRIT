@@ -134,6 +134,8 @@ dmypy.json
 
 # project data folders
 data/
+data_new/
+data_old/
 images/
 videos/
 data_iros/
