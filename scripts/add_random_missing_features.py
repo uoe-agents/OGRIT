@@ -16,4 +16,6 @@ for scenario_name in scenarios:
         else:
             samples['exit_number_missing'] = True
             samples['exit_number'] = 0
+        samples['oncoming_vehicle_missing'] = np.random.choice([True, False], size=samples.shape[0])
+        samples['vehicle_in_front_missing'] = np.random.choice([True, False], size=samples.shape[0])
         samples.to_csv(get_data_dir() + '/{}_e{}.csv'.format(scenario_name, episode_idx), index=False)

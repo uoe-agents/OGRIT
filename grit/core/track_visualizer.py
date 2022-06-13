@@ -37,6 +37,7 @@ class TrackVisualizer(object):
         self.agent_id = agent_id
         self.goal_idx = goal_idx
         self.goal_type = goal_type
+        self.ego_agent_id = None
 
         # Get configurations
         if self.scale_down_factor % 2 != 0:
@@ -212,6 +213,7 @@ class TrackVisualizer(object):
 
     def update_figure(self):
         saved_tree = False
+        self.ego_agent_id = None
         # Plot the bounding boxes, their text annotations and direction arrow
         plotted_objects = []
         for track_ind in self.ids_for_frame[self.current_frame]:
@@ -366,6 +368,12 @@ class TrackVisualizer(object):
         track_id_string = text_value[:text_value.index("|")]
         track_id = int(track_id_string[2:])
 
+        if self.ego_agent_id is None:
+            self.ego_agent_id = track_id
+            print(f'Set ego agent to {track_id}')
+            return
+        print(f'Showing details for target agent {track_id} with ego agent {self.ego_agent_id}')
+
         # do goal inference to get correct higlighting on tree
         static_track_information = self.static_info[track_id]
         initial_frame = static_track_information["initialFrame"]
@@ -378,10 +386,12 @@ class TrackVisualizer(object):
 
         #goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
 
-        agent_data = self.episode_dataset.loc[self.episode_dataset.agent_id==track_id]
+        #select ego agent here
+        agent_data = self.episode_dataset.loc[(self.episode_dataset.agent_id==track_id)
+                                              & (self.ego_agent_id==self.episode_dataset.ego_agent_id)]
         goal_idxes = agent_data.possible_goal.unique()
 
-        features = FeatureExtractor.feature_names.keys()
+        features = list(FeatureExtractor.feature_names.keys()) + FeatureExtractor.indicator_features
 
         for goal_idx in goal_idxes:
             goal_data = agent_data.loc[agent_data.possible_goal==goal_idx]
@@ -395,14 +405,12 @@ class TrackVisualizer(object):
 
             for feature_idx, feature in enumerate(features):
                 feature_data = goal_data[['frame_id', feature]]
-                sub_plot = plt.subplot(3, 4, feature_idx + 1, title=feature)
+                sub_plot = plt.subplot(4, 4, feature_idx + 1, title=feature)
                 plt.plot(feature_data.frame_id, feature_data[feature])
                 borders = [feature_data[feature].min() - 1, feature_data[feature].max() + 1]
                 plt.plot([self.current_frame, self.current_frame], borders, "--r")
                 plt.xlabel('frame')
                 sub_plot.grid(True)
-
-
 
             if isinstance(self.goal_recogniser, GeneralisedGrit):
                 self.goal_recogniser.goal_likelihood(frames, typed_goals[goal_idx], track_id)
@@ -425,6 +433,7 @@ class TrackVisualizer(object):
             plt.title(title)
 
         plt.show()
+        self.ego_agent_id = None
 
     def on_click(self, event):
         artist = event.artist
