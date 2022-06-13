@@ -10,8 +10,8 @@ scikit-image~=0.18.1
 diff-match-patch
 igp2~=0.1.0
 scikit-learn~=1.0.2
-carla~=0.9.12
 psutil~=5.8.0
+carla~=0.9.12
 opencv-python~=4.5.5.64
 pillow~=9.1.0
 pytest~=6.2.3
