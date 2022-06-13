@@ -144,7 +144,7 @@ def get_first_last_frame_ids(episode, vehicle_id):
 
 def get_frame_ids_and_goals(scenario, episode, trajectory, target_agent_id, feature_extractor, ego_agent_id=None):
 
-    if ego_agent_id:
+    if ego_agent_id is not None:
 
         # Get the frames in which both the ego and the target vehicles are alive.
         initial_frame_id_target, last_frame_id_target = get_first_last_frame_ids(episode, target_agent_id)
@@ -290,7 +290,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             sample['true_goal_type'] = true_goal_type
                             sample['frame_id'] = current_frame_id
                             sample['initial_frame_id'] = initial_frame_id
-                            sample['fraction_observed'] = idx / len(reachable_goals_list)
+                            sample['fraction_observed'] = (idx - initial_frame_offset) / (len(reachable_goals_list) - initial_frame_offset)
 
                             samples_list.append(sample)
 
