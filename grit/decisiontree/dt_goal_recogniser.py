@@ -48,8 +48,8 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
         raise NotImplementedError
 
     @classmethod
-    def train(cls, scenario_name, alpha=1, criterion='gini', min_samples_leaf=10,
-              max_leaf_nodes=None, max_depth=None, training_set=None, ccp_alpha=0):
+    def train(cls, scenario_name, alpha=1, criterion='gini', min_samples_leaf=10, max_leaf_nodes=None,
+              max_depth=None, training_set=None, ccp_alpha=0, features=None):
         decision_trees = {}
         scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
 
@@ -64,7 +64,10 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
                 dt_training_set = training_set.loc[(training_set.possible_goal == goal_idx)
                                                    & (training_set.goal_type == goal_type)]
                 if dt_training_set.shape[0] > 0:
-                    X = dt_training_set[FeatureExtractor.feature_names.keys()].to_numpy()
+                    if features is None:
+                        X = dt_training_set[FeatureExtractor.feature_names.keys()].to_numpy()
+                    else:
+                        X = dt_training_set[features].to_numpy()
                     y = (dt_training_set.possible_goal == dt_training_set.true_goal).to_numpy()
                     if y.all() or not y.any():
                         goal_tree = Node(0.5)
@@ -243,3 +246,32 @@ class OcclusionBaseline(GeneralisedGrit):
         else:
             tree_likelihood = 0.5
         return tree_likelihood
+
+
+class NoPossiblyMissingFeaturesGrit(Grit):
+
+    """Model without the features that could be missing"""
+    FEATURES = [feature for feature in FeatureExtractor.feature_names.keys()
+                if feature not in ["vehicle_in_front_dist", "vehicle_in_front_speed",
+                                   "oncoming_vehicle_dist", "oncoming_vehicle_speed",
+                                   "exit_number"]]
+    
+    @staticmethod
+    def get_model_name():
+        return 'no_possibly_missing_features_grit'
+
+    @classmethod
+    def train(cls, scenario_name: str, alpha=1, criterion='gini', min_samples_leaf=1, max_leaf_nodes=None,
+              max_depth=None, training_set=None, ccp_alpha=0, features=FEATURES):
+        return super().train(scenario_name=scenario_name, alpha=alpha, criterion=criterion,
+                             min_samples_leaf=min_samples_leaf, max_leaf_nodes=max_leaf_nodes,
+                             max_depth=max_depth, training_set=None, ccp_alpha=ccp_alpha, features=features)
+
+    def save(self, scenario_name):
+        with open(get_data_dir() + f'{self.get_model_name()}_trained_trees_{scenario_name}.p', 'wb') as f:
+            pickle.dump(self.decision_trees, f)
+
+    @staticmethod
+    def load_decision_trees(scenario_name):
+        with open(get_data_dir() + f'no_possibly_missing_features_grit_trained_trees_{scenario_name}.p', 'rb') as f:
+            return pickle.load(f)
