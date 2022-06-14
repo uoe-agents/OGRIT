@@ -136,6 +136,30 @@ class FeatureExtractor:
             features.update(indicator_features)
         return features
 
+    # TODO: in final code, remove this function - only used to correct data
+    def extract_missing_exit(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
+                initial_frame: Dict[int, AgentState] = None) \
+            -> Dict[str, Union[float, bool]]:
+        """Extracts a dict of features describing the observation
+
+        Args:
+            agent_id: identifier for the agent of which we want the features
+            frames: list of observed frames
+            goal:  goal of the agent
+            ego_agent_id: id of the ego agent from whose pov the occlusions are taken. Used for indicator features only
+            initial_frame: first frame in which the target agent is visible to the ego. Used for indicator features
+
+        Returns: dict of features values
+
+        """
+
+        initial_state = initial_frame[agent_id]
+        exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
+            if self.scenario_name == "round" else False
+
+        indicator_features = {'exit_number_missing': exit_number_occluded}
+        return indicator_features
+
     @staticmethod
     def get_vehicles_in_route(ego_agent_id: int, path: List[Lane], frame: Dict[int, AgentState]):
         agents = []
