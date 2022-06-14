@@ -33,7 +33,7 @@ class FeatureExtractor:
                      'oncoming_vehicle_dist': 'scalar',
                      'oncoming_vehicle_speed': 'scalar',
                      'road_heading': 'scalar',
-                     'exit_number': 'scalar'}
+                     'exit_number': 'integer'}
 
     indicator_features = ['exit_number_missing', 'vehicle_in_front_missing', 'oncoming_vehicle_missing']
     possibly_missing_features = {'exit_number': 'exit_number_missing',

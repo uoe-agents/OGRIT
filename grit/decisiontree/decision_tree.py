@@ -49,7 +49,14 @@ class ThresholdDecision(Decision):
         return features[self.feature_name] > self.threshold
 
     def __str__(self):
-        return '{} > {:.2f}\n'.format(self.feature_name, self.threshold)
+
+        if (self.feature_name in FeatureExtractor.indicator_features
+                or FeatureExtractor.feature_names[self.feature_name] == 'binary'):
+            return self.feature_name + '\n'
+        elif FeatureExtractor.feature_names[self.feature_name] == 'integer':
+            return '{} > {}\n'.format(self.feature_name, int(self.threshold))
+        else:
+            return '{} > {:.2f}\n'.format(self.feature_name, self.threshold)
 
 
 class Node:
@@ -87,6 +94,18 @@ class Node:
             text += str(self.decision)
         return text
 
+    def get_text(self, show_counts=False):
+        text = ''
+
+        if self.decision is not None:
+            text += str(self.decision)
+        else:
+            if show_counts:
+                text += '{0:.3f} {1}'.format(self.value, self.counts)
+            else:
+                text += '{0:.3f}'.format(self.value)
+        return text
+
     @classmethod
     def from_sklearn(cls, input_tree, feature_types):
         # based on:
@@ -107,7 +126,7 @@ class Node:
                 threshold = tree_.threshold[node]
                 true_child = recurse(tree_.children_right[node])
                 false_child = recurse(tree_.children_left[node])
-                if feature_types[name] == 'scalar':
+                if feature_types[name] in ['scalar', 'integer']:
                     out_node.decision = ThresholdDecision(threshold, name, true_child, false_child)
                 elif feature_types[name] == 'binary':
                     out_node.decision = BinaryDecision(name, true_child, false_child)
@@ -334,22 +353,63 @@ class Node:
         node.counts = [Nng, Nn - Nng]
         return node
 
-    def pydot_tree(self):
+    def pydot_tree(self, truncate_edges=None):
+        if truncate_edges is None:
+            truncate_edges = []
+
         graph = pydot.Dot(graph_type='digraph')
 
         def recurse(graph, root, idx='R'):
-            if root.reached:
-                node = pydot.Node(idx, label=str(root), style='filled', color="lightblue")
+
+            if root.decision is None:
+                shape = 'oval'
+                style = 'filled'
+                color = '#7cb571'
+                fillcolor = '#d2e8d5'
+            elif root.decision.feature_name in FeatureExtractor.indicator_features:
+                shape = 'oval'
+                style = 'filled'
+                color = '#d06769'
+                fillcolor = '#ffcccd'
+            elif root.decision.feature_name in FeatureExtractor.possibly_missing_features:
+                shape = 'octagon'
+                color = '#82aacc'
+                style = 'filled'
+                fillcolor = '#d5e9fb'
             else:
-                node = pydot.Node(idx, label=str(root))
+                shape = 'box'
+                color = 'black'
+                style = 'solid'
+                fillcolor = 'white'
+
+            if root.reached:
+                style = 'filled'
+                color = '#5ebfad'
+
+            node = pydot.Node(idx, label=root.get_text(), shape=shape, style=style, color=color, fillcolor=fillcolor)
             graph.add_node(node)
             if root.decision is not None:
-                true_child = recurse(graph, root.decision.true_child, idx + 'T')
-                false_child = recurse(graph, root.decision.false_child, idx + 'F')
+                true_idx = idx + 'T'
                 true_weight = root.decision.true_child.value / root.value
+                if true_idx in truncate_edges:
+                    dummy_child = pydot.Node(true_idx, label=' ', color='white')
+                    graph.add_node(dummy_child)
+                    graph.add_edge(pydot.Edge(node, dummy_child, style='dashed',
+                                              label='T: {:.2f}'.format(true_weight)))
+                else:
+                    true_child = recurse(graph, root.decision.true_child, true_idx)
+                    graph.add_edge(pydot.Edge(node, true_child, label='T: {:.2f}'.format(true_weight)))
+
+                false_idx = idx + 'F'
                 false_weight = root.decision.false_child.value / root.value
-                graph.add_edge(pydot.Edge(node, true_child, label='T: {:.2f}'.format(true_weight)))
-                graph.add_edge(pydot.Edge(node, false_child, label='F: {:.2f}'.format(false_weight)))
+                if false_idx in truncate_edges:
+                    dummy_child = pydot.Node(false_idx, label=' ', color='white')
+                    graph.add_node(dummy_child)
+                    graph.add_edge(pydot.Edge(node, dummy_child, style='dashed',
+                                              label='F: {:.2f}'.format(false_weight)))
+                else:
+                    false_child = recurse(graph, root.decision.false_child, false_idx)
+                    graph.add_edge(pydot.Edge(node, false_child, label='F: {:.2f}'.format(false_weight)))
             return node
 
         recurse(graph, self)
