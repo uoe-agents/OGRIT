@@ -87,8 +87,8 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
             for goal_type in goal_types:
                 goal_tree = self.decision_trees[goal_idx][goal_type]
                 pydot_tree = goal_tree.pydot_tree()
-                pydot_tree.write_png(get_img_dir() + 'trained_tree_{}_G{}_{}.png'.format(
-                    scenario_name, goal_idx, goal_type))
+                # pydot_tree.write_png(get_img_dir() + 'trained_tree_{}_G{}_{}.png'.format(
+                #     scenario_name, goal_idx, goal_type))
         with open(get_data_dir() + 'trained_trees_{}.p'.format(scenario_name), 'wb') as f:
             pickle.dump(self.decision_trees, f)
         self.goal_priors.to_csv(get_data_dir() + '{}_priors.csv'.format(scenario_name), index=False)
@@ -157,12 +157,14 @@ class GeneralisedGrit(GoalRecogniser):
         return cls(priors, decision_trees)
 
     def save(self):
-        for goal_type, goal_tree in self.decision_trees.items():
-            pydot_tree = goal_tree.pydot_tree()
-
-            pydot_tree.write_png(get_img_dir() + f'{self.get_model_name()}_{goal_type}.png')
+        self.save_images()
         with open(get_data_dir() + f'{self.get_model_name()}.p', 'wb') as f:
             pickle.dump(self.decision_trees, f)
+
+    def save_images(self, truncated_edges=None):
+        for goal_type, goal_tree in self.decision_trees.items():
+            pydot_tree = goal_tree.pydot_tree(truncate_edges=truncated_edges)
+            #pydot_tree.write_png(get_img_dir() + f'{self.get_model_name()}_{goal_type}.png')
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
         if goal_type in self.decision_trees:
