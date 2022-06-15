@@ -15,7 +15,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenario', type=str, help='Name of scenario to validate', default=None)
-    parser.add_argument('--models', type=str, help='List of models, comma separated', default=None)
+    parser.add_argument('--models', type=str, help='List of models, comma separated', default='generalised_grit,occlusion_grit')
     args = parser.parse_args()
 
     if args.scenario is None:

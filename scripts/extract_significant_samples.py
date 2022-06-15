@@ -2,6 +2,9 @@ import pandas as pd
 import argparse
 
 from grit.core.base import get_data_dir, get_predictions_dir
+from scripts.train_generalised_decision_trees import main as train_generalised_tree
+from scripts.train_occlusion_grit import main as train_ogrit
+from scripts.evaluate_models_from_features import main as evaluate_models
 
 parser = argparse.ArgumentParser(description='Extract the samples in which there is significant difference in the '
                                              'accuracy of GRIT with and without features that could be possibly'
@@ -35,4 +38,15 @@ for scenario_name in scenarios:
     significant_samples = samples_test_model[samples_test_model["significant_sample"]]
 
     merged_samples = all_samples.merge(significant_samples, on=COLUMNS_TO_TAKE)
-    merged_samples.to_csv(get_data_dir() + f'/{scenario_name}_{test_model_name}.csv', index=False)
+
+    for episode_idx in merged_samples["episode"].unique():
+        scenario_samples = merged_samples[merged_samples["episode"] == episode_idx]
+        scenario_samples.to_csv(get_data_dir() + f'/{scenario_name}_e{episode_idx}.csv', index=False)
+
+    # Train the models
+    train_generalised_tree()
+    train_ogrit()
+    evaluate_models()
+
+
+
