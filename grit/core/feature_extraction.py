@@ -528,6 +528,7 @@ class FeatureExtractor:
 
     @staticmethod
     def get_occlusions_ego_polygon(frame_occlusions, ego_id):
+        occlusions_vehicle_frame = []
         for vehicle_occlusions in frame_occlusions:
             if vehicle_occlusions["ego_agent_id"] == ego_id:
                 occlusions_vehicle_frame = vehicle_occlusions["occlusions"]
