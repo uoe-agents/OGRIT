@@ -274,8 +274,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             if extract_missing_features:
 
                                 try:
-                                    # TODO: in final code use .extract instead
-                                    features = feature_extractor.extract_missing_exit(target_agent_id, frames, typed_goal,
+                                    features = feature_extractor.extract(target_agent_id, frames, typed_goal,
                                                                          ego_agent_id=ego_agent_id,
                                                                          initial_frame=first_frame_target_not_occluded)
                                 except TopologicalError:
