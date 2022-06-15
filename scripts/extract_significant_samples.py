@@ -25,12 +25,14 @@ COLUMNS_TO_TAKE = ["episode", "agent_id", "ego_agent_id", "frame_id"]
 
 for scenario_name in scenarios:
 
+    all_samples = pd.read_csv(get_data_dir() + f'/original/{scenario_name}_{test_model_name}.csv')
     samples_test_model = pd.read_csv(get_predictions_dir() + f'/original/{scenario_name}_{test_model_name}_all.csv')
     samples_base_model = pd.read_csv(get_predictions_dir() + f'/original/{scenario_name}_{base_model_name}_all.csv')
 
     samples_test_model["significant_sample"] = (samples_base_model["true_goal_prob"] -
                                                 samples_test_model["true_goal_prob"]) > args.cut_off
 
-    significant_samples = samples_test_model[samples_test_model["significant_sample"]][COLUMNS_TO_TAKE]
+    significant_samples = samples_test_model[samples_test_model["significant_sample"]]
 
-    significant_samples.to_csv(get_data_dir() + '/{}_{}_vs_{}.csv'.format(scenario_name, test_model_name, base_model_name), index=False)
+    merged_samples = all_samples.merge(significant_samples, on=COLUMNS_TO_TAKE)
+    merged_samples.to_csv(get_data_dir() + f'/{scenario_name}_{test_model_name}.csv', index=False)
