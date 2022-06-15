@@ -15,3 +15,11 @@ def get_img_dir():
 
 def get_dt_config_dir():
     return get_base_dir() + '/grit/dt_config/'
+
+
+def get_subset_dir():
+    return get_base_dir() + '/data/significant_samples/'
+
+
+def get_predictions_dir():
+    return get_base_dir() + '/predictions/'

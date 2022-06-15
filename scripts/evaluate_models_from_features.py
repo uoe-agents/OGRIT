@@ -47,9 +47,10 @@ def main():
     true_goal_prob = pd.DataFrame(index=model_names, columns=scenario_names)
 
     predictions = {}
-    dataset_name = 'all'
+    dataset_name = 'test'
 
     for scenario_name in scenario_names:
+
         dataset = get_dataset(scenario_name, dataset_name)
         dataset_predictions = {}
 

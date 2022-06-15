@@ -25,8 +25,8 @@ COLUMNS_TO_TAKE = ["episode", "agent_id", "ego_agent_id", "frame_id"]
 
 for scenario_name in scenarios:
 
-    samples_test_model = pd.read_csv(get_predictions_dir() + f'/{scenario_name}_{test_model_name}_all.csv')
-    samples_base_model = pd.read_csv(get_predictions_dir() + f'/{scenario_name}_{base_model_name}_all.csv')
+    samples_test_model = pd.read_csv(get_predictions_dir() + f'/original/{scenario_name}_{test_model_name}_all.csv')
+    samples_base_model = pd.read_csv(get_predictions_dir() + f'/original/{scenario_name}_{base_model_name}_all.csv')
 
     samples_test_model["significant_sample"] = (samples_base_model["true_goal_prob"] -
                                                 samples_test_model["true_goal_prob"]) > args.cut_off

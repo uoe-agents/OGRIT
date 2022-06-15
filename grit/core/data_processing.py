@@ -27,7 +27,6 @@ def load_dataset_splits():
 
 def get_dataset(scenario_name, subset='train', features=True):
 
-    # todo load all
     data_set_splits = load_dataset_splits()
     episode_idxes = data_set_splits[scenario_name][subset]
     episode_training_sets = []
