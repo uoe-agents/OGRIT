@@ -26,6 +26,8 @@ def load_dataset_splits():
 
 
 def get_dataset(scenario_name, subset='train', features=True):
+
+    # todo load all
     data_set_splits = load_dataset_splits()
     episode_idxes = data_set_splits[scenario_name][subset]
     episode_training_sets = []
@@ -238,7 +240,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                 # Align the frames with those for which we have occlusions (one every second).
                 initial_frame_offset = FRAME_STEP_SIZE * math.ceil(initial_frame_id/FRAME_STEP_SIZE) - initial_frame_id
                 # Save the first frame in which the target vehicle wasn't occluded w.r.t the ego.
-                first_frame_target_not_occluded_id = None
+                first_frame_target_not_occluded = None
 
                 for idx in range(initial_frame_offset, len(reachable_goals_list)+1, FRAME_STEP_SIZE):
 
@@ -260,8 +262,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                                                       ego_agent_id, episode_frames):
                             continue
 
-                        if first_frame_target_not_occluded_id is None:
-                            first_frame_target_not_occluded_id = episode_frames[current_frame_id]
+                        if first_frame_target_not_occluded is None:
+                            first_frame_target_not_occluded = episode_frames[current_frame_id]
 
                     # Take the frames of what the ego has seen from the moment both the ego and target became alive.
                     frames = episode_frames[initial_frame_id:current_frame_id + 1]
@@ -273,9 +275,10 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             if extract_missing_features:
 
                                 try:
-                                    features = feature_extractor.extract(target_agent_id, frames, typed_goal,
+                                    # TODO: in final code use .extract instead
+                                    features = feature_extractor.extract_missing_exit(target_agent_id, frames, typed_goal,
                                                                          ego_agent_id=ego_agent_id,
-                                                                         initial_frame=episode_frames[initial_frame_id])
+                                                                         initial_frame=first_frame_target_not_occluded)
                                 except TopologicalError:
                                     continue
 
