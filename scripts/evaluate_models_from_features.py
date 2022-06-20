@@ -6,7 +6,7 @@ import argparse
 from grit.core.base import get_base_dir
 from grit.core.data_processing import get_dataset
 from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit, \
-    OcclusionBaseline
+    OcclusionBaseline, NoPossiblyMissingFeaturesGrit
 from grit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -26,7 +26,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenario', type=str, help='Name of scenario to validate', default=None)
-    parser.add_argument('--models', type=str, help='List of models, comma separated', default=None)
+    parser.add_argument('--models', type=str, help='List of models, comma separated', default='generalised_grit,occlusion_grit')
     args = parser.parse_args()
 
     if args.scenario is None:
@@ -40,7 +40,8 @@ def main():
                      'grit': Grit,
                      'generalised_grit': GeneralisedGrit,
                      'grit_uniform_prior': UniformPriorGrit,
-                     'occlusion_baseline': OcclusionBaseline}
+                     'occlusion_baseline': OcclusionBaseline,
+                     'no_possibly_missing_features_grit': NoPossiblyMissingFeaturesGrit}
 
     if args.models is None:
         model_names = list(model_classes.keys())
@@ -60,7 +61,6 @@ def main():
     dataset_name = 'test'
 
     for scenario_name in scenario_names:
-        print(scenario_name)
         dataset = get_dataset(scenario_name, dataset_name)
 
         dataset = drop_low_sample_agents(dataset, 2)
