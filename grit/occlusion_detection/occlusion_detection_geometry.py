@@ -1,273 +1,274 @@
-# todo INSTRUCTIONS: you must run the script from the base directory (...\GRIT-OpenDrive\)
-
-import igp2 as ip
-import argparse
-import json
-from typing import List
-
-from igp2.data.scenario import InDScenario, ScenarioConfig
-from igp2.opendrive.map import Map
-from grit.core.data_processing import get_episode_frames
-
-
-import matplotlib.pyplot as plt
 import numpy as np
 import math
+import pickle
+from typing import List, Dict, Tuple
+from itertools import combinations
 
-import shapely.geometry
+from grit.occlusion_detection.occlusion_line import OcclusionLine as Line
+from grit.core.data_processing import get_episode_frames
+
+import igp2 as ip
+from igp2 import AgentState
+from igp2.data.scenario import InDScenario, ScenarioConfig
+from igp2.opendrive.map import Map
+
+import matplotlib.pyplot as plt
+
+from shapely.geometry import MultiPoint, Polygon, MultiPolygon
 from shapely.ops import unary_union
-from shapely.geometry import Polygon
-from sympy import Point, Segment # todo: only use shapely -- remove from requirements
-
-from scripts.preprocess_data import iterate_through_scenarios
 
 # How many meters away from the vehicle do we want to detect occlusions.
 OCCLUSION_LINE_LENGTH = 50
 
+# Set up the colors for the plots.
+OCCLUSIONS_COLOR = "g"
+OCCLUDED_LANE_COLOR = "r"
+OBSTACLES_COLOR = "y"
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="""
-    This script detects what parts of the lanes are occluded using a bird's eye view of the map 
-         """, formatter_class=argparse.RawTextHelpFormatter)
-
-    parser.add_argument('--debug',
-                        help="if set, we plot all the occlusions in a frame for each vehicle."
-                             "If --debug_steps is also True, this takes precedence and --debug_steps will be"
-                             "deactivated.",
-                        action='store_true')
-
-    parser.add_argument('--debug_steps',
-                        help="if set, we plot the occlusions created by each obstacle. "
-                             "If --debug is set, --debug_steps will be disabled.",
-                        action='store_true')
-
-    parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
-    parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=4)
-
-    parsed_config_specification = vars(parser.parse_args())
-    return parsed_config_specification
+OCCLUDED_AREA_ALPHA = 0.7
+OCCLUSION_SEGMENTS_ALPHA = 0.3
 
 
-def main(params):
+class OcclusionDetector2D:
 
-    config = parse_args()
-    if config["debug"]:
-        config["debug_steps"] = False
+    def __init__(self, scenario_name: str, episode_idx: int, debug: bool = False, debug_steps: bool = False):
+        self.scenario_name = scenario_name
+        self.episode_idx = episode_idx
+        self.scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{self.scenario_name}.xodr")
+        self.scenario_config = ScenarioConfig.load(f"scenarios/configs/{self.scenario_name}.json")
+        self.scenario = InDScenario(self.scenario_config)
+        self.episode = self.scenario.load_episode(episode_idx)
+        self.buildings = self.scenario_config.buildings
 
-    scenario_name, episode_idx = params
-    print('scenario {} episode {}'.format(scenario_name, episode_idx))
+        # "Debug" mode takes precedence over "debug_steps"
+        self.debug = debug
+        self.debug_steps = debug_steps if debug_steps and not self.debug else False
+        self.occlusion_lines = []
 
-    scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
-    scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
-    scenario = InDScenario(scenario_config)
-    episode = scenario.load_episode(episode_idx)
-    buildings = scenario_config.buildings
+    def extract_occlusions(self):
+        # Take a step every 25 recorded frames (1s)
+        # episode_frames contain for each second the list of frames for all vehicles alive that moment
+        episode_frames = get_episode_frames(self.episode, exclude_parked_cars=False, exclude_bicycles=True, step=25)
 
-    # Take a step every 25 recorded frames (1s)
-    # episode_frames contain for each second the list of frames for all vehicles alive that moment
-    episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True, step=25)
-    all_occlusion_data = {}
+        all_occlusion_data = {}
 
-    for frame_id, frame in enumerate(episode_frames):
+        for frame_id, frame in enumerate(episode_frames):
+            print(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
+            all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
 
-        print(f"Starting frame {frame_id}/{len(episode_frames)}")
-        vehicles_in_frame_ids = list(frame.keys())
+        occlusions_file_name = f"occlusions/{self.scenario_name}_e{self.episode_idx}.p"
+        with open(occlusions_file_name, 'wb') as file:
+            pickle.dump(all_occlusion_data, file)
 
-        frame_occlusions = []
+    def get_occlusions_frame(self, frame):
+        frame_occlusions = {}
+        vehicles_in_frame = [(vehicle_id, frame.get(vehicle_id)) for vehicle_id in frame.keys()]
 
-        for main_vehicle_id in vehicles_in_frame_ids:
+        # Get the boundaries of each of the vehicles.
+        vehicles_in_frame_boxes = [self.get_box(vehicle) for _, vehicle in vehicles_in_frame]
 
-            main_vehicle = frame.get(main_vehicle_id)
+        # Use each of the vehicles in the frame as ego vehicles in turn.
+        for ego_idx, (ego_id, ego_vehicle) in enumerate(vehicles_in_frame):
 
-            # We only want to compute the occlusions for the non-parked vehicles.
-            if episode.agents[main_vehicle_id].parked():
+            # We only want to compute the occlusions for non-parked vehicles.
+            if self.episode.agents[ego_id].parked():
                 continue
 
-            other_vehicles = [frame.get(vehicle_id) for vehicle_id in vehicles_in_frame_ids if
-                              vehicle_id != main_vehicle_id]
+            ego_position = ego_vehicle.position
+            other_vehicles_boxes = [vehicle_box for i, vehicle_box in enumerate(vehicles_in_frame_boxes)
+                                    if i != ego_idx]
 
-            # Store the boundaries of the boxes containing possible obstacles (other vehicles and buildings).
-            obstacle_boxes = [list(get_box(vehicle).boundary) for vehicle in other_vehicles] + buildings
-            occlusions = {k: {} for k in scenario_map.roads.keys()}
+            # Sort the obstacles based on their distance to the ego. Closer objects may hide other objects, which we
+            # then don't need to consider.
+            obstacles = other_vehicles_boxes
+            obstacles.sort(key=lambda box: math.dist(ego_position, box.center))
 
-            if config["debug"]:
-                plot_map(scenario_map, frame, obstacle_boxes)
+            obstacles = self.buildings + [list(box.boundary) for box in obstacles]
 
-            for obstacle_box in obstacle_boxes:
+            # Get for that ego vehicle, what areas of each lane are occluded.
+            ego_occluded_lanes = self.get_occlusions_ego_by_road(ego_position, obstacles)
 
-                lines = []
-                for vertex in obstacle_box:
-                    p = Point(vertex[0], vertex[1])
-                    lines.append(Segment(Point(*main_vehicle.position), p))
-
-                max_alpha = 0
-                max_l = None
-                unvisited_lines = lines.copy()
-                for line in lines:
-                    unvisited_lines.remove(line)
-                    for l in unvisited_lines:
-                        angle = line.angle_between(l)
-
-                        if angle > max_alpha:
-                            max_alpha = angle
-                            max_l = [line, l]
-
-                if max_l is None:  # When the obstacle is only a point, it doesn't create occlusions
-                    continue
-
-                line1 = max_l[0]
-                line2 = max_l[1]
-
-                p1 = get_extended_point(OCCLUSION_LINE_LENGTH - line1.length, line1.slope, line1.direction, line1.points[1])
-                p2 = get_extended_point(OCCLUSION_LINE_LENGTH - line2.length, line2.slope, line2.direction, line2.points[1])
-
-                vertices = [get_shapely_point(line1.points[1]), get_shapely_point(line2.points[1]),
-                            get_shapely_point(p2), get_shapely_point(p1)]
-
-                occluded_area = Polygon(vertices)  # todo: reuse line1.points[1]
-
-                # todo: find the vertex that is farthest away from the center of the occluded polygon.
-                #  This is used to determine which radius we should use to find the lanes that could be occluded.
-                occluded_area_center = occluded_area.centroid
-                farthest_distance = max(list(map(lambda x: occluded_area_center.distance(x), vertices)))
-
-                lanes_nearby = scenario_map.lanes_at(occluded_area_center, drivable_only=True, max_distance=farthest_distance)
-
-                if config["debug_steps"]:
-                    plot_map(scenario_map, frame, obstacle_boxes)
-                    # store the intersections in the nearby lanes.
-                    list_intersections = []
-
-                for lane in lanes_nearby:
-
-                    intersection = lane.boundary.buffer(0).intersection(occluded_area)
-
-                    if config["debug_steps"] and intersection:
-                        list_intersections.append(intersection.exterior.xy)
-
-                    if not intersection:
-                        continue
-
-                    road_id = lane.parent_road.id
-
-                    if lane.id not in list(occlusions[road_id].keys()):
-                        occlusions[road_id][lane.id] = []
-
-                    occlusions[road_id][lane.id].append(intersection)
-
-                if config["debug_steps"]:
-                    plot_occlusions(line1, line2, occluded_area, list_intersections)
-                    plt.show()
-                if config["debug"]:
-                    plot_occlusions(line1, line2, occluded_area, [])
-
-            for road_nr in occlusions.keys():
-                for lane_nr in occlusions[road_nr]:
-
-                    unions = unary_union(occlusions[road_nr][lane_nr])
-
-                    if unions.geom_type == "MultiPolygon":
-                        unions = list(unions.geoms)
-                    else:
-                        unions = [unions]
-
-                    occlusions[road_nr][lane_nr] = [convert_to_list(union.exterior.xy) for union in unions]
-
-                    if config["debug"]:
-                        plot_occlusions([], [], [], occlusions[road_nr][lane_nr])
-
-            if config["debug"]:
+            if self.debug:
+                self.plot_map(frame=frame, obstacles=obstacles)
+                self.plot_occlusions(ego_position, self.occlusion_lines, ego_occluded_lanes)
+                self.occlusion_lines = []
                 plt.show()
 
-            frame_occlusions.append({"ego_agent_id": main_vehicle_id,
-                                     "occlusions": occlusions})
+            frame_occlusions[ego_id] = ego_occluded_lanes
+        return frame_occlusions
 
-        all_occlusion_data[frame_id] = frame_occlusions
+    def get_occlusions_ego_by_road(self, ego_position, obstacles):
+        occlusions_by_roads = {k: {} for k in self.scenario_map.roads.keys()}
 
-    json_file_name = f"occlusions/{scenario_name}_e{episode_idx}.json"
-    with open(json_file_name, 'w+') as json_file:
-        json.dump(all_occlusion_data, json_file, indent=4)
+        # First find all the occluded areas.
+        occluded_areas = self.get_occlusions_ego(ego_position, obstacles)
 
-    print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
+        # Find what areas in each lane is occluded.
+        for road in self.scenario_map.roads.values():
+            road_occlusions = {}
 
+            for lane_section in road.lanes.lane_sections:
+                for lane in lane_section.all_lanes:
+                    if lane.id == 0 or lane.type != "driving":
+                        continue
 
-def convert_to_list(coordinates: List[np.array]):
-    x, y = coordinates
-    return [list(x), list(y)]
+                    road_occlusions[lane.id] = []
+                    intersection = lane.boundary.buffer(0).intersection(occluded_areas)
+                    if intersection.is_empty:
+                        continue
 
+                    road_occlusions[lane.id].append(intersection)
+            occlusions_by_roads[road.id] = road_occlusions
 
-def get_shapely_point(sympy_point):
-    return shapely.geometry.Point(sympy_point.x, sympy_point.y)
+        return occlusions_by_roads
 
+    def get_occlusions_ego(self, ego_position, obstacles):
+        occlusions_ego_list = []
+        occlusions_ego = Polygon()
 
-def get_box(vehicle):
-    return ip.Box(np.array([vehicle.position[0],
-                            vehicle.position[1]]),
-                  vehicle.metadata.length,
-                  vehicle.metadata.width,
-                  vehicle.heading)
+        for u in obstacles:
 
+            if occlusions_ego.covers(MultiPoint(u)):
+                # The obstacle is already fully occluded by another obstacle.
+                continue
 
-# todo: add description a=endpoint_line1, b=point_in_common/intersection, c=endpoint_line2 -- if using shapely
-# todo: use dot product instead
-def angle_between(a, b, c):
-    # from https://github.com/martinfleis/momepy/blob/9af821dfaf05ab7abdde5e96e12de0e90c4481b4/momepy/utils.py#L112
-    ba = [aa - bb for aa, bb in zip(a, b)]
-    bc = [cc - bb for cc, bb in zip(c, b)]
-    nba = math.sqrt(sum((x ** 2.0 for x in ba)))
-    ba = [x / nba for x in ba]
-    nbc = math.sqrt(sum((x ** 2.0 for x in bc)))
-    bc = [x / nbc for x in bc]
-    scal = sum((aa * bb for aa, bb in zip(ba, bc)))
-    angle = math.acos(round(scal, 10))
-    return angle
+            l1, l2 = self.get_occlusion_lines(ego_position, u)
 
+            # When the obstacle is only a point, it doesn't create occlusions
+            if l1 is None:
+                continue
 
-# todo: explain arguments and functionality with docs
-def get_extended_point(length, slope, direction, point):
-    delta_x = math.sqrt(length**2 / (1 + slope**2))
-    delta_y = math.sqrt(length**2 - delta_x**2)
+            # Using the notation in the OGRIT paper.
+            v1 = l1.points[1]
+            v2 = l2.points[1]
 
-    if direction.x < 0:
-        delta_x = -delta_x
+            v3 = l1.get_extended_point(OCCLUSION_LINE_LENGTH - l1.length, v1)
+            v4 = l2.get_extended_point(OCCLUSION_LINE_LENGTH - l2.length, v2)
 
-    if direction.y < 0:
-        delta_y = -delta_y
+            if self.debug or self.debug_steps:
+                self.occlusion_lines.append([(v1, v3), (v2, v4)])
 
-    return point.translate(delta_x, delta_y)
+            if self.debug_steps:
+                self.plot_map(obstacles=obstacles)
+                self.plot_occlusions(ego_position, self.occlusion_lines)
+                self.occlusion_lines = []
+                plt.show()
 
+            # Find the area that is occluded by obstacle u -- that define by vertices v1, v2, v3, v4.
+            occlusions_ego_list.append(Polygon([v1, v2, v4, v3]))
+            occlusions_ego = unary_union([geom if geom.is_valid else geom.buffer(0) for geom in occlusions_ego_list])
+        return occlusions_ego
 
-def plot_map(scenario_map, frame, obstacles):
-    ip.plot_map(scenario_map, markings=False, midline=False)
+    @staticmethod
+    def get_occlusion_lines(ego_position, obstacle_box):
+        """
+        Get the line segments l1 and l2 from the centre of the ego vehicle to vertices v1 and v2 of obstacle_box,
+        such that l1 and l2 yield the greatest angle between them
+        """
 
-    if frame:
-        for aid, state in frame.items():
-            plt.plot(*state.position, marker="x")
-            plt.text(*state.position, aid)
+        # Get the endpoints of the lines from the center of the ego to every vertex v of the obstacle.
+        lines = [Line(ego_position, vertex) for vertex in obstacle_box]
 
-    for obstacle in obstacles:
-        # Add the first point also at the end, so we plot a closed contour of the obstacle.
-        obstacle.append((obstacle[0]))
-        plt.plot(*list(zip(*obstacle)))
+        l1 = l2 = None
+        max_alpha = 0
 
+        for line1, line2 in combinations(lines, 2):
+            angle = line1.angle_between(line2)
 
-def plot_occlusions(line1, line2, occluded_area, lane_occlusions):
+            if angle > max_alpha:
+                max_alpha = angle
+                l1, l2 = line1, line2
+        return l1, l2
 
-    if line1:
-        plt.plot(*list(zip(*line1.points)), color='g')
-        plt.plot(*list(zip(*line2.points)), color='g')
+    @staticmethod
+    def get_box(vehicle):
+        """
+        Get the boundaries of the vehicle.
+        """
+        return ip.Box(np.array([vehicle.position[0],
+                                vehicle.position[1]]),
+                      vehicle.metadata.length,
+                      vehicle.metadata.width,
+                      vehicle.heading)
 
-    if occluded_area:
-        plt.plot(*occluded_area.exterior.xy, color="b")
+    def plot_map(self, frame: Dict[int, AgentState] = None, obstacles: List[List[List[float]]] = None):
 
-    if lane_occlusions:
-        for lane_occlusion in lane_occlusions:
-            plt.plot(*lane_occlusion, color="r")
+        if self.scenario_config is not None:
+            ip.plot_map(self.scenario_map, markings=False, midline=False, scenario_config=self.scenario_config,
+                        plot_background=True, ignore_roads=True, plot_goals=True)
+        else:
+            ip.plot_map(self.scenario_map, markings=False, midline=False)
 
+        if frame:
+            for aid, state in frame.items():
+                plt.plot(*state.position, marker="x")
+                plt.text(*state.position, aid)
 
-if __name__ == "__main__":
+        if obstacles:
+            for obstacle in obstacles:
+                x, y = list(zip(*obstacle))
+                OcclusionDetector2D.plot_area(x, y, color=OBSTACLES_COLOR, contour=True)
 
-    config = parse_args()
-    iterate_through_scenarios(main, config["scenario"], config["workers"])
+    @staticmethod
+    def plot_area(x, y, color="r", alpha=.5, linewidth=None, contour=False):
+        """
+        Given the x and y coordinates of the points defining the polygon, plot the boundaries and shade the interior.
+        """
+        x = list(x)
+        y = list(y)
+        xy = np.transpose([x, y])
 
+        plt.gca().add_patch(plt.Polygon(xy, color=color, alpha=alpha, fill=True, linewidth=linewidth))
 
+        if contour:
+            x.append(x[0])
+            y.append(y[0])
+            plt.plot(x, y, color=color)
+
+    @staticmethod
+    def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int, int]]],
+                        road_occlusions: Dict[int, Dict[int, List[Polygon]]] = None):
+
+        occluded_areas = []
+        for occlusion_line in occlusion_lines:
+            x0, y0 = ego_position
+            ((x1, y1), (x3, y3)), ((x2, y2), (x4, y4)) = occlusion_line
+
+            # Plot the line segment going from the ego vehicle to the vertices of the obstacle.
+            plt.plot([x0, x3], [y0, y3], color=OCCLUSIONS_COLOR, alpha=0.5)
+            plt.plot([x0, x4], [y0, y4], color=OCCLUSIONS_COLOR, alpha=0.5)
+
+            occluded_areas.append(Polygon([(x1, y1), (x2, y2), (x4, y4), (x3, y3)]))
+
+        OcclusionDetector2D.plot_area_from_list(occluded_areas, color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
+
+        if road_occlusions is None:
+            return
+
+        lane_occlusions_all = []
+        for road_id, occlusions in road_occlusions.items():
+            for lane_id, lane_occlusions in occlusions.items():
+
+                assert len(lane_occlusions) <= 1
+
+                if not lane_occlusions:
+                    continue
+
+                lane_occlusions = lane_occlusions[0]
+                lane_occlusions_all.append(lane_occlusions)
+        OcclusionDetector2D.plot_area_from_list(lane_occlusions_all, color=OCCLUDED_LANE_COLOR, alpha=OCCLUDED_AREA_ALPHA)
+
+    @staticmethod
+    def plot_area_from_list(geometries, color="r", alpha=0.5):
+        geometries = unary_union(geometries)
+        if not geometries.is_empty:
+            if isinstance(geometries, Polygon):
+                OcclusionDetector2D.plot_area(*geometries.exterior.xy, color=color,
+                                              alpha=alpha)
+            elif isinstance(geometries, MultiPolygon):
+                for geometry in geometries.geoms:
+                    OcclusionDetector2D.plot_area(*geometry.exterior.xy, color=color,
+                                                  alpha=alpha)
+
+occlusion_detector = OcclusionDetector2D("bendplatz", 10, debug=True)
+occlusion_detector.extract_occlusions()
