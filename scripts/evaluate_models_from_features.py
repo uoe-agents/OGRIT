@@ -10,6 +10,17 @@ from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformP
 from grit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
+def drop_low_sample_agents(dataset, min_samples=2):
+    unique_agent_pairs = dataset[['episode', 'agent_id', 'ego_agent_id', 'true_goal']].drop_duplicates()
+    unique_agent_pairs['frame_count'] = 0
+    unique_samples = dataset[['episode', 'agent_id', 'ego_agent_id', 'true_goal', 'frame_id']].drop_duplicates()
+    vc = unique_samples.value_counts(['episode', 'agent_id', 'ego_agent_id'])
+    vc = vc.to_frame().reset_index().rename(columns={0: 'sample_count'})
+    new_dataset = dataset.merge(vc, on=['episode', 'agent_id', 'ego_agent_id'])
+    new_dataset = new_dataset.loc[new_dataset.sample_count >= min_samples]
+    return new_dataset
+
+
 def main():
     plt.style.use('ggplot')
 
@@ -50,11 +61,13 @@ def main():
     dataset_name = 'test'
 
     for scenario_name in scenario_names:
-
         dataset = get_dataset(scenario_name, dataset_name)
+
+        dataset = drop_low_sample_agents(dataset, 2)
         dataset_predictions = {}
 
         for model_name in model_names:
+            print(model_name)
             model_class = model_classes[model_name]
             model = model_class.load(scenario_name)
             unique_samples = model.batch_goal_probabilities(dataset)

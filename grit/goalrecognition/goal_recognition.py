@@ -44,6 +44,7 @@ class GoalRecogniser:
         dataset['model_likelihood'] = model_likelihoods
         unique_samples = dataset[['episode', 'agent_id', 'ego_agent_id', 'frame_id', 'true_goal',
                                   'true_goal_type', 'fraction_observed']].drop_duplicates()
+
         model_predictions = []
         predicted_goal_types = []
         model_probs = []

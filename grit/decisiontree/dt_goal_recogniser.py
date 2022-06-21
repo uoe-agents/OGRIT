@@ -167,7 +167,7 @@ class GeneralisedGrit(GoalRecogniser):
     def save_images(self, truncated_edges=None):
         for goal_type, goal_tree in self.decision_trees.items():
             pydot_tree = goal_tree.pydot_tree(truncate_edges=truncated_edges)
-            #pydot_tree.write_png(get_img_dir() + f'{self.get_model_name()}_{goal_type}.png')
+            pydot_tree.write_png(get_img_dir() + f'{self.get_model_name()}_{goal_type}.png')
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
         if goal_type in self.decision_trees:

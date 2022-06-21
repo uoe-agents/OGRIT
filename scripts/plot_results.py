@@ -6,17 +6,24 @@ import itertools
 
 plt.style.use('ggplot')
 
-model_names = ['prior_baseline', 'grit', 'generalised_grit', 'grit_uniform_prior', 'uniform_prior_baseline']
+model_names = ['prior_baseline', 'grit', 'generalised_grit',
+               'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
-model_names = ['grit_uniform_prior', 'generalised_grit']
-
+model_names = ['generalised_grit', 'occlusion_baseline', 'occlusion_grit']
+#model_names = ['grit_uniform_prior', 'generalised_grit']
 
 label_map = {'generalised_grit': 'G-GRIT',
              'occlusion_grit': 'OGRIT',
              'occlusion_baseline': 'truncated G-GRIT',
              'uniform_prior_baseline': 'uniform prior baseline',
              'grit_uniform_prior': 'GRIT'}
+
+title_map = {'heckstrasse': 'Heckstrasse',
+             'bendplatz': 'Bendplatz',
+             'frankenberg': 'Frankenburg',
+             'round': 'Neuweiler'}
+
 
 # plot accuracy
 fig, axes = plt.subplots(2, 2)
@@ -72,10 +79,11 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     plt.sca(ax)
     #if scenario_idx % 2 == 1:
 
-    plt.xlabel('fraction of trajectory observed')
+    plt.xlabel('fraction of trajectory completed')
     if scenario_idx == 0:
         plt.ylabel('Probability assigned to true goal')
-    plt.title(scenario_name)
+
+    plt.title(title_map[scenario_name])
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
@@ -88,7 +96,7 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     plt.ylim([0, 1.1])
     if scenario_idx == 0:
         plt.legend()
-plt.savefig(get_base_dir() + '/images/true_goal_prob_ggrit.pdf', bbox_inches='tight')
+plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')
 
 # plot cross entropy
 fig, axes = plt.subplots(2, 2)
