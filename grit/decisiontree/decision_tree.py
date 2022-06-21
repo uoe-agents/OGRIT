@@ -238,7 +238,10 @@ class Node:
                                               non_goal_normaliser, alpha)
                     false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
                                                non_goal_normaliser, alpha)
-                    node.decision = ThresholdDecision(best_threshold, best_feature, true_child, false_child)
+                    if best_feature in indicator_features or FeatureExtractor.feature_names[best_feature] == 'binary':
+                        node.decision = BinaryDecision(best_feature, true_child, false_child)
+                    else:
+                        node.decision = ThresholdDecision(best_threshold, best_feature, true_child, false_child)
                     true_idx = node.decision.rule(node_samples)
                     if best_feature in indicator_features:
                         true_child_true_indicators = true_indicators + [best_feature]
