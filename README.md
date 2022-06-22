@@ -15,7 +15,7 @@ Run all the scripts from the directory `OGRIT/`.
 Extract the occlusions, Preprocess the data and Extract the base and indicator features:
 
 ```
-python script/extract_occlusions.py
+python scripts/extract_occlusions.py
 python scripts/preprocess_data.py --extract_indicator_features
 ```
 
