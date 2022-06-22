@@ -1,11 +1,30 @@
 # GRIT
 
-Things to do before running:
-- add folder "data" to store csv with sample data
-- add folder "occlusions" to store occlusion data
-- add the ind and round datasets into "scenarios/data/ind" and "scenarios/data/round", respectively
-- to extract base features only use prepare_episode_dataset(("bendplatz", 0, False)) else, if you also want the indicator features use prepare_episode_dataset(("bendplatz", 0, True))
-This repo contains work in progess building on the paper:
+Install OGRIT with pip: 
+```
+cd OGRIT
+pip install -e .
+```
+Install IGP2, as specified on https://github.com/uoe-agents/IGP2.
 
-["GRIT: Fast, Interpretable, and Verifiable Goal Recognition with Learned Decision Trees for Autonomous Driving"](https://arxiv.org/abs/2103.06113)
-by Brewitt, et al. [1] accepted at IROS 2021
+Copy the data from the [inD](https://www.ind-dataset.com/) dataset into `OGRIT/scenarios/data/ind`, and from the [rounD](https://www.round-dataset.com/) dataset into `OGRIT/scenarios/data/round`.
+
+
+Run all the scripts from the directory `OGRIT/`.
+
+Extract the occlusions, Preprocess the data and Extract the base and indicator features:
+
+```
+cd scripts
+python extract_occlusions.py
+python preprocess_data.py --extract_indicator_features
+```
+
+Train OGRIT and the baseline. Then calculate the evaluation metrics on the test set:
+
+```
+python train_occlusion_grit.py
+python train_generalised_grit.py
+python evaluate_models_from_features.py --models occlusion_grit,generalised_grit,occlusion_baseline
+python plot_results.py
+```

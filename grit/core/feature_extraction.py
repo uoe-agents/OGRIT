@@ -1,7 +1,9 @@
 from typing import List, Dict, Union, Tuple
 
 import numpy as np
-import json, math
+import pickle
+import math
+import sympy
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
@@ -13,7 +15,7 @@ class FeatureExtractor:
 
     MAX_ONCOMING_VEHICLE_DIST = 100
 
-    # Minimum area the occlusion must have to contain a vehicle (todo: assuming 4m*3m)
+    # Minimum area the occlusion must have to contain a vehicle (assuming a 4m*3m vehicle)
     MIN_OCCLUSION_AREA = 12
 
     # Maximum distance the occlusion can be to be considered as significant for creating occlusions.
@@ -50,8 +52,8 @@ class FeatureExtractor:
         if len(args) > 1:
             self.scenario_name = args[0]
             self.episode_idx = args[1]
-            with open(f"occlusions/{self.scenario_name}_e{self.episode_idx}.json", 'r') as json_file:
-                self.occlusions = json.load(json_file)
+            with open(f"occlusions/{self.scenario_name}_e{self.episode_idx}.p", 'rb') as file:
+                self.occlusions = pickle.load(file)
 
     def extract(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
                 initial_frame: Dict[int, AgentState] = None) \
@@ -62,7 +64,7 @@ class FeatureExtractor:
             agent_id: identifier for the agent of which we want the features
             frames: list of observed frames
             goal:  goal of the agent
-            ego_agent_id: id of the ego agent from whose pov the occlusions are taken. Used for indicator features only
+            ego_agent_id: id of the ego agent from whose pov the occlusions are taken. Used for indicator features
             initial_frame: first frame in which the target agent is visible to the ego. Used for indicator features
 
         Returns: dict of features values
@@ -111,18 +113,18 @@ class FeatureExtractor:
                     'exit_number': exit_number,
                     'goal_type': goal_type}
 
-        # We pass the ego_agent_id only if we want to extract the indicator_features.
+        # We pass the ego_agent_id only if we want to extract the indicator features.
         if ego_agent_id is not None:
 
-            frame_id = math.ceil(current_state.time / self.FRAME_STEP_SIZE)
-            frame_occlusions = self.occlusions[str(frame_id)]
+            occlusion_frame_id = math.ceil(current_state.time / self.FRAME_STEP_SIZE)
+            frame_occlusions = self.occlusions[occlusion_frame_id]
 
             occlusions = unary_union(self.get_occlusions_ego_polygon(frame_occlusions, ego_agent_id))
 
-            vehicle_in_front_occluded = self.is_vehicle_in_front_missing(agent_id, lane_path,
+            vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
                                                                          current_frame, occlusions)
 
-            oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(agent_id, lane_path, current_frame, occlusions)
+            oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
 
             initial_state = initial_frame[agent_id]
 
@@ -135,30 +137,6 @@ class FeatureExtractor:
 
             features.update(indicator_features)
         return features
-
-    # TODO: in final code, remove this function - only used to correct data
-    def extract_missing_exit(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
-                initial_frame: Dict[int, AgentState] = None) \
-            -> Dict[str, Union[float, bool]]:
-        """Extracts a dict of features describing the observation
-
-        Args:
-            agent_id: identifier for the agent of which we want the features
-            frames: list of observed frames
-            goal:  goal of the agent
-            ego_agent_id: id of the ego agent from whose pov the occlusions are taken. Used for indicator features only
-            initial_frame: first frame in which the target agent is visible to the ego. Used for indicator features
-
-        Returns: dict of features values
-
-        """
-
-        initial_state = initial_frame[agent_id]
-        exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
-            if self.scenario_name == "round" else False
-
-        indicator_features = {'exit_number_missing': exit_number_occluded}
-        return indicator_features
 
     @staticmethod
     def get_vehicles_in_route(ego_agent_id: int, path: List[Lane], frame: Dict[int, AgentState]):
@@ -214,7 +192,7 @@ class FeatureExtractor:
         vehicle_in_front = None
         target_dist_along = cls.dist_along_path(lane_path, state.position)
 
-        # find vehicle in front with closest distance
+        # find the vehicle in front with closest distance
         for agent_id in vehicles_in_route:
             agent_point = frame[agent_id].position
             agent_dist = cls.dist_along_path(lane_path, agent_point)
@@ -225,45 +203,42 @@ class FeatureExtractor:
 
         return vehicle_in_front, min_dist
 
-    def is_vehicle_in_front_missing(self, target_id: int, lane_path: List[Lane], frame: Dict[int, AgentState],
-                                    occlusions: MultiPolygon):
+    def is_vehicle_in_front_missing(self, dist: float, target_id: int, lane_path: List[Lane],
+                                    frame: Dict[int, AgentState], occlusions: MultiPolygon):
         """
         Args:
+            dist:       distance of the closest oncoming vehicle, if any.
             target_id:  id of the vehicle for which we are extracting the features
             lane_path:  lanes executed by the target vehicle if it had the assigned goal
             frame:      current state of the world
             occlusions: must be unary union of all the occlusions for the ego at that point in time
         """
-        vehicle_in_front, dist = self.vehicle_in_front(target_id, lane_path, frame)
-
         target_state = frame[target_id]
         target_point = Point(*target_state.position)
         current_lane = self.scenario_map.best_lane_at(target_state.position, target_state.heading, True)
         midline = current_lane.midline
 
         # Remove all the occlusions that are behind the target vehicle as we want possible hidden vehicles in front.
-        area_before, area_after = self.get_split_at(midline, target_point)
-        occlusions = self.get_occlusions_past_point(current_lane, lane_path, occlusions, target_point, area_after)
+        area_before, area_after = self._get_split_at(midline, target_point)
+        occlusions = self._get_occlusions_past_point(current_lane, lane_path, occlusions, target_point, area_after)
 
         if occlusions is None:
             return self.NON_MISSING
 
-        occlusions = self.get_significant_occlusions(occlusions)
+        occlusions = self._get_significant_occlusions(occlusions)
 
-        if occlusions:
-            distance_to_occlusion = occlusions.distance(target_point)
-
-            if distance_to_occlusion > self.MAX_OCCLUSION_DISTANCE:
-                # The occlusion is far away, and won't affect the target vehicle decisions.
-                return self.NON_MISSING
-
-            # Otherwise, the feature is missing if there is an occlusion closer than the vehicle in front.
-            return not dist < distance_to_occlusion + 2.5
-
-        else:
-            # "occlusions" is not None only if they are large enough to fit a hidden vehicle. Then, the feature is not
-            # missing
+        if occlusions is None:
+            # The occlusions are not large enough to hide a vehicle.
             return self.NON_MISSING
+
+        distance_to_occlusion = occlusions.distance(target_point)
+
+        if distance_to_occlusion > self.MAX_OCCLUSION_DISTANCE:
+            # The occlusion is far away, and won't affect the target vehicle decisions.
+            return self.NON_MISSING
+
+        # Otherwise, the feature is missing if there is an occlusion closer than the vehicle in front.
+        return not dist < distance_to_occlusion + 2.5
 
     @classmethod
     def dist_along_path(cls, path: List[Lane], point: np.ndarray):
@@ -347,21 +322,23 @@ class FeatureExtractor:
         return lane_ls
 
     @staticmethod
-    def get_split_at(midline, point):
+    def _get_split_at(midline, point):
+        """
+        Split the midline at a specific point.
+        """
         point_on_midline = midline.interpolate(midline.project(point)).buffer(0.0001)
 
         split_lanes = split(midline, point_on_midline)
 
         if len(split_lanes) == 2:
             # Handle the case in which the split point is at the start/end of the lane.
-            area_before, area_after = split_lanes
+            line_before, line_after = split_lanes
         else:
-            area_before, _, area_after = split_lanes
+            line_before, _, line_after = split_lanes
 
-        return area_before, area_after
+        return line_before, line_after
 
-    def _get_oncoming_vehicles(self, lane_path: List[Lane], ego_agent_id: int, frame: Dict[int, AgentState],
-                               occlusions: MultiPolygon = None, check_occlusions: bool = False) \
+    def _get_oncoming_vehicles(self, lane_path: List[Lane], ego_agent_id: int, frame: Dict[int, AgentState]) \
             -> Dict[int, Tuple[AgentState, float]]:
         oncoming_vehicles = {}
 
@@ -370,65 +347,13 @@ class FeatureExtractor:
             return oncoming_vehicles
         ego_junction_lane_boundary = ego_junction_lane.boundary.buffer(0)
         lanes_to_cross = self._get_lanes_to_cross(ego_junction_lane)
-
         agent_lanes = [(i, self.scenario_map.best_lane_at(s.position, s.heading, True)) for i, s in frame.items()]
 
-        crossing_points = []
-        occluded_oncoming_areas = []
-        occlusion_start_dists = []
-
         for lane_to_cross in lanes_to_cross:
+            lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
+            midline = self.get_lane_path_midline(lane_sequence)
             crossing_point = lane_to_cross.boundary.buffer(0).intersection(ego_junction_lane_boundary).centroid
-            crossing_points.append(crossing_point)
-            lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
-            midline = self.get_lane_path_midline(lane_sequence)
-
-            # Find the occlusions on the lanes that the ego vehicle will cross.
-            if occlusions:
-
-                # Get the part of the midline of the lanes in which there could be oncoming vehicles, that is before
-                # the crossing point.
-                # Ignore the occlusions that are on the "opposite" (w.r.t traffic direction) side of the crossing point.
-                # We only want to check if there is a hidden vehicle that could collide with the ego.
-                # This can only happen with vehicles that are driving in the lane's direction of traffic
-                # and have not passed the crossing point that the ego will drive through.
-                area_before, area_after = self.get_split_at(midline, crossing_point)
-
-                # Get the significant occlusions.
-                lane_occlusions = self.get_occlusions_past_point(ego_junction_lane,
-                                                                 lane_sequence,
-                                                                 occlusions,
-                                                                 crossing_point,
-                                                                 area_before)
-
-                if lane_occlusions is None:
-                    continue
-
-                occluded_oncoming_areas.append(lane_occlusions)
-
-        if occluded_oncoming_areas:
-            occluded_oncoming_areas = unary_union(occluded_oncoming_areas)
-
-            # Only take the occlusions that could fit a hidden vehicle.
-            occluded_oncoming_areas = self.get_significant_occlusions(occluded_oncoming_areas)
-
-        # Make sure there are significant occluded areas
-        if not occluded_oncoming_areas and check_occlusions:
-            # The feature cannot be missing as there are no occlusions.
-            # We consider the occlusions to be infinitely away.
-            return oncoming_vehicles, np.inf
-
-        for i, lane_to_cross in enumerate(lanes_to_cross):
-            lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
-
-            midline = self.get_lane_path_midline(lane_sequence)
-
-            crossing_point = crossing_points[i]
             crossing_lon = midline.project(crossing_point)
-
-            if check_occlusions:
-                occlusion_start_dist = crossing_point.distance(occluded_oncoming_areas)
-                occlusion_start_dists.append(occlusion_start_dist)
 
             # find agents in lane to cross
             for agent_id, agent_lane in agent_lanes:
@@ -436,13 +361,8 @@ class FeatureExtractor:
                 if agent_id != ego_agent_id and agent_lane in lane_sequence:
                     agent_lon = midline.project(Point(agent_state.position))
                     dist = crossing_lon - agent_lon
-
                     if 0 < dist < self.MAX_ONCOMING_VEHICLE_DIST:
                         oncoming_vehicles[agent_id] = (agent_state, dist)
-
-        if check_occlusions:
-            return oncoming_vehicles, min(occlusion_start_dists)
-
         return oncoming_vehicles
 
     def _get_lanes_to_cross(self, ego_lane: Lane) -> List[Lane]:
@@ -461,12 +381,19 @@ class FeatureExtractor:
                         lanes.append(lane)
         return lanes
 
-    def get_occlusions_past_point(self, current_lane, other_lanes, all_occlusions, point_of_cut, area_to_keep):
+    def _get_occlusions_past_point(self, current_lane, other_lanes, all_occlusions, point_of_cut, area_to_keep):
         """
+        Get the occlusions that are both on the 'other_lanes' and on the area_to_keep.
+
         Args:
-            area_to_keep: part of the MIDLINE we want to keep todo: make clearer
+            current_lane:   lane on which the vehicle is currently on
+            other_lanes:    lanes for which we want to find the occluded areas
+            all_occlusions: all the occlusions in the current frame
+            point_of_cut:   point in the current lane at which we want to cut the total occluded areas
+            area_to_keep:   part of the MIDLINE we want the occlusions on
         """
 
+        # Find the occlusions that intersect the lanes we want.
         possible_occlusions = []
         for lane in other_lanes:
             o = all_occlusions.intersection(lane.boundary.buffer(0))
@@ -475,20 +402,17 @@ class FeatureExtractor:
                 possible_occlusions.extend(list(o.geoms))
             elif isinstance(o, Polygon):
                 possible_occlusions.append(o)
-            # We don't consider points or lines are they are not large enough.
 
         possible_occlusions = unary_union(possible_occlusions)
 
         if possible_occlusions.area == 0:
             return None
 
-        # Remove all the occlusions that are behind the target vehicle.
+        # Find the line perpendicular to the current lane that passes through the point_of_cut
         ds = current_lane.boundary.boundary.project(point_of_cut)
         p = current_lane.boundary.boundary.interpolate(ds)
 
         slope = (p.y - point_of_cut.y) / (p.x - point_of_cut.x)
-
-        import sympy
         s_p = sympy.Point(p.x, p.y)
 
         direction1 = Point(p.x - point_of_cut.x, p.y - point_of_cut.y)
@@ -496,21 +420,14 @@ class FeatureExtractor:
         p1 = self.get_extended_point(30, slope, direction1, s_p)
         p2 = self.get_extended_point(30, slope, direction2, s_p)
 
-        # Split the occluded areas along the line perpendicular to the current lane and passing through the point_of_cut
+        # Split the occluded areas along the line we just computed.
         line = LineString([Point(p1.x, p1.y), Point(p2.x, p2.y)])
-        intersections = split(possible_occlusions, line)  # todo: rename variables
+        intersections = split(possible_occlusions, line)
 
+        # Get the occlusions that are on the area_to_keep.
         return unary_union([intersection for intersection in intersections.geoms
                             if intersection.intersection(area_to_keep).length > 1])
 
-    def get_significant_occlusions(self, occlusions):
-        if isinstance(occlusions, MultiPolygon):
-            return unary_union([occlusion for occlusion in occlusions.geoms
-                                if occlusion.area > self.MIN_OCCLUSION_AREA])
-        elif isinstance(occlusions, Polygon):
-            return occlusions if occlusions.area > self.MIN_OCCLUSION_AREA else None
-
-    # todo: fix circular import and use the function in occlusion_detection_geometry.py
     @staticmethod
     def get_extended_point(length, slope, direction, point):
         import math
@@ -526,18 +443,75 @@ class FeatureExtractor:
 
         return point.translate(delta_x, delta_y)
 
+    def _get_significant_occlusions(self, occlusions):
+        if isinstance(occlusions, MultiPolygon):
+            return unary_union([occlusion for occlusion in occlusions.geoms
+                                if occlusion.area > self.MIN_OCCLUSION_AREA])
+        elif isinstance(occlusions, Polygon):
+            return occlusions if occlusions.area > self.MIN_OCCLUSION_AREA else None
+
+    def _get_min_dist_from_occlusions_oncoming_lanes(self, lanes_to_cross, ego_junction_lane,
+                                                     ego_junction_lane_boundary, occlusions):
+        """
+        Get the minimum distance from any crossing point to the occlusions that could hide an oncoming vehicle.
+        """
+
+        occluded_oncoming_areas = []
+        crossing_points = []
+        for lane_to_cross in lanes_to_cross:
+            crossing_point = lane_to_cross.boundary.buffer(0).intersection(ego_junction_lane_boundary).centroid
+            crossing_points.append(crossing_point)
+            lane_sequence = self._get_predecessor_lane_sequence(lane_to_cross)
+            midline = self.get_lane_path_midline(lane_sequence)
+
+            # Find the occlusions on the lanes that the ego vehicle will cross.
+            if occlusions:
+
+                # Get the part of the midline of the lanes in which there could be oncoming vehicles, that is before
+                # the crossing point.
+                # Ignore the occlusions that are "after" (w.r.t traffic direction) the crossing point.
+                # We only want to check if there is a hidden vehicle that could collide with the ego.
+                # This can only happen with vehicles that are driving in the lane's direction of traffic
+                # and have not passed the crossing point that the ego will drive through.
+                area_before, area_after = self._get_split_at(midline, crossing_point)
+
+                # Get the significant occlusions.
+                lane_occlusions = self._get_occlusions_past_point(ego_junction_lane,
+                                                                 lane_sequence,
+                                                                 occlusions,
+                                                                 crossing_point,
+                                                                 area_before)
+
+                if lane_occlusions is None:
+                    continue
+
+                occluded_oncoming_areas.append(lane_occlusions)
+
+        if occluded_oncoming_areas:
+            occluded_oncoming_areas = unary_union(occluded_oncoming_areas)
+
+            # Only take the occlusions that could fit a hidden vehicle.
+            occluded_oncoming_areas = self._get_significant_occlusions(occluded_oncoming_areas)
+
+            if occluded_oncoming_areas:
+                return min([crossing_point.distance(occluded_oncoming_areas) for crossing_point in crossing_points])
+
+        return math.inf
+
     @staticmethod
     def get_occlusions_ego_polygon(frame_occlusions, ego_id):
-        occlusions_vehicle_frame = []
-        for vehicle_occlusions in frame_occlusions:
-            if vehicle_occlusions["ego_agent_id"] == ego_id:
-                occlusions_vehicle_frame = vehicle_occlusions["occlusions"]
+        """
+        Given the frame occlusions, extract the occlusions w.r.t the ego and return them as a unique MultiPolygon.
+        """
+        occlusions_vehicle_frame = frame_occlusions[ego_id]
 
         occlusions = []
         for road_occlusions in occlusions_vehicle_frame:
             for lane_occlusions in occlusions_vehicle_frame[road_occlusions]:
-                for lane_occlusion in occlusions_vehicle_frame[road_occlusions][lane_occlusions]:
-                    occlusions.append(Polygon(list(zip(*lane_occlusion))))
+                lane_occlusion = occlusions_vehicle_frame[road_occlusions][lane_occlusions]
+
+                if lane_occlusion is not None:
+                    occlusions.append(lane_occlusion)
         return occlusions
 
     @classmethod
@@ -568,24 +542,24 @@ class FeatureExtractor:
                 closest_vehicle_id = agent_id
         return closest_vehicle_id, min_dist
 
-    def is_oncoming_vehicle_missing(self, target_vehicle_id: int, lane_path: List[Lane], frame: Dict[int, AgentState],
-                                    occlusions: MultiPolygon):
+    def is_oncoming_vehicle_missing(self, min_dist: int, lane_path: List[Lane], occlusions: MultiPolygon):
 
-        oncoming_vehicles, min_occlusion_distance = self._get_oncoming_vehicles(lane_path, target_vehicle_id, frame,
-                                                                                occlusions, check_occlusions=True)
+        ego_junction_lane = self.get_junction_lane(lane_path)
+        if ego_junction_lane is None:
+            return False
+        ego_junction_lane_boundary = ego_junction_lane.boundary.buffer(0)
+        lanes_to_cross = self._get_lanes_to_cross(ego_junction_lane)
+
+        min_occlusion_distance = self._get_min_dist_from_occlusions_oncoming_lanes(lanes_to_cross, ego_junction_lane,
+                                                                                   ego_junction_lane_boundary,
+                                                                                   occlusions)
 
         # If the closest occlusion is too far away (or missing), we say that occlusion is not significant.
         if min_occlusion_distance > self.MAX_OCCLUSION_DISTANCE:
             return False
 
-        # Find the vehicle that is closest to the crossing points.
-        min_dist = self.MAX_OCCLUSION_DISTANCE
-        for agent_id, (agent, dist) in oncoming_vehicles.items():
-            if dist < min_dist:
-                min_dist = dist
-
-        # If there is a vehicle that is further away to any of the crossing points that the occlusion, then the feature
-        # is missing. The 2.5 meters offset is in case the vehicle is partially occluded.
+        # If the closest oncoming vehicle is further away to any of the crossing points that the occlusion,
+        # then the feature is missing. The 2.5 meters offset is in case the vehicle is partially occluded.
         return min_occlusion_distance + 2.5 < min_dist
 
     def exit_number(self, initial_state: AgentState, future_lane_path: List[Lane]):

@@ -2,6 +2,7 @@ import argparse
 from multiprocessing import Pool
 
 from grit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
+from grit.core.base import create_folders
 from igp2.data import ScenarioConfig
 
 
@@ -32,6 +33,8 @@ def main():
                         action='store_true')
 
     args = parser.parse_args()
+
+    create_folders()
 
     if args.debug_steps and args.debug:
         args.debug_steps = False

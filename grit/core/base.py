@@ -1,4 +1,32 @@
 import pathlib
+import os
+
+
+def create_folders():
+    # Create a folder to store the data.
+    data_folder_path = get_base_dir() + '/data/'
+    if not os.path.exists(data_folder_path):
+        os.makedirs(data_folder_path)
+
+    # Create a folder to store the images of the decision trees.
+    predictions_folder_path = get_base_dir() + '/predictions/'
+    if not os.path.exists(predictions_folder_path):
+        os.makedirs(predictions_folder_path)
+
+    # Create a folder to store the images f=of the decision trees.
+    img_folder_path = get_base_dir() + '/images/'
+    if not os.path.exists(img_folder_path):
+        os.makedirs(img_folder_path)
+
+    # Create a folder in which to store the occlusions.
+    occlusion_folder_name = get_base_dir() + 'occlusions'
+    if not os.path.exists(occlusion_folder_name):
+        os.makedirs(occlusion_folder_name)
+
+    # Create a folder in which to store the occlusions.
+    results_folder_name = get_base_dir() + 'results'
+    if not os.path.exists(results_folder_name):
+        os.makedirs(results_folder_name)
 
 
 def get_base_dir():

@@ -32,7 +32,7 @@ def main():
     if args.scenario is None:
         scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
     else:
-        scenario_names = [args.scenario]
+        scenario_names = args.scenario.split(',')
 
     model_classes = {'prior_baseline': PriorBaseline,
                      'uniform_prior_baseline': UniformPriorBaseline,

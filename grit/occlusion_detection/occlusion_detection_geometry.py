@@ -1,6 +1,7 @@
 import numpy as np
 import math
 import pickle
+import os
 from typing import List, Dict, Tuple
 from itertools import combinations
 
@@ -54,6 +55,10 @@ class OcclusionDetector2D:
 
         for frame_id, frame in enumerate(episode_frames):
             print(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
+
+            if frame_id != 299:
+                continue
+
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
 
         occlusions_file_name = f"occlusions/{self.scenario_name}_e{self.episode_idx}.p"
@@ -112,12 +117,12 @@ class OcclusionDetector2D:
                     if lane.id == 0 or lane.type != "driving":
                         continue
 
-                    road_occlusions[lane.id] = []
                     intersection = lane.boundary.buffer(0).intersection(occluded_areas)
                     if intersection.is_empty:
+                        road_occlusions[lane.id] = None
                         continue
 
-                    road_occlusions[lane.id].append(intersection)
+                    road_occlusions[lane.id] = intersection
             occlusions_by_roads[road.id] = road_occlusions
 
         return occlusions_by_roads
@@ -249,12 +254,9 @@ class OcclusionDetector2D:
         for road_id, occlusions in road_occlusions.items():
             for lane_id, lane_occlusions in occlusions.items():
 
-                assert len(lane_occlusions) <= 1
-
                 if not lane_occlusions:
                     continue
 
-                lane_occlusions = lane_occlusions[0]
                 lane_occlusions_all.append(lane_occlusions)
         OcclusionDetector2D.plot_area_from_list(lane_occlusions_all, color=OCCLUDED_LANE_COLOR, alpha=OCCLUDED_AREA_ALPHA)
 
@@ -270,5 +272,5 @@ class OcclusionDetector2D:
                     OcclusionDetector2D.plot_area(*geometry.exterior.xy, color=color,
                                                   alpha=alpha)
 
-occlusion_detector = OcclusionDetector2D("bendplatz", 10, debug=True)
+occlusion_detector = OcclusionDetector2D("bendplatz", 0, debug=True)
 occlusion_detector.extract_occlusions()
