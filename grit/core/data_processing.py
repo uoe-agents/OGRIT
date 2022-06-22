@@ -231,6 +231,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
             if extract_missing_features:
                 max_timestep = min(end_trajectory_idx+1, target_lifespan)
                 reachable_goals_list = full_reachable_goals_list[start_trajectory_idx:max_timestep]
+            else:
+                reachable_goals_list = full_reachable_goals_list
 
             true_goal_idx = goals[target_agent_id]
 
