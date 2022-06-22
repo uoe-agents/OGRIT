@@ -56,9 +56,6 @@ class OcclusionDetector2D:
         for frame_id, frame in enumerate(episode_frames):
             print(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
 
-            if frame_id != 299:
-                continue
-
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
 
         occlusions_file_name = f"occlusions/{self.scenario_name}_e{self.episode_idx}.p"
