@@ -272,5 +272,3 @@ class OcclusionDetector2D:
                     OcclusionDetector2D.plot_area(*geometry.exterior.xy, color=color,
                                                   alpha=alpha)
 
-occlusion_detector = OcclusionDetector2D("bendplatz", 0, debug=True)
-occlusion_detector.extract_occlusions()
