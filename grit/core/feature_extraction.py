@@ -430,8 +430,6 @@ class FeatureExtractor:
 
     @staticmethod
     def get_extended_point(length, slope, direction, point):
-        import math
-
         delta_x = math.sqrt(length ** 2 / (1 + slope ** 2))
         delta_y = math.sqrt(length ** 2 - delta_x ** 2)
 
