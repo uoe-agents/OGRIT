@@ -19,12 +19,12 @@ def create_folders():
         os.makedirs(img_folder_path)
 
     # Create a folder in which to store the occlusions.
-    occlusion_folder_name = get_base_dir() + 'occlusions'
+    occlusion_folder_name = get_base_dir() + '/occlusions/'
     if not os.path.exists(occlusion_folder_name):
         os.makedirs(occlusion_folder_name)
 
     # Create a folder in which to store the occlusions.
-    results_folder_name = get_base_dir() + 'results'
+    results_folder_name = get_base_dir() + '/results/'
     if not os.path.exists(results_folder_name):
         os.makedirs(results_folder_name)
 
