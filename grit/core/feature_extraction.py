@@ -126,6 +126,7 @@ class FeatureExtractor:
 
             oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
 
+            # Get the first state in which both the ego and target vehicles are alive (even if target is occluded).
             initial_state = initial_frame[agent_id]
 
             exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
@@ -442,6 +443,9 @@ class FeatureExtractor:
         return point.translate(delta_x, delta_y)
 
     def _get_significant_occlusions(self, occlusions):
+        """
+        Return a Multipolygon or Polygon with the occlusions that are large enough to fit a hidden vehicle.
+        """
         if isinstance(occlusions, MultiPolygon):
             return unary_union([occlusion for occlusion in occlusions.geoms
                                 if occlusion.area > self.MIN_OCCLUSION_AREA])
@@ -451,7 +455,15 @@ class FeatureExtractor:
     def _get_min_dist_from_occlusions_oncoming_lanes(self, lanes_to_cross, ego_junction_lane,
                                                      ego_junction_lane_boundary, occlusions):
         """
-        Get the minimum distance from any crossing point to the occlusions that could hide an oncoming vehicle.
+        Get the minimum distance from any of the crossing points to the occlusions that could hide an oncoming vehicle.
+        A crossing point is a point along the target vehicle's path inside a junction.
+
+        Args:
+            lanes_to_cross:             list of lanes that the target vehicle will intersect while inside the junction.
+            ego_junction_lane:          lane the target vehicle travels on
+            ego_junction_lane_boundary: boundary of the ego_junction lane
+            occlusions:                 list of all the occlusions in the frame
+
         """
 
         occluded_oncoming_areas = []
@@ -491,15 +503,17 @@ class FeatureExtractor:
             # Only take the occlusions that could fit a hidden vehicle.
             occluded_oncoming_areas = self._get_significant_occlusions(occluded_oncoming_areas)
 
+            # Get the minimum distance from any of the crossing points and the relevant occlusions.
             if occluded_oncoming_areas:
                 return min([crossing_point.distance(occluded_oncoming_areas) for crossing_point in crossing_points])
 
+        # If there are no occlusions large enough to fit a hidden vehicle.
         return math.inf
 
     @staticmethod
     def get_occlusions_ego_polygon(frame_occlusions, ego_id):
         """
-        Given the frame occlusions, extract the occlusions w.r.t the ego and return them as a unique MultiPolygon.
+        Given the occlusions in a frame, extract the occlusions w.r.t the ego and return them as list of MultiPolygons.
         """
         occlusions_vehicle_frame = frame_occlusions[ego_id]
 
@@ -587,8 +601,16 @@ class FeatureExtractor:
 
         return exit_number
 
-    def is_exit_number_missing(self, initial_state: AgentState, goal):
+    def is_exit_number_missing(self, initial_state: AgentState, goal: TypedGoal):
+        """
+        The exit number feature is missing if we cannot get the exit number. This happens when:
+        - the target vehicle is already in the roundabout when it becomes visible to the ego.
+        - the target vehicle is occluded w.r.t the ego when it enters the roundabout.
 
+        Args:
+            initial_state: state of the target vehicle when it first became visible to the ego
+            goal:          the goal we are trying to get the probability for
+        """
         return self.exit_number(initial_state, goal.lane_path) == 0
 
     @staticmethod
