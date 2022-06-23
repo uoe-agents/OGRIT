@@ -91,7 +91,7 @@ class OcclusionDetector2D:
             ego_occluded_lanes = self.get_occlusions_ego_by_road(ego_position, obstacles)
 
             if self.debug:
-                self.plot_map(frame=frame, obstacles=obstacles)
+                self.plot_map(frame=frame, obstacles=obstacles+[list(vehicles_in_frame_boxes[ego_idx].boundary)])
                 self.plot_occlusions(ego_position, self.occlusion_lines, ego_occluded_lanes)
                 self.occlusion_lines = []
                 plt.show()
@@ -269,3 +269,6 @@ class OcclusionDetector2D:
                     OcclusionDetector2D.plot_area(*geometry.exterior.xy, color=color,
                                                   alpha=alpha)
 
+if __name__=="__main__":
+    occlusion_detector = OcclusionDetector2D("round", 15, debug=True)
+    occlusion_detector.extract_occlusions()

@@ -188,12 +188,15 @@ def is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent
 
     # Get the occlusions on the lane the target is on.
     lane_occlusion = occlusions[lane_on.parent_road.id][lane_on.id]
+
+    if lane_occlusion is None:
+        # There are no occlusions on that lane.
+        return False
+
     vehicle_boundary = LineString(get_vehicle_boundary(target_agent)).buffer(0.001)
 
     # If the vehicle is in the occluded area, it is missing.
-    if lane_occlusion.contains(vehicle_boundary):
-        return True
-    return False
+    return lane_occlusion.contains(vehicle_boundary)
 
 
 def extract_samples(feature_extractor, scenario, episode, extract_missing_features=False):
@@ -206,9 +209,10 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
     for target_agent_idx, (target_agent_id, trajectory) in enumerate(trajectories.items()):
         print('target agent {}/{}'.format(target_agent_idx, len(trajectories) - 1))
 
+        # Get all the reachable goals at every time step of the trajectory, until there is only 1 goal left.
         full_reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
 
-        # For how many frames is the target vehicle alive.
+        # For how many time steps is the target vehicle alive.
         target_lifespan = len(full_reachable_goals_list)
 
         for ego_agent_idx, (ego_agent_id, _) in enumerate(trajectories.items()):
@@ -263,8 +267,12 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                     # Don't include the frames in which the target vehicle is occluded w.r.t the ego.
                     if extract_missing_features:
 
-                        if is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id,
-                                                      ego_agent_id, episode_frames):
+                        try:
+                            if is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id,
+                                                          ego_agent_id, episode_frames):
+                                continue
+                        except KeyError:
+                            # There is a known case of mismatch due to
                             continue
 
                         if first_frame_target_not_occluded is None:
