@@ -55,7 +55,7 @@ to visualise the occlusion due to each obstacle in turn for each vehicle.
 
 By default, the two commands above will give the occlusions for the `bendplatz` scenario, episode `0`. 
 You can change it by adding the `--scenario` and `--episode_idx` parameters.
-For example, to get the occlusions in "frankenberg" episode 3, you can run the following command:
+For example, to get the occlusions in `frankenberg` episode `3`, you can run the following command:
 ```
 python scripts/extract_occlusions_one_episode.py --scenario "frankenberg" --episode_idx 3 --debug
 ```
