@@ -73,7 +73,7 @@ def get_goal_priors(training_set, goal_types, alpha=0):
 def get_episode_frames(episode: Episode, exclude_parked_cars=True, exclude_bicycles=False, step=1) \
         -> List[Dict[int, AgentState]]:
     """
-    Get all of the frames in an episode, while removing pedestrians and possibly bicycles and parked cars
+    Get all the frames in an episode, while removing pedestrians and possibly bicycles and parked cars
 
     Args:
         episode: Episode for which we want the frames.
@@ -125,7 +125,7 @@ def get_trajectories(scenario, episode, trimmed=False):
 def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
     # iterate through each sampled point in time for trajectory
     reachable_goals_list = []
-    # get reachable goals at each timestep
+    # get reachable goals at each timestep until there is only 1 possible goal.
     for idx in range(0, len(trajectory.path)):
         typed_goals = feature_extractor.get_typed_goals(trajectory.slice(0, idx + 1), scenario.config.goals)
         if len([r for r in typed_goals if r is not None]) > 1:
@@ -233,6 +233,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
             target_initial, initial_frame_id, final_frame_id, start_trajectory_idx, end_trajectory_idx = ids_goals
 
             if extract_missing_features:
+                # Get the target vehicle's possible goals in the time steps in which both the ego and the target
+                # are alive.
                 max_timestep = min(end_trajectory_idx+1, target_lifespan)
                 reachable_goals_list = full_reachable_goals_list[start_trajectory_idx:max_timestep]
             else:
