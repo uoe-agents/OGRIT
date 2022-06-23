@@ -4,25 +4,25 @@ from igp2.data import ScenarioConfig, InDScenario
 from igp2.opendrive.map import Map
 
 import matplotlib.pyplot as plt
-from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
 from grit.core.data_processing import get_episode_frames
 from grit.core.feature_extraction import FeatureExtractor
-from grit.occlusion_detection.occlusion_detection_geometry import get_box
+from grit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
+from grit.core.base import get_base_dir
 
 
 def get_feature_extractor(episode_idx=1, scenario_name="bendplatz"):
-    scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
+    scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
     return FeatureExtractor(scenario_map, scenario_name, episode_idx)
 
 
 def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, all_vehicles=False,
                    scenario_name="bendplatz"):
     feature_extractor = get_feature_extractor(episode_idx=episode_idx, scenario_name=scenario_name)
-    occlusions = feature_extractor.occlusions
+    occlusions = feature_extractor.occlusions[frame_id]
 
-    scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+    scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
     scenario = InDScenario(scenario_config)
     episode = scenario.load_episode(feature_extractor.episode_idx)
 
@@ -30,34 +30,39 @@ def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, al
     # episode_frames contain for each second the list of frames for all vehicles alive that moment
     episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True, step=25)
 
-    ego_occlusions = occlusions[str(frame_id)][0]["occlusions"]
-    ego_id = occlusions[str(frame_id)][0]["ego_agent_id"]
+    ego_id = list(occlusions.keys())[0]
+    ego_occlusions = occlusions[ego_id]
 
     ego = episode_frames[frame_id][ego_id]
 
     plot_map(feature_extractor.scenario_map, scenario_config=scenario_config, plot_buildings=True)
 
     if plot_occlusions:
+        lane_occlusions_all = []
+
         for road_occlusions in ego_occlusions:
             for lane_occlusions in ego_occlusions[road_occlusions]:
-                for lane_occlusion in ego_occlusions[road_occlusions][lane_occlusions]:
-                    plt.plot(*lane_occlusion, color="r")
+                lane_occlusion = ego_occlusions[road_occlusions][lane_occlusions]
+
+                if lane_occlusion is not None:
+                    lane_occlusions_all.append(lane_occlusion)
+        OcclusionDetector2D.plot_area_from_list(lane_occlusions_all, color="r", alpha=0.5)
 
     if all_vehicles:
         for aid, state in episode_frames[frame_id].items():
             plt.text(*state.position, aid)
-            plt.plot(*list(zip(*get_box(state).boundary)), color="black")
+            plt.plot(*list(zip(*OcclusionDetector2D.get_box(state).boundary)), color="black")
 
     if frame:
         for aid, state in frame[0].items():
             plt.text(*state.position, aid)
-            plt.plot(*list(zip(*get_box(state).boundary)))
+            plt.plot(*list(zip(*OcclusionDetector2D.get_box(state).boundary)))
 
-    plt.plot(*list(zip(*get_box(ego).boundary)))
+    plt.plot(*list(zip(*OcclusionDetector2D.get_box(ego).boundary)))
 
 
 def find_lane_at(point, scenario_name="bendplatz"):
-    scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
+    scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
     lanes = scenario_map.lanes_at(point)
 
     for lane in lanes:
@@ -69,16 +74,18 @@ def find_lane_at(point, scenario_name="bendplatz"):
 
 def get_occlusions_and_ego(frame=153, episode_idx=1):
     feature_extractor = get_feature_extractor(episode_idx)
-    occlusions = feature_extractor.occlusions
+    occlusions = feature_extractor.occlusions[frame]
 
-    ego_occlusions = occlusions[str(frame)][0]["occlusions"]
-    ego_id = occlusions[str(frame)][0]["ego_agent_id"]
+    ego_id = list(occlusions.keys())[0]
+    ego_occlusions = occlusions[ego_id]
 
     occlusions = []
     for road_occlusions in ego_occlusions:
         for lane_occlusions in ego_occlusions[road_occlusions]:
-            for lane_occlusion in ego_occlusions[road_occlusions][lane_occlusions]:
-                occlusions.append(Polygon(list(zip(*lane_occlusion))))
+            lane_occlusion = ego_occlusions[road_occlusions][lane_occlusions]
+
+            if lane_occlusion is not None:
+                occlusions.append(lane_occlusion)
     occlusions = unary_union(occlusions)
 
     return ego_id, occlusions
@@ -112,8 +119,9 @@ def test_occluded_area_no_vehicle_in_oncoming_lanes():
                            )
 
     frame = {ego_id: state_ego, 0: state0, 1: state1}
-    plot_occlusion(153, 1, frame)
-    missing = mfe.is_oncoming_vehicle_missing(0, lane_path, frame, occlusions)
+    # plot_occlusion(153, 1, frame)
+    oncoming_vehicle_id, oncoming_vehicle_dist = mfe.oncoming_vehicle(0, lane_path, frame)
+    missing = mfe.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
     plt.show()
 
     assert missing
@@ -156,8 +164,9 @@ def set_up_frame_ep3_frame100(third_agent_position, third_agent_heading):
 
     target_id = 0
     frame = {target_id: state0, 1: state1, ego_id: state_ego}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_oncoming_vehicle_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    oncoming_vehicle_id, oncoming_vehicle_dist = mfe.oncoming_vehicle(target_id, lane_path, frame)
+    missing = mfe.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
     plt.show()
 
     return missing
@@ -234,8 +243,9 @@ def test_the_vehicle_in_front_is_hidden():
                            )
     target_id = 0
     frame = {target_id: state_target, 1: state1, ego_id: state_ego}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    vehicle_in_front_id, vehicle_in_front_dist = mfe.vehicle_in_front(target_id, lane_path, frame)
+    missing = mfe.is_vehicle_in_front_missing(vehicle_in_front_dist, target_id, lane_path, frame, occlusions)
     plt.show()
 
     assert missing
@@ -275,11 +285,13 @@ def test_vehicle_is_behind():
                            )
     target_id = 0
     frame = {target_id: state_target, 1: state1, ego_id: state_ego}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    vehicle_in_front_id, vehicle_in_front_dist = mfe.vehicle_in_front(target_id, lane_path, frame)
+    missing = mfe.is_vehicle_in_front_missing(vehicle_in_front_dist, target_id, lane_path, frame, occlusions)
     plt.show()
 
     assert missing
+
 
 def test_no_vehicle_in_front_2():
     """
@@ -315,8 +327,9 @@ def test_no_vehicle_in_front_2():
                            )
     target_id = 0
     frame = {target_id: state_target, 1: state1, ego_id: state_ego}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    vehicle_in_front_id, vehicle_in_front_dist = mfe.vehicle_in_front(target_id, lane_path, frame)
+    missing = mfe.is_vehicle_in_front_missing(vehicle_in_front_dist, target_id, lane_path, frame, occlusions)
     plt.show()
 
     assert not missing
@@ -346,8 +359,9 @@ def test_occlusion_far_away():
                            )
     target_id = 0
     frame = {target_id: state_target, ego_id: state_ego}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    vehicle_in_front_id, vehicle_in_front_dist = mfe.vehicle_in_front(target_id, lane_path, frame)
+    missing = mfe.is_vehicle_in_front_missing(vehicle_in_front_dist, target_id, lane_path, frame, occlusions)
     plt.show()
 
     assert not missing
@@ -378,8 +392,9 @@ def test_occlusion_close_enough():
                            )
     target_id = 0
     frame = {target_id: state_target, ego_id: state_ego}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    vehicle_in_front_id, vehicle_in_front_dist = mfe.vehicle_in_front(target_id, lane_path, frame)
+    missing = mfe.is_vehicle_in_front_missing(vehicle_in_front_dist, target_id, lane_path, frame, occlusions)
     plt.show()
 
     assert missing
@@ -419,14 +434,13 @@ def test_occlusion_between_vehicle_in_front():
                            )
     target_id = 0
     frame = {target_id: state_target, ego_id: state_ego, 1: state1}
-    plot_occlusion(frame_id, episode_idx, frame)
-    missing = mfe.is_vehicle_in_front_missing(target_id, lane_path, frame, occlusions)
+    # plot_occlusion(frame_id, episode_idx, frame)
+    vehicle_in_front_id, vehicle_in_front_dist = mfe.vehicle_in_front(target_id, lane_path, frame)
+    missing = mfe.is_vehicle_in_front_missing(vehicle_in_front_dist, target_id, lane_path, frame, occlusions)
     plt.show()
 
     assert missing
 
-# TEST Missing exit number
-
 # find_lane_at((32.7, -59.4))
-plot_occlusion(42, 5, scenario_name="bendplatz")
-plt.show()
+# plot_occlusion(42, 5, scenario_name="bendplatz")
+# plt.show()

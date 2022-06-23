@@ -51,3 +51,12 @@ def get_subset_dir():
 
 def get_predictions_dir():
     return get_base_dir() + '/predictions/'
+
+
+def get_occlusions_dir():
+    return get_base_dir() + '/occlusions/'
+
+
+def get_scenarios_dir():
+    return get_base_dir() + '/scenarios/'
+
