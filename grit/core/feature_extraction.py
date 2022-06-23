@@ -9,6 +9,7 @@ from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
 
 from grit.core.goal_generator import TypedGoal, GoalGenerator
+from grit.core.base import get_occlusions_dir
 
 
 class FeatureExtractor:
@@ -52,7 +53,7 @@ class FeatureExtractor:
         if len(args) > 1:
             self.scenario_name = args[0]
             self.episode_idx = args[1]
-            with open(f"occlusions/{self.scenario_name}_e{self.episode_idx}.p", 'rb') as file:
+            with open(get_occlusions_dir() + f"{self.scenario_name}_e{self.episode_idx}.p", 'rb') as file:
                 self.occlusions = pickle.load(file)
 
     def extract(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
