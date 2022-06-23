@@ -87,11 +87,13 @@ class OcclusionDetector2D:
 
             obstacles = self.buildings + [list(box.boundary) for box in obstacles]
 
+            ego_vehicle_boundary = list(vehicles_in_frame_boxes[ego_idx].boundary)
+
             # Get for that ego vehicle, what areas of each lane are occluded.
-            ego_occluded_lanes = self.get_occlusions_ego_by_road(ego_position, obstacles)
+            ego_occluded_lanes = self.get_occlusions_ego_by_road(ego_position, obstacles, ego_vehicle_boundary)
 
             if self.debug:
-                self.plot_map(frame=frame, obstacles=obstacles+[list(vehicles_in_frame_boxes[ego_idx].boundary)])
+                self.plot_map(frame=frame, obstacles=obstacles+[ego_vehicle_boundary])
                 self.plot_occlusions(ego_position, self.occlusion_lines, ego_occluded_lanes)
                 self.occlusion_lines = []
                 plt.show()
@@ -99,11 +101,24 @@ class OcclusionDetector2D:
             frame_occlusions[ego_id] = ego_occluded_lanes
         return frame_occlusions
 
-    def get_occlusions_ego_by_road(self, ego_position, obstacles):
+    def get_occlusions_ego_by_road(self, ego_position, obstacles, ego_vehicle_boundary):
+        """
+        Get all the occlusions inside each possible lane in the map.
+
+        Args:
+            ego_position:         position of the ego vehicle
+            obstacles:            list of boundaries of the obstacles that could create occlusions
+            ego_vehicle_boundary: boundary of the ego vehicle. Used only when plotting the frame
+
+        Returns:
+             A dictionary with the road id as key and another dictionary as value. The latter dictionary has the
+             road's lanes id as key and a Multipolygon as value to represent the occluded areas.
+
+        """
         occlusions_by_roads = {k: {} for k in self.scenario_map.roads.keys()}
 
         # First find all the occluded areas.
-        occluded_areas = self.get_occlusions_ego(ego_position, obstacles)
+        occluded_areas = self.get_occlusions_ego(ego_position, obstacles, ego_vehicle_boundary)
 
         # Find what areas in each lane is occluded.
         for road in self.scenario_map.roads.values():
@@ -124,7 +139,11 @@ class OcclusionDetector2D:
 
         return occlusions_by_roads
 
-    def get_occlusions_ego(self, ego_position, obstacles):
+    def get_occlusions_ego(self, ego_position, obstacles, ego_vehicle_boundary):
+        """
+        Get all the areas (as a Polygon or Multipolygon) that the obstacles occlude from the point of view of
+        the ego vehicle.
+        """
         occlusions_ego_list = []
         occlusions_ego = Polygon()
 
@@ -151,7 +170,7 @@ class OcclusionDetector2D:
                 self.occlusion_lines.append([(v1, v3), (v2, v4)])
 
             if self.debug_steps:
-                self.plot_map(obstacles=obstacles)
+                self.plot_map(obstacles=obstacles+[ego_vehicle_boundary])
                 self.plot_occlusions(ego_position, self.occlusion_lines)
                 self.occlusion_lines = []
                 plt.show()
