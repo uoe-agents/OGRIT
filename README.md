@@ -2,6 +2,13 @@
 
 1) Install IGP2, as specified on https://github.com/uoe-agents/IGP2.
 
+
+One of the requirements of IGP2 is `carla`. This, though, is not a requirement for OGRIT. To run on machines that cannot 
+install `carla`, do the following:
+- Remove `carla==0.9.12` from `IGP2/requirements.txt`
+- Remove `from igp2 import` (line 17) from `IGP2/igp2/__init__.py`
+- Install IGP2 as per point 1 above
+
 2) Install OGRIT with pip: 
     ```
     cd OGRIT
