@@ -216,7 +216,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
         target_lifespan = len(full_reachable_goals_list)
 
         for ego_agent_idx, (ego_agent_id, _) in enumerate(trajectories.items()):
-            if ego_agent_id == target_agent_id:
+            if ego_agent_id == target_agent_id or episode.agents[ego_agent_id].parked():
                 continue
 
             # If we don't consider occlusions, we don't need the ego vehicle. We thus run the rest of the code once.
@@ -267,12 +267,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                     # Don't include the frames in which the target vehicle is occluded w.r.t the ego.
                     if extract_missing_features:
 
-                        try:
-                            if is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id,
-                                                          ego_agent_id, episode_frames):
-                                continue
-                        except KeyError:
-                            # There is a known case of mismatch due to
+                        if is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id,
+                                                      ego_agent_id, episode_frames):
                             continue
 
                         if first_frame_target_not_occluded is None:

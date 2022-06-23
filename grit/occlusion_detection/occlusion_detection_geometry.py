@@ -269,6 +269,3 @@ class OcclusionDetector2D:
                     OcclusionDetector2D.plot_area(*geometry.exterior.xy, color=color,
                                                   alpha=alpha)
 
-if __name__=="__main__":
-    occlusion_detector = OcclusionDetector2D("round", 15, debug=True)
-    occlusion_detector.extract_occlusions()
