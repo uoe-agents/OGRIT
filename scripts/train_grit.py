@@ -1,8 +1,8 @@
 import argparse
 import json
 
-from grit.core.base import get_dt_config_dir
-from grit.decisiontree.dt_goal_recogniser import Grit
+from ogrit.core.base import get_dt_config_dir
+from ogrit.decisiontree.dt_goal_recogniser import Grit
 
 
 def main():

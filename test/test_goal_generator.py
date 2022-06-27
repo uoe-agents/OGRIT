@@ -4,7 +4,7 @@ from igp2.opendrive.map import Map
 from igp2.trajectory import VelocityTrajectory
 from igp2.util import Circle
 
-from grit.core.goal_generator import GoalGenerator
+from ogrit.core.goal_generator import GoalGenerator
 
 
 def goal_in_list(goals, goal_type, goal_center):

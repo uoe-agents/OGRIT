@@ -8,8 +8,8 @@ from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
 
-from grit.core.goal_generator import TypedGoal, GoalGenerator
-from grit.core.base import get_occlusions_dir
+from ogrit.core.goal_generator import TypedGoal, GoalGenerator
+from ogrit.core.base import get_occlusions_dir
 
 
 class FeatureExtractor:

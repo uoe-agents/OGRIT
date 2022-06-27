@@ -4,8 +4,8 @@ import pickle
 from typing import List, Dict, Tuple
 from itertools import combinations
 
-from grit.occlusion_detection.occlusion_line import OcclusionLine as Line
-from grit.core.data_processing import get_episode_frames
+from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
+from ogrit.core.data_processing import get_episode_frames
 
 import igp2 as ip
 from igp2 import AgentState

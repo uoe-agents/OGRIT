@@ -4,8 +4,8 @@ from igp2 import AgentState, VelocityTrajectory
 from igp2.goal import PointGoal
 from igp2.opendrive.map import Map
 
-from grit.core.feature_extraction import FeatureExtractor
-from grit.core.goal_generator import TypedGoal
+from ogrit.core.feature_extraction import FeatureExtractor
+from ogrit.core.goal_generator import TypedGoal
 
 
 def get_feature_extractor():

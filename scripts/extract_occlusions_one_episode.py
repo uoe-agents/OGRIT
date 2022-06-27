@@ -1,7 +1,7 @@
 import argparse
 
-from grit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
-from grit.core.base import create_folders
+from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
+from ogrit.core.base import create_folders
 
 
 def main():

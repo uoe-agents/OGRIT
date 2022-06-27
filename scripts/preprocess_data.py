@@ -3,7 +3,7 @@ from multiprocessing import Pool
 
 from igp2.data import ScenarioConfig
 
-from grit.core.data_processing import prepare_episode_dataset
+from ogrit.core.data_processing import prepare_episode_dataset
 
 
 def main():

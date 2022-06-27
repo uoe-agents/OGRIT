@@ -1,7 +1,7 @@
 import pandas as pd
 import argparse
 
-from grit.core.base import get_data_dir, get_predictions_dir
+from ogrit.core.base import get_data_dir, get_predictions_dir
 from scripts.train_generalised_decision_trees import main as train_generalised_tree
 from scripts.train_occlusion_grit import main as train_ogrit
 from scripts.evaluate_models_from_features import main as evaluate_models
@@ -20,7 +20,7 @@ scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 
 # Name of the models which we want to compare to the base model.
 test_model_name = "no_possibly_missing_features_grit"
-base_model_name = "grit"
+base_model_name = "ogrit"
 
 
 COLUMNS_TO_TAKE = ["episode", "agent_id", "ego_agent_id", "frame_id"]

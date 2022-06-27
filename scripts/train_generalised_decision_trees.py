@@ -1,6 +1,6 @@
 import argparse
 
-from grit.decisiontree.dt_goal_recogniser import GeneralisedGrit
+from ogrit.decisiontree.dt_goal_recogniser import GeneralisedGrit
 
 
 def main():

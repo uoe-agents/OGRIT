@@ -1,8 +1,8 @@
 import argparse
 from multiprocessing import Pool
 
-from grit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
-from grit.core.base import create_folders
+from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
+from ogrit.core.base import create_folders
 from igp2.data import ScenarioConfig
 
 

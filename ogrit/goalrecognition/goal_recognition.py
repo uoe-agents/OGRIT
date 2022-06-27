@@ -6,9 +6,9 @@ from igp2.data.scenario import ScenarioConfig
 from igp2.opendrive.map import Map
 from igp2.trajectory import VelocityTrajectory
 
-from grit.core.base import get_data_dir, get_base_dir
-from grit.core.feature_extraction import FeatureExtractor
-from grit.goalrecognition.metrics import entropy
+from ogrit.core.base import get_data_dir, get_base_dir
+from ogrit.core.feature_extraction import FeatureExtractor
+from ogrit.goalrecognition.metrics import entropy
 
 
 class GoalRecogniser:

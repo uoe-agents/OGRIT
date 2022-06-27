@@ -2,8 +2,8 @@ import argparse
 import os
 from datetime import datetime
 
-from grit.core.data_processing import prepare_episode_dataset
-from grit.core.base import get_data_dir
+from ogrit.core.data_processing import prepare_episode_dataset
+from ogrit.core.base import get_data_dir
 
 
 def main():

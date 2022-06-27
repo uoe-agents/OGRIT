@@ -1,6 +1,6 @@
 import argparse
 
-from grit.decisiontree.dt_goal_recogniser import OcclusionGrit
+from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit
 
 
 def main():

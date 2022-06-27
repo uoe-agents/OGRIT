@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 
-from grit.decisiontree.decision_tree import Node, BinaryDecision, ThresholdDecision
-from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
+from ogrit.decisiontree.decision_tree import Node, BinaryDecision, ThresholdDecision
+from ogrit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
 from core.scenario import Scenario, ScenarioConfig, Frame, AgentState
 from scripts.evaluation.verification import add_goal_tree_model
 from test.lanelet_test_helpers import get_test_map

@@ -10,7 +10,7 @@ pd.options.mode.chained_assignment = None
 import pydot
 from sklearn.tree import _tree
 
-from grit.core.feature_extraction import FeatureExtractor
+from ogrit.core.feature_extraction import FeatureExtractor
 
 
 class Decision:

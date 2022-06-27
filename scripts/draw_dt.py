@@ -1,5 +1,5 @@
-from grit.core.base import get_img_dir
-from grit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit
+from ogrit.core.base import get_img_dir
+from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit
 
 model = OcclusionGrit.load('heckstrasse')
 model.save_images()

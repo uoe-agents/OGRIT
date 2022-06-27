@@ -1,6 +1,6 @@
 import numpy as np
 
-from grit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit
+from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit
 import matplotlib.pyplot as plt
 from igp2 import Map, plot_map
 from igp2.data.scenario import ScenarioConfig

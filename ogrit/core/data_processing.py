@@ -9,17 +9,17 @@ from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 
-from grit.core.feature_extraction import FeatureExtractor, GoalDetector
+from ogrit.core.feature_extraction import FeatureExtractor, GoalDetector
 from shapely.geometry import LineString
 from shapely.errors import TopologicalError
 
-from grit.core.base import get_data_dir, get_base_dir, get_scenarios_dir
+from ogrit.core.base import get_data_dir, get_base_dir, get_scenarios_dir
 
 FRAME_STEP_SIZE = 25  # take a frame every 25 in the original episode frames (i.e., one per second)
 
 
 def load_dataset_splits():
-    with open(get_base_dir() + '/grit/core/dataset_split.json', 'r') as f:
+    with open(get_base_dir() + '/ogrit/core/dataset_split.json', 'r') as f:
         return json.load(f)
 
 

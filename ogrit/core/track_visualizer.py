@@ -7,13 +7,13 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import skimage.io
-from grit.core.feature_extraction import FeatureExtractor
+from ogrit.core.feature_extraction import FeatureExtractor
 from matplotlib.widgets import Button, Slider
 from loguru import logger
 import matplotlib.image as mpimg
 
-from grit.core.base import get_img_dir
-from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser, GeneralisedGrit
+from ogrit.core.base import get_img_dir
+from ogrit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser, GeneralisedGrit
 from igp2 import VelocityTrajectory
 
 

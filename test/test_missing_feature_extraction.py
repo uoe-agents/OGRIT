@@ -6,10 +6,10 @@ from igp2.opendrive.map import Map
 import matplotlib.pyplot as plt
 from shapely.ops import unary_union
 
-from grit.core.data_processing import get_episode_frames
-from grit.core.feature_extraction import FeatureExtractor
-from grit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
-from grit.core.base import get_base_dir
+from ogrit.core.data_processing import get_episode_frames
+from ogrit.core.feature_extraction import FeatureExtractor
+from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
+from ogrit.core.base import get_base_dir
 
 
 def get_feature_extractor(episode_idx=1, scenario_name="bendplatz"):

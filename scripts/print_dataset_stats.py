@@ -1,6 +1,6 @@
 import pandas as pd
 
-from grit.core.data_processing import get_dataset
+from ogrit.core.data_processing import get_dataset
 
 datasets = ['train', 'valid', 'test']
 scenarios = ['round']

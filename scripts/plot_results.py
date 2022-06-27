@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from grit.core.base import get_base_dir
+from ogrit.core.base import get_base_dir
 import itertools
 
 

@@ -3,11 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 
-from grit.core.base import get_base_dir
-from grit.core.data_processing import get_dataset
-from grit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit, \
+from ogrit.core.base import get_base_dir
+from ogrit.core.data_processing import get_dataset
+from ogrit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit, \
     OcclusionBaseline, NoPossiblyMissingFeaturesGrit
-from grit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
+from ogrit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
 def drop_low_sample_agents(dataset, min_samples=2):
@@ -37,7 +37,7 @@ def main():
     model_classes = {'prior_baseline': PriorBaseline,
                      'uniform_prior_baseline': UniformPriorBaseline,
                      'occlusion_grit': OcclusionGrit,
-                     'grit': Grit,
+                     'ogrit': Grit,
                      'generalised_grit': GeneralisedGrit,
                      'grit_uniform_prior': UniformPriorGrit,
                      'occlusion_baseline': OcclusionBaseline,

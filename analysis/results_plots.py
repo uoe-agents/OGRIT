@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from grit.core.base import get_base_dir
+from ogrit.core.base import get_base_dir
 
 scenarios = ['heckstrasse','bendplatz', 'frankenberg', 'round']
 

@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 
-from grit.core.data_processing import get_dataset
-from grit.decisiontree.dt_goal_recogniser import GeneralisedGrit, OcclusionGrit
+from ogrit.core.data_processing import get_dataset
+from ogrit.decisiontree.dt_goal_recogniser import GeneralisedGrit, OcclusionGrit
 
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
 

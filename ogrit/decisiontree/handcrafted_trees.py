@@ -1,5 +1,5 @@
 import numpy as np
-from grit.decisiontree.decision_tree import Node, ThresholdDecision, BinaryDecision
+from ogrit.decisiontree.decision_tree import Node, ThresholdDecision, BinaryDecision
 
 scenario_trees = {'heckstrasse':
                       {0: {'straight-on':
