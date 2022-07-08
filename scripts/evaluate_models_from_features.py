@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 
-from ogrit.core.base import get_base_dir
+from ogrit.core.base import get_base_dir, get_all_scenarios
 from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit, \
     OcclusionBaseline, NoPossiblyMissingFeaturesGrit

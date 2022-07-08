@@ -2,7 +2,7 @@ import argparse
 from datetime import datetime
 
 from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
-from ogrit.core.base import create_folders
+from ogrit.core.base import create_folders, set_working_dir
 
 
 def main():

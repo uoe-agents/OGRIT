@@ -1,6 +1,6 @@
 pandas~=1.2.4
 numpy~=1.18.4
-matplotlib~=3.5.2
+matplotlib~=3.3.4
 imageio
 loguru~=0.5.3
 shapely~=1.7.1

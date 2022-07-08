@@ -2,7 +2,7 @@ import argparse
 from multiprocessing import Pool
 
 from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
-from ogrit.core.base import create_folders
+from ogrit.core.base import create_folders, set_working_dir, get_all_scenarios
 from igp2.data import ScenarioConfig
 
 

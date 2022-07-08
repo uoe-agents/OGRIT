@@ -1,8 +1,8 @@
 import argparse
 import json
 
-from grit.core.base import get_dt_config_dir, get_all_scenarios
-from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
+from ogrit.core.base import get_dt_config_dir, get_all_scenarios
+from ogrit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
 
 
 def main():

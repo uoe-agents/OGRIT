@@ -1,7 +1,7 @@
 import argparse
 import json
 
-from ogrit.core.base import get_dt_config_dir, all_scenarios
+from ogrit.core.base import get_dt_config_dir, get_all_scenarios
 from ogrit.decisiontree.dt_goal_recogniser import NoPossiblyMissingFeaturesGrit
 
 
@@ -11,7 +11,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenario_names = all_scenarios()
+        scenario_names = get_all_scenarios()
     else:
         scenario_names = [args.scenario]
 
