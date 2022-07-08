@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 
 from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
 from ogrit.core.base import create_folders
@@ -19,17 +20,22 @@ def main():
                              "If --debug is set, --debug_steps will be disabled.",
                         action='store_true')
 
+    parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
+                                                        'or "p" for pickle', default="p")
+
     args = parser.parse_args()
 
     create_folders()
+    set_working_dir()
 
     print('scenario {} episode {}'.format(args.scenario, args.episode_idx))
 
     occlusion_detector = OcclusionDetector2D(args.scenario, args.episode_idx, debug=args.debug,
                                              debug_steps=args.debug_steps)
 
-    occlusion_detector.extract_occlusions()
-    print('finished scenario {} episode {}'.format(args.scenario, args.episode_idx))
+    start = datetime.now()
+    occlusion_detector.extract_occlusions(save_format=args.save_format)
+    print(datetime.now() - start)
 
 
 if __name__ == '__main__':

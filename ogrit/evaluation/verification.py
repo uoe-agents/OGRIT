@@ -17,13 +17,6 @@ def add_tree(root, name, features, solver):
             pass
         else:
             feature = features[node.decision.feature_name]
-
-            # fix incorrect decisions
-            if (node.decision.feature_name in FeatureExtractor.indicator_features
-                    or FeatureExtractor.feature_names[node.decision.feature_name] == 'binary'):
-                node.decision = BinaryDecision(node.decision.feature_name,
-                                               node.decision.true_child, node.decision.false_child)
-
             if isinstance(node.decision, ThresholdDecision):
                 true_child_expr = And(parent_expr, feature > node.decision.threshold)
             elif isinstance(node.decision, BinaryDecision):
@@ -43,20 +36,17 @@ def add_tree(root, name, features, solver):
 def add_features(goal_name, suffix=''):
     goal_name = str(goal_name)
     features = {}
-    feature_types = {'scalar': Real, 'binary': Bool, 'integer': Int}
+    feature_types = {'scalar': Real, 'binary': Bool}
 
     for feature_name, feature_type in FeatureExtractor.feature_names.items():
         features[feature_name] = feature_types[feature_type](feature_name + '_' + goal_name + suffix)
-
-    for feature_name in FeatureExtractor.indicator_features:
-        features[feature_name] = Bool(feature_name + '_' + goal_name + suffix)
     return features
 
 
 def add_feature_constraints(features, solver, suffix=''):
     # these features should take the same value for all goals
     shared_features = ['speed', 'acceleration', 'angle_in_lane', 'vehicle_in_front_dist', 'vehicle_in_front_speed']
-    feature_types = {'scalar': Real, 'binary': Bool, 'integer': Int}
+    feature_types = {'scalar': Real, 'binary': Bool}
 
     for feature_name in shared_features:
         feature_type = FeatureExtractor.feature_names[feature_name]
@@ -66,9 +56,10 @@ def add_feature_constraints(features, solver, suffix=''):
 
 
 def add_single_tree_model(goal_idx, goal_type, solver, model, suffix=''):
-    prior = float(model.goal_priors[goal_idx])
+    prior = float(model.goal_priors.loc[(model.goal_priors.true_goal == goal_idx)
+                                        & (model.goal_priors.true_goal_type == goal_type), 'prior'])
     goal_features = add_features(goal_idx, suffix)
-    likelihood = add_tree(model.decision_trees[goal_type],
+    likelihood = add_tree(model.decision_trees[goal_idx][goal_type],
                           'likelihood_{}_{}{}'.format(goal_idx, goal_type, suffix), goal_features, solver)
     prob = likelihood * prior
     return goal_features, likelihood, prob

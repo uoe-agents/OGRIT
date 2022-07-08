@@ -3,7 +3,6 @@ from typing import List, Dict, Union, Tuple
 import numpy as np
 import pickle
 import math
-import sympy
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
@@ -22,7 +21,6 @@ class FeatureExtractor:
     # Maximum distance the occlusion can be to be considered as significant for creating occlusions.
     MAX_OCCLUSION_DISTANCE = 30
 
-    FRAME_STEP_SIZE = 25
     MISSING = True
     NON_MISSING = False
 
@@ -117,11 +115,9 @@ class FeatureExtractor:
         # We pass the ego_agent_id only if we want to extract the indicator features.
         if ego_agent_id is not None:
 
-            occlusion_frame_id = math.ceil(current_state.time / self.FRAME_STEP_SIZE)
-            frame_occlusions = self.occlusions[occlusion_frame_id]
+            frame_occlusions = self.occlusions[current_state.time]
 
             occlusions = unary_union(self.get_occlusions_ego_polygon(frame_occlusions, ego_agent_id))
-
             vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
                                                                          current_frame, occlusions)
 
@@ -131,7 +127,7 @@ class FeatureExtractor:
             initial_state = initial_frame[agent_id]
 
             exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
-                if self.scenario_name == "round" else False
+                if self.scenario_name == "neuweiler" else False
 
             indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
                                   'oncoming_vehicle_missing': oncoming_vehicle_occluded,
@@ -217,12 +213,11 @@ class FeatureExtractor:
         """
         target_state = frame[target_id]
         target_point = Point(*target_state.position)
-        current_lane = self.scenario_map.best_lane_at(target_state.position, target_state.heading, True)
-        midline = current_lane.midline
+        midline = self.get_lane_path_midline(lane_path)
 
         # Remove all the occlusions that are behind the target vehicle as we want possible hidden vehicles in front.
         area_before, area_after = self._get_split_at(midline, target_point)
-        occlusions = self._get_occlusions_past_point(current_lane, lane_path, occlusions, target_point, area_after)
+        occlusions = self._get_occlusions_on(occlusions, lane_path, area_after)
 
         if occlusions is None:
             return self.NON_MISSING
@@ -323,21 +318,25 @@ class FeatureExtractor:
         lane_ls = LineString(midline_points)
         return lane_ls
 
-    @staticmethod
-    def _get_split_at(midline, point):
+
+    def _get_split_at(self, midline, point):
         """
-        Split the midline at a specific point.
+        Split the midline at a specific point. The midline should be shorter than two times the MAX_OCCLUSION_DISTANCE
         """
-        point_on_midline = midline.interpolate(midline.project(point)).buffer(0.0001)
+
+        if midline.length > 2*self.MAX_OCCLUSION_DISTANCE:
+            midline = split(midline, midline.interpolate(2*self.MAX_OCCLUSION_DISTANCE).buffer(0.0000000000001))[0]
+
+        point_on_midline = midline.interpolate(midline.project(point)).buffer(0.0000000000001)
 
         split_lanes = split(midline, point_on_midline)
 
         if len(split_lanes) == 2:
             # Handle the case in which the split point is at the start/end of the lane.
             line_before, line_after = split_lanes
-        else:
+        elif len(split_lanes) == 3:
+            # The middle segment is due to rounding
             line_before, _, line_after = split_lanes
-
         return line_before, line_after
 
     def _get_oncoming_vehicles(self, lane_path: List[Lane], ego_agent_id: int, frame: Dict[int, AgentState]) \
@@ -383,15 +382,14 @@ class FeatureExtractor:
                         lanes.append(lane)
         return lanes
 
-    def _get_occlusions_past_point(self, current_lane, other_lanes, all_occlusions, point_of_cut, area_to_keep):
+    @staticmethod
+    def _get_occlusions_on(all_occlusions, other_lanes, area_to_keep):
         """
-        Get the occlusions that are both on the 'other_lanes' and on the area_to_keep.
+        Get the occlusions that are on the area_to_keep.
 
         Args:
-            current_lane:   lane on which the vehicle is currently on
-            other_lanes:    lanes for which we want to find the occluded areas
             all_occlusions: all the occlusions in the current frame
-            point_of_cut:   point in the current lane at which we want to cut the total occluded areas
+            other_lanes:    lanes for which we want to find the occluded areas
             area_to_keep:   part of the MIDLINE we want the occlusions on
         """
 
@@ -406,42 +404,17 @@ class FeatureExtractor:
                 possible_occlusions.append(o)
 
         possible_occlusions = unary_union(possible_occlusions)
+        occlusions = Polygon()
 
-        if possible_occlusions.area == 0:
+        if isinstance(possible_occlusions, Polygon):
+            occlusions = possible_occlusions if possible_occlusions.intersection(area_to_keep).length > 1 else Polygon()
+        elif isinstance(possible_occlusions, MultiPolygon):
+            occlusions = unary_union([occlusion for occlusion in possible_occlusions.geoms
+                                      if occlusion.intersection(area_to_keep).length > 1])
+
+        if occlusions.is_empty:
             return None
-
-        # Find the line perpendicular to the current lane that passes through the point_of_cut
-        ds = current_lane.boundary.boundary.project(point_of_cut)
-        p = current_lane.boundary.boundary.interpolate(ds)
-
-        slope = (p.y - point_of_cut.y) / (p.x - point_of_cut.x)
-        s_p = sympy.Point(p.x, p.y)
-
-        direction1 = Point(p.x - point_of_cut.x, p.y - point_of_cut.y)
-        direction2 = Point(point_of_cut.x - p.x, point_of_cut.y - p.y)
-        p1 = self.get_extended_point(30, slope, direction1, s_p)
-        p2 = self.get_extended_point(30, slope, direction2, s_p)
-
-        # Split the occluded areas along the line we just computed.
-        line = LineString([Point(p1.x, p1.y), Point(p2.x, p2.y)])
-        intersections = split(possible_occlusions, line)
-
-        # Get the occlusions that are on the area_to_keep.
-        return unary_union([intersection for intersection in intersections.geoms
-                            if intersection.intersection(area_to_keep).length > 1])
-
-    @staticmethod
-    def get_extended_point(length, slope, direction, point):
-        delta_x = math.sqrt(length ** 2 / (1 + slope ** 2))
-        delta_y = math.sqrt(length ** 2 - delta_x ** 2)
-
-        if direction.x < 0:
-            delta_x = -delta_x
-
-        if direction.y < 0:
-            delta_y = -delta_y
-
-        return point.translate(delta_x, delta_y)
+        return occlusions
 
     def _get_significant_occlusions(self, occlusions):
         """
@@ -485,18 +458,10 @@ class FeatureExtractor:
                 # This can only happen with vehicles that are driving in the lane's direction of traffic
                 # and have not passed the crossing point that the ego will drive through.
                 area_before, area_after = self._get_split_at(midline, crossing_point)
+                lane_occlusions = self._get_occlusions_on(occlusions, lane_sequence, area_before)
 
-                # Get the significant occlusions.
-                lane_occlusions = self._get_occlusions_past_point(ego_junction_lane,
-                                                                 lane_sequence,
-                                                                 occlusions,
-                                                                 crossing_point,
-                                                                 area_before)
-
-                if lane_occlusions is None:
-                    continue
-
-                occluded_oncoming_areas.append(lane_occlusions)
+                if lane_occlusions is not None:
+                    occluded_oncoming_areas.append(lane_occlusions)
 
         if occluded_oncoming_areas:
             occluded_oncoming_areas = unary_union(occluded_oncoming_areas)
@@ -643,6 +608,7 @@ class FeatureExtractor:
         return GoalGenerator.get_juction_goal_type(route[-1])
 
     @staticmethod
+    @lru_cache(maxsize=128)
     def path_to_lane(initial_lane: Lane, target_lane: Lane, max_depth=20) -> List[Lane]:
         visited_lanes = {initial_lane}
         open_set = [[initial_lane]]

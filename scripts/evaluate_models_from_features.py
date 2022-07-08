@@ -30,7 +30,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenario_names = get_all_scenarios()
     else:
         scenario_names = args.scenario.split(',')
 

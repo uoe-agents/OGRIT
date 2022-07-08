@@ -1,6 +1,6 @@
 pandas~=1.2.4
 numpy~=1.18.4
-matplotlib~=3.3.4
+matplotlib~=3.5.2
 imageio
 loguru~=0.5.3
 shapely~=1.7.1
@@ -15,5 +15,6 @@ opencv-python~=4.5.5.64
 pillow~=9.1.0
 pytest~=6.2.3
 setuptools~=58.0.4
-sympy~=1.10.1
+scipy~=1.6.2
+descartes~=1.1.0
 z3-solver

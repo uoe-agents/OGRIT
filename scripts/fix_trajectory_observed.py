@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from igp2.data import ScenarioConfig
 
 from ogrit.core.base import get_data_dir, get_base_dir

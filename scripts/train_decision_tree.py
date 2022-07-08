@@ -1,8 +1,8 @@
 import argparse
 import json
 
-from ogrit.core.base import get_dt_config_dir
-from ogrit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
+from grit.core.base import get_dt_config_dir, get_all_scenarios
+from grit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser
 
 
 def main():
@@ -11,7 +11,7 @@ def main():
     args = parser.parse_args()
 
     if args.scenario is None:
-        scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenario_names = get_all_scenarios()
     else:
         scenario_names = [args.scenario]
 

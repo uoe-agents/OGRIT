@@ -1,14 +1,17 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from ogrit.core.base import get_base_dir
+from ogrit.core.base import get_base_dir, get_all_scenarios
 import itertools
 
 
 plt.style.use('ggplot')
 
-scenario_names = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+model_names = ['prior_baseline', 'grit', 'generalised_grit',
+               'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
+scenario_names = get_all_scenarios()
 
 model_names = ['generalised_grit', 'occlusion_baseline', 'occlusion_grit']
+#model_names = ['grit_uniform_prior', 'generalised_grit']
 
 label_map = {'generalised_grit': 'G-GRIT',
              'occlusion_grit': 'OGRIT',
@@ -18,8 +21,8 @@ label_map = {'generalised_grit': 'G-GRIT',
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
-             'frankenberg': 'Frankenburg',
-             'round': 'Neuweiler'}
+             'frankenburg': 'Frankenburg',
+             'neuweiler': 'Neuweiler'}
 
 
 # plot accuracy

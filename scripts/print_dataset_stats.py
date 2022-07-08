@@ -3,7 +3,7 @@ import pandas as pd
 from ogrit.core.data_processing import get_dataset
 
 datasets = ['train', 'valid', 'test']
-scenarios = ['round']
+scenarios = ['neuweiler']
 
 
 num_samples = pd.DataFrame(index=datasets, columns=scenarios)

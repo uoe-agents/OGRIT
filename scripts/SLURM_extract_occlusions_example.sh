@@ -9,7 +9,7 @@
 #
 #
 ### You need to change the array indices depending on the scenario.
-### For bendplatz and frankenberg use: --array=0-10
+### For bendplatz and frankenburg use: --array=0-10
 ### For heckstrasse use: --array=0-2
 ### For round leave as it is.
 #
@@ -24,5 +24,5 @@ conda activate OGRIT
 
 export PYTHONPATH=$HOME/OGRIT/
 
-### Change "round" to be the scenario you want the features for. Choose one of: bendplatz, frankenberg, heckstrasse, round
-python ~/OGRIT/scripts/preprocess_one_episode.py --scenario "round" --episode_idx $SLURM_ARRAY_TASK_ID
+### Change "frankenburg" to be the scenario you want the features for. Choose one of: bendplatz, frankenburg, heckstrasse, round
+python ~/OGRIT/scripts/preprocess_one_episode.py --scenario "frankenburg" --episode_idx $SLURM_ARRAY_TASK_ID

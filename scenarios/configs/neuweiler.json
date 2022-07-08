@@ -1,5 +1,5 @@
 {
-  "name": "round",
+  "name": "neuweiler",
   "lat_origin": 50.89092570488992,
   "lon_origin": 6.1735566304034055,
   "goals": [[108.35, -59.5],
@@ -16,7 +16,7 @@
                   0.10236886632825604],
   "goals_threshold": 1.5,
   "goal_radius": [3, 3, 3, 3],
-  "opendrive_file": "scenarios/maps/round.xodr",
+  "opendrive_file": "scenarios/maps/neuweiler.xodr",
   "data_format": "ind",
   "data_root": "scenarios/data/round",
   "agent_types": ["car", "truck_bus"],

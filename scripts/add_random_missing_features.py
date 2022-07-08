@@ -2,16 +2,16 @@ import pandas as pd
 import numpy as np
 from igp2.data import ScenarioConfig
 
-from ogrit.core.base import get_data_dir, get_base_dir
+from ogrit.core.base import get_data_dir, get_base_dir, get_all_scenarios
 
 
-scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+scenarios = get_all_scenarios()
 
 for scenario_name in scenarios:
     scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
     for episode_idx in range(len(scenario_config.episodes)):
         samples = pd.read_csv(get_data_dir() + f'/{scenario_name}_e{episode_idx}.csv')
-        if scenario_name == 'round':
+        if scenario_name == 'neuweiler':
             samples['exit_number_missing'] = np.random.choice([True, False], size=samples.shape[0])
         else:
             samples['exit_number_missing'] = True

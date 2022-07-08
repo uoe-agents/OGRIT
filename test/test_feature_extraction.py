@@ -243,7 +243,7 @@ def test_path_to_lane():
 
 
 def test_exit_number_1():
-    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neuweiler.xodr")
     feature_extractor = FeatureExtractor(scenario_map)
     state = AgentState(time=0,
                        position=np.array((71.9, -76.1)),
@@ -257,7 +257,7 @@ def test_exit_number_1():
 
 
 def test_exit_number_3():
-    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neuweiler.xodr")
     feature_extractor = FeatureExtractor(scenario_map)
     state = AgentState(time=0,
                        position=np.array((71.9, -76.1)),
@@ -271,7 +271,7 @@ def test_exit_number_3():
 
 
 def test_exit_number_0():
-    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/round.xodr")
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neuweiler.xodr")
     feature_extractor = FeatureExtractor(scenario_map)
     state = AgentState(time=0,
                        position=np.array((88.5, -62.9)),

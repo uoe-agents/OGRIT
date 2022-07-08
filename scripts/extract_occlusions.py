@@ -7,13 +7,13 @@ from igp2.data import ScenarioConfig
 
 
 def prepare_episode_occlusion_dataset(params):
-    scenario_name, episode_idx, debug, debug_steps = params
+    scenario_name, episode_idx, debug, debug_steps, save_format = params
 
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
 
     occlusion_detector = OcclusionDetector2D(scenario_name, episode_idx, debug=debug, debug_steps=debug_steps)
 
-    occlusion_detector.extract_occlusions()
+    occlusion_detector.extract_occlusions(save_format)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
 
 
@@ -32,15 +32,19 @@ def main():
                              "If --debug is set, --debug_steps will be disabled.",
                         action='store_true')
 
+    parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
+                                                        'or "p" for pickle', default="p")
+
     args = parser.parse_args()
 
     create_folders()
+    set_working_dir()
 
     if args.debug_steps and args.debug:
         args.debug_steps = False
 
     if args.scenario is None:
-        scenarios = ['heckstrasse', 'bendplatz', 'frankenberg', 'round']
+        scenarios = get_all_scenarios()
     else:
         scenarios = [args.scenario]
 
@@ -48,7 +52,7 @@ def main():
     for scenario_name in scenarios:
         scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
         for episode_idx in range(len(scenario_config.episodes)):
-            params_list.append((scenario_name, episode_idx, args.debug, args.debug_steps))
+            params_list.append((scenario_name, episode_idx, args.debug, args.debug_steps, args.save_format))
 
     with Pool(args.workers) as p:
         p.map(prepare_episode_occlusion_dataset, params_list)

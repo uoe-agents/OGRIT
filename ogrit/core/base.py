@@ -2,6 +2,10 @@ import pathlib
 import os
 
 
+def get_all_scenarios():
+    return ['heckstrasse','bendplatz', 'frankenburg', 'neuweiler']
+
+
 def create_folders():
     # Create a folder to store the data.
     data_folder_path = get_base_dir() + '/data/'
@@ -42,7 +46,7 @@ def get_img_dir():
 
 
 def get_dt_config_dir():
-    return get_base_dir() + '/ogrit/dt_config/'
+    return get_base_dir() + '/grit/dt_config/'
 
 
 def get_subset_dir():
@@ -60,3 +64,6 @@ def get_occlusions_dir():
 def get_scenarios_dir():
     return get_base_dir() + '/scenarios/'
 
+
+def set_working_dir():
+    os.chdir(get_base_dir())
