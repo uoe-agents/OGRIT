@@ -67,3 +67,7 @@ def get_scenarios_dir():
 
 def set_working_dir():
     os.chdir(get_base_dir())
+
+if __name__ == "__main__":
+    set_working_dir()
+    create_folders()

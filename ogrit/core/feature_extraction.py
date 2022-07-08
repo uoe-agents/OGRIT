@@ -1,9 +1,12 @@
 from typing import List, Dict, Union, Tuple
 
+from functools import lru_cache
 import numpy as np
 import pickle
 import math
+
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
+
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
 
