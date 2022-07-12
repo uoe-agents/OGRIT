@@ -22,23 +22,29 @@ OCCLUDED_AREA_ALPHA = 0.7
 OCCLUSION_SEGMENTS_ALPHA = 0.3
 
 
-def plot_map(scenario_map, scenario_config=None, frame: Dict[int, AgentState] = None,
-             obstacles: List[List[List[float]]] = None):
+def get_box(vehicle):
+    """
+    Get the boundaries of the vehicle.
+    """
+    return ip.Box(np.array([vehicle.position[0],
+                            vehicle.position[1]]),
+                  vehicle.metadata.length,
+                  vehicle.metadata.width,
+                  vehicle.heading)
+
+
+def plot_map(scenario_map, scenario_config=None, frame: Dict[int, AgentState] = None):
 
     if scenario_config is not None:
         ip.plot_map(scenario_map, markings=False, midline=False, scenario_config=scenario_config,
-                    plot_background=True, ignore_roads=True, plot_goals=True)
+                    plot_background=True, ignore_roads=True, plot_goals=True, plot_buildings=True)
     else:
         ip.plot_map(scenario_map, markings=False, midline=False)
 
     if frame:
         for aid, state in frame.items():
-            plt.plot(*state.position, marker="x")
             plt.text(*state.position, aid)
-
-    if obstacles:
-        for obstacle in obstacles:
-            plot_area(Polygon(obstacle), color=OBSTACLES_COLOR)
+            plot_area(Polygon(get_box(state).boundary), color=OBSTACLES_COLOR)
 
 
 def plot_area(polygon, color="r", alpha=.5, linewidth=None):
@@ -48,7 +54,7 @@ def plot_area(polygon, color="r", alpha=.5, linewidth=None):
     plt.gca().add_patch(PolygonPatch(polygon, color=color, alpha=alpha, fill=True, linewidth=linewidth))
 
 
-def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int, int]]],
+def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int, int]]] = None,
                     road_occlusions: Dict[int, Dict[int, List[Polygon]]] = None, non_visible_areas: Polygon = None):
     """
     Plot the occlusions on the map.
@@ -63,26 +69,29 @@ def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int
                            occlusions (e.g., because they are too far away).
     """
 
-    # Plot the line that go from the ego to the obstacles and shade the area occluded by the obstacle.
-    occluded_areas = []
-    for occlusion_line in occlusion_lines:
-        x0, y0 = ego_position
+    plot_ego_position(ego_position)
 
-        # v1 = (x1, y1) and v2 = (x2, y2) are the vertices of the obstacle. The other two vertices are the extensions.
-        # Please, refer to Section 4.3 of the OGRIT paper for more information.
-        ((x1, y1), (x3, y3)), ((x2, y2), (x4, y4)) = occlusion_line
+    if occlusion_lines is not None:
+        # Plot the line that go from the ego to the obstacles and shade the area occluded by the obstacle.
+        occluded_areas = []
+        for occlusion_line in occlusion_lines:
+            x0, y0 = ego_position
 
-        # Plot the line segment going from the ego vehicle to the vertices of the obstacle.
-        plt.plot([x0, x1], [y0, y1], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
-        plt.plot([x0, x2], [y0, y2], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
+            # v1=(x1, y1) and v2=(x2, y2) are the vertices of the obstacle. The other two vertices are the extensions.
+            # Please, refer to Section 4.3 of the OGRIT paper for more information.
+            ((x1, y1), (x3, y3)), ((x2, y2), (x4, y4)) = occlusion_line
 
-        occluded_areas.append(Polygon([(x1, y1), (x2, y2), (x4, y4), (x3, y3)]))
+            # Plot the line segment going from the ego vehicle to the vertices of the obstacle.
+            plt.plot([x0, x1], [y0, y1], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
+            plt.plot([x0, x2], [y0, y2], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
 
-    if non_visible_areas is not None:
-        # Plot the areas that are far away and are no visible to the ego even if there are no obstacles.
-        occluded_areas.append(non_visible_areas)
+            occluded_areas.append(Polygon([(x1, y1), (x2, y2), (x4, y4), (x3, y3)]))
 
-    plot_area_from_list(occluded_areas, color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
+        if non_visible_areas is not None:
+            # Plot the areas that are far away and are no visible to the ego even if there are no obstacles.
+            occluded_areas.append(non_visible_areas)
+
+        plot_area_from_list(occluded_areas, color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
 
     if road_occlusions is None:
         return
@@ -90,9 +99,12 @@ def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int
     # Plot the areas on the lanes that are occluded.
     lane_occlusions_all = []
     for road_id, occlusions in road_occlusions.items():
+        if road_id == "occlusions":
+            continue
+
         for lane_id, lane_occlusions in occlusions.items():
 
-            if not lane_occlusions:
+            if lane_id == "occlusions" or lane_occlusions is None:
                 continue
 
             lane_occlusions_all.append(lane_occlusions)
@@ -107,6 +119,10 @@ def plot_area_from_list(geometries, color="r", alpha=0.5):
         elif isinstance(geometries, MultiPolygon):
             for geometry in geometries.geoms:
                 plot_area(geometry, color=color, alpha=alpha)
+
+
+def plot_ego_position(ego_position):
+    plt.plot(*ego_position, marker="x")
 
 
 def show_plot():
