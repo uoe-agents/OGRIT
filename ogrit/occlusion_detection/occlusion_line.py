@@ -46,7 +46,7 @@ class OcclusionLine:
             other_line: second line we want the angle from.
         """
         dot = np.dot(self.get_vector(), other_line.get_vector())
-        return np.arccos(dot / (self.length * other_line.length))
+        return np.arccos(np.clip(dot / (self.length * other_line.length), -1, 1))
 
     def get_vector(self):
         (x1, y1), (x2, y2) = self.points

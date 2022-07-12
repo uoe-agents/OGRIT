@@ -174,31 +174,13 @@ def _get_frame_ids(episode, target_agent_id, ego_agent_id=None):
 
 
 def is_target_vehicle_occluded(current_frame_id, feature_extractor, target_agent_id, ego_agent_id, episode_frames):
-    frame_occlusions = feature_extractor.occlusions[current_frame_id]
-
-    occlusions = frame_occlusions[ego_agent_id]
+    occlusions = feature_extractor.occlusions[current_frame_id][ego_agent_id]["occlusions"]
 
     target_agent = episode_frames[current_frame_id][target_agent_id]
-
-    # Get the current lane on which the target vehicle is.
-    lane_on = feature_extractor.scenario_map.best_lane_at(target_agent.position, target_agent.heading,
-                                                          drivable_only=True)
-
-    if lane_on is None:
-        # The target vehicle is outside any road. We thus treat the vehicle as occluded.
-        return True
-
-    # Get the occlusions on the lane the target is on.
-    lane_occlusion = occlusions[lane_on.parent_road.id][lane_on.id]
-
-    if lane_occlusion is None:
-        # There are no occlusions on that lane.
-        return False
-
     vehicle_boundary = LineString(get_vehicle_boundary(target_agent)).buffer(0.001)
 
     # If the vehicle is in the occluded area, it is missing.
-    return lane_occlusion.contains(vehicle_boundary)
+    return occlusions.contains(vehicle_boundary)
 
 
 def extract_samples(feature_extractor, scenario, episode, extract_missing_features=False):
