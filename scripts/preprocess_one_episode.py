@@ -15,8 +15,6 @@ def main():
 
     # Skip files for which we already have data.
     file_name = get_data_dir() + '{}_e{}.csv'.format(args.scenario, args.episode_idx)
-    if os.path.isfile(file_name):
-        return
 
     start = datetime.now()
     prepare_episode_dataset((args.scenario, args.episode_idx, True))

@@ -118,9 +118,7 @@ class FeatureExtractor:
         # We pass the ego_agent_id only if we want to extract the indicator features.
         if ego_agent_id is not None:
 
-            frame_occlusions = self.occlusions[current_state.time]
-
-            occlusions = unary_union(self.get_occlusions_ego_polygon(frame_occlusions, ego_agent_id))
+            occlusions = self.occlusions[current_state.time][ego_agent_id]["occlusions"]
             vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
                                                                          current_frame, occlusions)
 
@@ -429,7 +427,7 @@ class FeatureExtractor:
         elif isinstance(occlusions, Polygon):
             return occlusions if occlusions.area > self.MIN_OCCLUSION_AREA else None
 
-    def _get_min_dist_from_occlusions_oncoming_lanes(self, lanes_to_cross, ego_junction_lane,
+    def _get_min_dist_from_occlusions_oncoming_lanes(self, lanes_to_cross,
                                                      ego_junction_lane_boundary, occlusions):
         """
         Get the minimum distance from any of the crossing points to the occlusions that could hide an oncoming vehicle.
@@ -437,7 +435,6 @@ class FeatureExtractor:
 
         Args:
             lanes_to_cross:             list of lanes that the target vehicle will intersect while inside the junction.
-            ego_junction_lane:          lane the target vehicle travels on
             ego_junction_lane_boundary: boundary of the ego_junction lane
             occlusions:                 list of all the occlusions in the frame
 
@@ -479,22 +476,6 @@ class FeatureExtractor:
         # If there are no occlusions large enough to fit a hidden vehicle.
         return math.inf
 
-    @staticmethod
-    def get_occlusions_ego_polygon(frame_occlusions, ego_id):
-        """
-        Given the occlusions in a frame, extract the occlusions w.r.t the ego and return them as list of MultiPolygons.
-        """
-        occlusions_vehicle_frame = frame_occlusions[ego_id]
-
-        occlusions = []
-        for road_occlusions in occlusions_vehicle_frame:
-            for lane_occlusions in occlusions_vehicle_frame[road_occlusions]:
-                lane_occlusion = occlusions_vehicle_frame[road_occlusions][lane_occlusions]
-
-                if lane_occlusion is not None:
-                    occlusions.append(lane_occlusion)
-        return occlusions
-
     @classmethod
     def _get_predecessor_lane_sequence(cls, lane: Lane) -> List[Lane]:
         lane_sequence = []
@@ -531,7 +512,7 @@ class FeatureExtractor:
         ego_junction_lane_boundary = ego_junction_lane.boundary.buffer(0)
         lanes_to_cross = self._get_lanes_to_cross(ego_junction_lane)
 
-        min_occlusion_distance = self._get_min_dist_from_occlusions_oncoming_lanes(lanes_to_cross, ego_junction_lane,
+        min_occlusion_distance = self._get_min_dist_from_occlusions_oncoming_lanes(lanes_to_cross,
                                                                                    ego_junction_lane_boundary,
                                                                                    occlusions)
 
