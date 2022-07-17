@@ -1,3 +1,4 @@
+import argparse
 import json
 
 from igp2.data import ScenarioConfig, InDScenario
@@ -9,7 +10,35 @@ import ogrit.occlusion_detection.visualisation_tools as visualizer
 from ogrit.core.data_processing import get_episode_frames
 
 
-def main(scenario_name, episode_idx, plot_type="ego"):
+parser = argparse.ArgumentParser(description='Process the dataset')
+parser.add_argument('--scenario', type=str, help='Name of scenario to process', default="bendplatz")
+parser.add_argument('--episode_idx', type=int, help='Name of scenario to process', default=0)
+parser.add_argument('--frame_id', type=int, help='Frame id of a specific frame to visualize', default=None)
+parser.add_argument('--plot_type', type=str, help='the end results should be the same no matter the input. '
+                                                  'This is used to test that the dataset '
+                                                  'indeed stores the data correctly.'
+                                                  'Possible arguments are:'
+                                                  '     "ego" to plot all the occlusions for each ego vehicle'
+                                                  '     "road" to plot the occlusions for each road '
+                                                  '     "lane" to plot the occlusions for each lane',
+                    default="ego")
+parser.add_argument('--debug',
+                    help="if set, we plot all the occlusions in a frame for each vehicle."
+                         "If --debug_steps is also True, this takes precedence and --debug_steps will be"
+                         "deactivated.",
+                    action='store_true')
+
+parser.add_argument('--debug_steps',
+                    help="if set, we plot the occlusions created by each obstacle. "
+                         "If --debug is set, --debug_steps will be disabled.",
+                    action='store_true')
+
+parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
+                                                        'or "p" for pickle', default="p")
+
+
+
+def main():
     """
     Plot the occlusions from the json files.
 
@@ -25,23 +54,28 @@ def main(scenario_name, episode_idx, plot_type="ego"):
                             "lane" to plot the occlusions for each lane
     """
 
+    args = parser.parse_args()
+
     # Update the working directory to load all the file correctly.
     set_working_dir()
 
     # Load the map for the scenario for which we have the occlusions.
-    scenario_map = Map.parse_from_opendrive(get_scenarios_dir() + f"maps/{scenario_name}.xodr")
-    scenario_config = ScenarioConfig.load(get_scenarios_dir() + f"configs/{scenario_name}.json")
+    scenario_map = Map.parse_from_opendrive(get_scenarios_dir() + f"maps/{args.scenario}.xodr")
+    scenario_config = ScenarioConfig.load(get_scenarios_dir() + f"configs/{args.scenario}.json")
     scenario = InDScenario(scenario_config)
-    episode = scenario.load_episode(episode_idx)
+    episode = scenario.load_episode(args.episode_idx)
 
     # Read the json file containing the occlusions.
-    with open(get_occlusions_dir() + f'/{scenario_name}_e{episode_idx}.json', 'r') as f:
+    with open(get_occlusions_dir() + f'/{args.scenario}_e{args.episode_idx}.json', 'r') as f:
         occlusions = json.load(f)
 
     # Visualize the occlusions for every frame in the episode
     episode_frames = get_episode_frames(episode, exclude_parked_cars=False, exclude_bicycles=True)
 
     for frame_id, frame in enumerate(episode_frames):
+
+        if args.frame_id is not None and args.frame_id != frame_id:
+            continue
 
         frame_occlusions = occlusions[str(frame_id)]
         for ego_id in frame_occlusions.keys():
@@ -53,15 +87,15 @@ def main(scenario_name, episode_idx, plot_type="ego"):
             visualizer.plot_map(scenario_map, scenario_config, frame)
             visualizer.plot_ego_position(frame[int(ego_id)].position)
 
-            if plot_type == "ego":
+            if args.plot_type == "ego":
                 plot(ego_occlusions["occlusions"])
-            elif plot_type == "road":
+            elif args.plot_type == "road":
                 for road_id, _ in ego_occlusions.items():
                     if road_id == "occlusions":
                         # Here are stored all the occlusions for the ego.
                         continue
                     plot(ego_occlusions[str(road_id)]["occlusions"])
-            elif plot_type == "lane":
+            elif args.plot_type == "lane":
                 for road_id, road_occlusions in ego_occlusions.items():
                     if road_id == "occlusions":
                         # Here are stored all the occlusions for the ego.
@@ -87,4 +121,4 @@ def plot(occlusion_list):
 
 if __name__ == "__main__":
     # Select the name of the scenario and the number of the episode you have the occlusions for.
-    main("neuweiler", 1)
+    main()

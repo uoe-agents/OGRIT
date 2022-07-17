@@ -55,6 +55,10 @@ class OcclusionLine:
     def get_slope(self):
         # Get the coordinates of the endpoints for the line.
         (x1, y1), (x2, y2) = self.points
+
+        if x1 - x2 == 0:
+            return math.inf
+
         return (y1 - y2) / (x1 - x2)
 
     def get_extended_point(self, distance: int, point: np.array):
