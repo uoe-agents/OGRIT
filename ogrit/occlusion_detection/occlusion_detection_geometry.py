@@ -66,18 +66,16 @@ class OcclusionDetector2D:
         Convert the occlusions into a format that can be stored into json. E.g., store the occluded areas by their
         boundaries rather than (Multi)Polygons.
         """
-        occlusions_data_json = deepcopy(occlusions_data)
-
         for frame_id, frame_occlusions in occlusions_data.items():
             for ego_id, ego_occlusions in frame_occlusions.items():
                 for road_id, road_occlusions in ego_occlusions.items():
                     if road_id == "occlusions":
-                        occlusions_data_json[frame_id][ego_id][road_id] = self._get_boundaries(road_occlusions)
+                        occlusions_data[frame_id][ego_id][road_id] = self._get_boundaries(road_occlusions)
                         continue
 
                     for lane_id, lane_occlusions in road_occlusions.items():
-                        occlusions_data_json[frame_id][ego_id][road_id][lane_id] = self._get_boundaries(lane_occlusions)
-        return occlusions_data_json
+                        occlusions_data[frame_id][ego_id][road_id][lane_id] = self._get_boundaries(lane_occlusions)
+        return occlusions_data
 
     @staticmethod
     def _get_boundaries(polygon: MultiPolygon):

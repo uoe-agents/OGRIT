@@ -22,10 +22,19 @@ OCCLUDED_AREA_ALPHA = 0.7
 OCCLUSION_SEGMENTS_ALPHA = 0.3
 
 
-def get_box(vehicle):
+def get_box(vehicle, x=None, y=None, heading=None):
     """
     Get the boundaries of the vehicle.
+
+    If x, y and heading are given, use the vehicle only for its metadata (length and width).
     """
+
+    if x is not None and y is not None and heading is not None:
+        return ip.Box(np.array([x, y]),
+                      vehicle.metadata.length,
+                      vehicle.metadata.width,
+                      heading)
+
     return ip.Box(np.array([vehicle.position[0],
                             vehicle.position[1]]),
                   vehicle.metadata.length,

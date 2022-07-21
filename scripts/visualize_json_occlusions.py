@@ -22,20 +22,6 @@ parser.add_argument('--plot_type', type=str, help='the end results should be the
                                                   '     "road" to plot the occlusions for each road '
                                                   '     "lane" to plot the occlusions for each lane',
                     default="ego")
-parser.add_argument('--debug',
-                    help="if set, we plot all the occlusions in a frame for each vehicle."
-                         "If --debug_steps is also True, this takes precedence and --debug_steps will be"
-                         "deactivated.",
-                    action='store_true')
-
-parser.add_argument('--debug_steps',
-                    help="if set, we plot the occlusions created by each obstacle. "
-                         "If --debug is set, --debug_steps will be disabled.",
-                    action='store_true')
-
-parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
-                                                        'or "p" for pickle', default="p")
-
 
 
 def main():
