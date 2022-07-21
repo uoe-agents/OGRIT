@@ -146,3 +146,5 @@ results/
 # OSM files
 *.osm
 /occlusions/
+/baselines/lstm/datasets/
+/baselines/igp2_baseline/evaluation_set/

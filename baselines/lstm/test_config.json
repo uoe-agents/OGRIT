@@ -1,0 +1,10 @@
+{
+  "dataset": "trajectory",
+  "shuffle": true,
+  "scenario": "heckstrasse",
+  "model_path": "checkpoint/heckstrasse_trajectory_best.pt",
+  "lstm_hidden_dim": 100,
+  "fc_hidden_dim": 500,
+  "lstm_layers": 2,
+  "step": 0.1
+}
