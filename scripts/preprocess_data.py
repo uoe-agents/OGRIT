@@ -4,7 +4,7 @@ from multiprocessing import Pool
 from igp2.data import ScenarioConfig
 
 from ogrit.core.data_processing import prepare_episode_dataset
-from ogrit.core.base import get_all_scenarios
+from ogrit.core.base import get_all_scenarios, set_working_dir
 
 
 def main():
@@ -15,6 +15,7 @@ def main():
                         action='store_true')
 
     args = parser.parse_args()
+    set_working_dir()
 
     if args.scenario is None:
         scenarios = get_all_scenarios()

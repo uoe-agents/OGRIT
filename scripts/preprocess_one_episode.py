@@ -1,5 +1,4 @@
 import argparse
-import os
 from datetime import datetime
 
 from ogrit.core.data_processing import prepare_episode_dataset
@@ -12,9 +11,6 @@ def main():
     parser.add_argument('--episode_idx', type=int, help='Name of scenario to process', default=0)
 
     args = parser.parse_args()
-
-    # Skip files for which we already have data.
-    file_name = get_data_dir() + '{}_e{}.csv'.format(args.scenario, args.episode_idx)
 
     start = datetime.now()
     prepare_episode_dataset((args.scenario, args.episode_idx, True))
