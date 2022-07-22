@@ -65,8 +65,13 @@ def get_scenarios_dir():
     return get_base_dir() + '/scenarios/'
 
 
+def get_baselines_dir():
+    return get_base_dir() + '/baselines/'
+
+
 def set_working_dir():
     os.chdir(get_base_dir())
+
 
 if __name__ == "__main__":
     set_working_dir()

@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import DataLoader
 
-from ogrit.core.base import get_base_dir
+from ogrit.core.base import get_baselines_dir
 from baselines.lstm.dataset_base import GRITDataset
 from baselines.lstm.model import LSTMModel
 
@@ -61,7 +61,7 @@ def run_evaluation(model, loss_fn, data_loader, device, use_encoding=False):
 
 
 def load_save_dataset(config, split_type="train"):
-    dataset_path = get_base_dir() + f"/lstm/datasets/{config.scenario}_{config.dataset}_{split_type}.pt"
+    dataset_path = get_baselines_dir() + f"/lstm/datasets/{config.scenario}_{config.dataset}_{split_type}.pt"
     if not os.path.exists(dataset_path):
         from baselines.lstm.dataset import DATASET_MAP
         dataset_cls = DATASET_MAP[config.dataset]
