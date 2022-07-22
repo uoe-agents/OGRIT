@@ -2,7 +2,7 @@ import argparse
 import json
 import time
 import torch
-from ogrit.core.base import get_base_dir
+from ogrit.core.base import get_lstm_dir
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import DataLoader
 
@@ -22,7 +22,7 @@ def main(config):
     test_data = [_ for _ in test_loader][0]
     logger.info(f"Running testing")
 
-    model_dict = torch.load(get_base_dir() + "/lstm/" + config.model_path)
+    model_dict = torch.load(get_lstm_dir() + config.model_path)
     model = LSTMModel(test_dataset.dataset.shape[-1],
                       config.lstm_hidden_dim,
                       config.fc_hidden_dim,
