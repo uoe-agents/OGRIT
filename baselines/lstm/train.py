@@ -155,7 +155,7 @@ def train(config):
                     f"LR: {optim.param_groups[0]['lr']}")
 
         if config.save_latest:
-            save_checkpoint(config.save_path + ("_" if config.save_path[-1] != "/" else "") +
+            save_checkpoint(get_baselines_dir() + config.save_path + ("_" if config.save_path[-1] != "/" else "") +
                             f"{config.scenario}_{config.dataset}_latest.pt",
                             epoch, model, optim, np.array(losses), np.array(accs))
         if len(losses) < 1 or val_loss < min(losses):
