@@ -15,11 +15,6 @@ def main():
                              "deactivated.",
                         action='store_true')
 
-    parser.add_argument('--debug_steps',
-                        help="if set, we plot the occlusions created by each obstacle. "
-                             "If --debug is set, --debug_steps will be disabled.",
-                        action='store_true')
-
     parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
                                                         'or "p" for pickle', default="p")
 
@@ -30,8 +25,7 @@ def main():
 
     print('scenario {} episode {}'.format(args.scenario, args.episode_idx))
 
-    occlusion_detector = OcclusionDetector2D(args.scenario, args.episode_idx, debug=args.debug,
-                                             debug_steps=args.debug_steps)
+    occlusion_detector = OcclusionDetector2D(args.scenario, args.episode_idx, debug=args.debug)
 
     start = datetime.now()
     occlusion_detector.extract_occlusions(save_format=args.save_format)
