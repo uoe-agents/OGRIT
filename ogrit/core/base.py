@@ -65,8 +65,8 @@ def get_scenarios_dir():
     return get_base_dir() + '/scenarios/'
 
 
-def get_baselines_dir():
-    return get_base_dir() + '/baselines/'
+def get_lstm_dir():
+    return get_base_dir() + '/baselines/lstm'
 
 
 def set_working_dir():

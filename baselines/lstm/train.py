@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import DataLoader
 
-from ogrit.core.base import get_baselines_dir
+from ogrit.core.base import get_lstm_dir
 from baselines.lstm.dataset_base import GRITDataset
 from baselines.lstm.model import LSTMModel
 
@@ -61,7 +61,7 @@ def run_evaluation(model, loss_fn, data_loader, device, use_encoding=False):
 
 
 def load_save_dataset(config, split_type="train"):
-    dataset_path = get_baselines_dir() + f"/lstm/datasets/{config.scenario}_{config.dataset}_{split_type}.pt"
+    dataset_path = get_lstm_dir() + f"/datasets/{config.scenario}_{config.dataset}_{split_type}.pt"
     if not os.path.exists(dataset_path):
         from baselines.lstm.dataset import DATASET_MAP
         dataset_cls = DATASET_MAP[config.dataset]
@@ -155,7 +155,7 @@ def train(config):
                     f"LR: {optim.param_groups[0]['lr']}")
 
         if config.save_latest:
-            save_checkpoint(get_baselines_dir() + config.save_path + ("_" if config.save_path[-1] != "/" else "") +
+            save_checkpoint(get_lstm_dir() + config.save_path + ("_" if config.save_path[-1] != "/" else "") +
                             f"{config.scenario}_{config.dataset}_latest.pt",
                             epoch, model, optim, np.array(losses), np.array(accs))
         if len(losses) < 1 or val_loss < min(losses):
