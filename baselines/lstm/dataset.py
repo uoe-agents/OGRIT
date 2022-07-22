@@ -30,9 +30,21 @@ class GRITTrajectoryDataset(GRITDataset):
         self.scenario = InDScenario(scenario_config)
 
         # todo: episodes is a list of
-        self.episodes = self.scenario.load_episodes([self.split_type], return_idxes=True)
+        self.episodes = self.scenario.load_episodes([self.split_type])
+        self.episodes = self._get_episodes_idx(self.episodes, scenario_config)
 
         self._prepare_dataset()
+
+    @staticmethod
+    def _get_episodes_idx(episodes, scenario_config):
+        """
+        Return a list of tuple of the type: (episode_id, episode)
+        """
+        scenario_episodes = sorted(scenario_config.episodes, key=lambda x: x.recording_id)
+
+        # For each episode in episodes, get their index based on what position they
+        return [(i, episode) for episode in episodes for i, s_episode in enumerate(scenario_episodes)
+                if episode.config.recording_id == s_episode.recording_id]
 
     def _prepare_dataset(self):
         # todo: get all the possible trimmed trajectories ("sequences"), goals ("labels") and trajectory lengths
@@ -40,7 +52,7 @@ class GRITTrajectoryDataset(GRITDataset):
         trajectories = []
         goals = []
         lengths = []
-        for episode_idx, episode in self.episodes:
+        for episode_idx, episode in enumerate(self.episodes):
             trimmed_trajectories, gs, lens = self._trim_trajectories(episode_idx, episode)
             trajectories.extend(trimmed_trajectories)
             goals.extend(gs)
