@@ -160,7 +160,7 @@ def train(config):
                             epoch, model, optim, np.array(losses), np.array(accs))
         if len(losses) < 1 or val_loss < min(losses):
             logger.info("Saving best model")
-            save_checkpoint(config.save_path + ("_" if config.save_path[-1] != "/" else "") +
+            save_checkpoint(get_lstm_dir() + config.save_path + ("_" if config.save_path[-1] != "/" else "") +
                             f"{config.scenario}_{config.dataset}_best.pt",
                             epoch, model, optim, np.array(losses), np.array(accs))
         losses.append(val_loss.item())
