@@ -52,7 +52,7 @@ class GRITTrajectoryDataset(GRITDataset):
         trajectories = []
         goals = []
         lengths = []
-        for episode_idx, episode in enumerate(self.episodes):
+        for episode_idx, episode in self.episodes:
             trimmed_trajectories, gs, lens = self._trim_trajectories(episode_idx, episode)
             trajectories.extend(trimmed_trajectories)
             goals.extend(gs)
