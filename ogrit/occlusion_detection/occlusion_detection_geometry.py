@@ -90,7 +90,7 @@ class OcclusionDetector2D:
 
         if self.save_format == "p":
             with open(occlusions_file_name, 'wb') as file:
-                pickle.dump(data_to_store, file)
+                pickle.dump(data_to_store, file, protocol=4)
         elif self.save_format == "json":
             with open(occlusions_file_name, 'w') as file:
                 json.dump(data_to_store, file)
