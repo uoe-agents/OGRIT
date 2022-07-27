@@ -24,7 +24,7 @@ OCCLUSION_RADIUS = 100
 
 class OcclusionDetector2D:
 
-    def __init__(self, scenario_name: str, episode_idx: int, debug: bool = False):
+    def __init__(self, scenario_name: str, episode_idx: int, debug: bool = False, road_occlusions: bool = False):
         self.scenario_name = scenario_name
         self.episode_idx = episode_idx
         self.scenario_map = Map.parse_from_opendrive(get_scenarios_dir() + f"/maps/{self.scenario_name}.xodr")
@@ -33,6 +33,7 @@ class OcclusionDetector2D:
         self.episode = self.scenario.load_episode(episode_idx)
         self.buildings = self.scenario_config.buildings
         self.save_format = "p"  # By default, save the occlusions in a pickle file.
+        self.road_occlusions = road_occlusions
 
         # Whether we want to plot the occlusions w.r.t. each vehicle.
         self.debug = debug
@@ -90,7 +91,7 @@ class OcclusionDetector2D:
 
         if self.save_format == "p":
             with open(occlusions_file_name, 'wb') as file:
-                pickle.dump(data_to_store, file, protocol=4)
+                pickle.dump(data_to_store, file, protocol=5)
         elif self.save_format == "json":
             with open(occlusions_file_name, 'w') as file:
                 json.dump(data_to_store, file)
@@ -158,7 +159,7 @@ class OcclusionDetector2D:
         # Find what areas in each lane is occluded.
         for road in self.scenario_map.roads.values():
             all_road_occlusions = road.boundary.buffer(0).intersection(occluded_areas)
-            road_occlusions = {"occlusions": self._get_format(all_road_occlusions)}
+            road_occlusions = {"occlusions": self._get_format(all_road_occlusions)} if self.road_occlusions else {}
 
             for lane_section in road.lanes.lane_sections:
                 for lane in lane_section.all_lanes:
