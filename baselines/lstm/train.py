@@ -10,6 +10,9 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import DataLoader
 
+from torch.utils.tensorboard import SummaryWriter
+from datetime import datetime
+
 from ogrit.core.base import get_lstm_dir
 from baselines.lstm.dataset_base import GRITDataset
 from baselines.lstm.model import LSTMModel
@@ -22,7 +25,7 @@ formatter = logging.Formatter('[%(asctime)s][%(name)s][%(levelname)s] - %(messag
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
-
+# todo: code adapted from ...
 def save_checkpoint(path, epoch, model, optimizer, losses, accs):
     torch.save({
         'epoch': epoch,
@@ -79,8 +82,41 @@ def load_save_dataset(config, split_type="train"):
     return dataset
 
 
+def train_epoch(model, loss_fn, data_loader, device, optim, epoch, use_encoding=False):
+    running_loss = 0.0
+
+    for i_batch, sample_batched in enumerate(data_loader):
+        trajectories = sample_batched[0].to(device)
+        target = sample_batched[1].to(device)
+        lengths = sample_batched[2]
+        input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
+
+        optim.zero_grad()
+        output, (encoding, lengths) = model(input, use_encoding=use_encoding)
+        loss = 0.0
+        if use_encoding:
+            # todo: for each time step t with t_max = len(longest trajectory), compute the loss for the predicted
+            #  goal of the trajectories in the batch
+            for h_t in encoding.transpose(0, 1):
+                loss += loss_fn(h_t, target)
+        # todo: originally was loss += loss_fn(output, target) + 1
+        loss += loss_fn(output, target)
+
+        if use_encoding:
+            loss /= encoding.shape[1] + 1  # todo: added +1
+        loss.backward()
+        optim.step()
+
+        running_loss += loss.item()
+        logger.info(f"Epoch: {epoch}; Step: {len(data_loader) * epoch + i_batch}; Loss: {loss.item()}")
+    return running_loss / len(data_loader)
+
+
 def train(config):
     torch.random.manual_seed(42)
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    writer = SummaryWriter('baselines/lstm/runs/train_lstm_{}'.format(timestamp)) # todo: add folder automatically
 
     if hasattr(config, "config"):
         config = argparse.Namespace(**json.load(open(config.config)))
@@ -112,7 +148,7 @@ def train(config):
     logger.info(f"Training on {device} (CUDA: {torch.cuda.device_count()}).")
     model.to(device)
 
-    # Create loss function
+    # Create loss function -- negative log likelihood loss which requires log probabilities as input
     loss_fn = nn.NLLLoss()
     loss_fn.to(device)
 
@@ -127,24 +163,7 @@ def train(config):
     for epoch in range(config.max_epoch):
         model.train()
 
-        for i_batch, sample_batched in enumerate(data_loader):
-            trajectories = sample_batched[0].to(device)
-            target = sample_batched[1].to(device)
-            lengths = sample_batched[2]
-            input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
-
-            optim.zero_grad()
-            output, (encoding, lengths) = model(input, use_encoding=config.use_encoding)
-            loss = 0.0
-            if config.use_encoding:
-                for h_t in encoding.transpose(0, 1):
-                    loss += loss_fn(h_t, target)
-            loss += loss_fn(output, target) + 1
-            loss /= encoding.shape[1]
-            loss.backward()
-            optim.step()
-
-            logger.info(f"Epoch: {epoch}; Step: {len(data_loader) * epoch + i_batch}; Loss: {loss.item()}")
+        train_loss = train_epoch(model, loss_fn, data_loader, device, optim, epoch, use_encoding=config.use_encoding)
 
         torch.cuda.empty_cache()
         model.eval()
@@ -153,6 +172,11 @@ def train(config):
         schedule.step(val_loss)
         logger.info(f"Validation Loss: {val_loss.item()}; Accuracy {accuracy.item()} "
                     f"LR: {optim.param_groups[0]['lr']}")
+
+        writer.add_scalars('Training vs. Validation Loss',
+                           {'Training': train_loss, 'Validation': val_loss},
+                           epoch + 1)
+        writer.flush()
 
         if config.save_latest:
             save_checkpoint(get_lstm_dir() + config.save_path + ("_" if config.save_path[-1] != "/" else "") +
