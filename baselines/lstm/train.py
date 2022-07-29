@@ -51,7 +51,9 @@ def run_evaluation(model, loss_fn, data_loader, device, use_encoding=False):
         for h_t in encoding.transpose(0, 1):
             val_loss += loss_fn(h_t, target)
     val_loss += loss_fn(output, target)
-    val_loss /= encoding.shape[1] + 1
+
+    if use_encoding:
+        val_loss /= encoding.shape[1] + 1
 
     accuracy = sum(output.argmax(axis=1) == target) / target.shape[0]
     if not use_encoding:
@@ -165,7 +167,6 @@ def train(config):
 
         train_loss = train_epoch(model, loss_fn, data_loader, device, optim, epoch, use_encoding=config.use_encoding)
 
-        torch.cuda.empty_cache()
         model.eval()
 
         val_loss, accuracy, _ = run_evaluation(model, loss_fn, val_loader, device, use_encoding=config.use_encoding)
