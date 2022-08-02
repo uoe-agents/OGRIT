@@ -85,13 +85,6 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
         return cls(goal_priors, scenario_config, decision_trees, scenario_config.goals)
 
     def save(self, scenario_name):
-        for goal_idx in self.goal_priors.true_goal.unique():
-            goal_types = self.goal_priors.loc[self.goal_priors.true_goal == goal_idx].true_goal_type.unique()
-            for goal_type in goal_types:
-                goal_tree = self.decision_trees[goal_idx][goal_type]
-                pydot_tree = goal_tree.pydot_tree()
-                pydot_tree.write_png(get_img_dir() + 'trained_tree_{}_G{}_{}.png'.format(
-                    scenario_name, goal_idx, goal_type))
         with open(get_data_dir() + 'trained_trees_{}.p'.format(scenario_name), 'wb') as f:
             pickle.dump(self.decision_trees, f)
         self.goal_priors.to_csv(get_data_dir() + '{}_priors.csv'.format(scenario_name), index=False)
@@ -160,7 +153,6 @@ class GeneralisedGrit(GoalRecogniser):
         return cls(priors, decision_trees)
 
     def save(self):
-        self.save_images()
         with open(get_data_dir() + f'{self.get_model_name()}.p', 'wb') as f:
             pickle.dump(self.decision_trees, f)
 
