@@ -1,6 +1,8 @@
 import argparse
 import json
 import time
+
+import numpy as np
 import torch
 from ogrit.core.base import get_lstm_dir
 from torch.nn.utils.rnn import pack_padded_sequence
@@ -36,6 +38,8 @@ def main(config):
     trajectories = test_data[0]
     target = test_data[1]
     lengths = test_data[2]
+    fractions_observed = test_data[3].tolist()
+
     input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
 
     model.eval()
@@ -47,26 +51,27 @@ def main(config):
     matches = matches.masked_fill(mask, 0)
     goal_probs = torch.exp(encoding)
 
-    step = config.step
+    step = 0.1  # todo: config.step
     count = int(1 / step + 1)
-    if encoding.shape[1] > count:
-        step_mask = torch.arange(encoding.shape[1])[None, :] % (lengths[:, None] * step - 1).ceil() == 0
-        step_mask = step_mask.masked_fill(mask, 0)
-        steps = step_mask.to(float).cumsum(1)
-        mask = steps > count
-        step_mask[mask] = False
-        steps = step_mask.to(float).sum(1)
-        assert (steps == count).all()
-        corrects = matches.masked_select(step_mask).view((matches.shape[0], count))
-        goal_probs = goal_probs.masked_select(step_mask.unsqueeze(-1)).view(
-            (matches.shape[0], count, goal_probs.shape[-1]))
+    if encoding.shape[1] > count:  # todo, necessary given below it's determinsitic and not dynamic?
+        # For each trajectory, take the points at every "step" distance in the path. todo: is it lenghts[i] + 1?
+
+        corrects = {round(k, 1): [] for k in np.linspace(0, 1, count)}  # todo: explain
+        goal_probs_grouped = {round(k, 1): [] for k in np.linspace(0, 1, count)}
+
+        for i in range(len(fractions_observed)):
+            fo = round(fractions_observed[i], 1)
+            corrects[fo].append(matches[i][lengths[i] - 1])
+            goal_probs_grouped[fo].append(goal_probs[i][lengths[i] - 1])
+
+        # take the prediction at the length-step and give the fraction observed as x axis
     else:
+        # todo: update itttt
         corrects = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
 
     dur = time.time() - start
 
-    return corrects.detach().numpy(), goal_probs.detach().numpy(), dur
-
+    return corrects, goal_probs, dur
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

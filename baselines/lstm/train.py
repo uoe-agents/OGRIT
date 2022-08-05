@@ -37,32 +37,35 @@ def save_checkpoint(path, epoch, model, optimizer, losses, accs):
 
 
 def run_evaluation(model, loss_fn, data_loader, device, use_encoding=False):
-    val_data = [_ for _ in data_loader][0]
     logger.info(f"Running validation")
-    trajectories = val_data[0].to(device)
-    target = val_data[1].to(device)
-    lengths = val_data[2]
-    input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
 
-    output, (encoding, lengths) = model(input, use_encoding=use_encoding)
+    running_vloss = 0.0
+    accuracy = 0.0
 
-    val_loss = 0.0
-    if use_encoding:
-        for h_t in encoding.transpose(0, 1):
-            val_loss += loss_fn(h_t, target)
-    val_loss += loss_fn(output, target)
+    for i_batch, sample_batched in enumerate(data_loader):
 
-    if use_encoding:
-        val_loss /= encoding.shape[1] + 1
+        trajectories = sample_batched[0].to(device)
+        target = sample_batched[1].to(device)
+        lengths = sample_batched[2]
 
-    accuracy = sum(output.argmax(axis=1) == target) / target.shape[0]
-    if not use_encoding:
-        return val_loss, accuracy, None
-    else:
-        t = encoding.shape[1]
-        encoding_losses = nn.CrossEntropyLoss(reduction="none")(
-            encoding.transpose(2, 1), target.repeat(t, 1).T)
-        return val_loss, accuracy, encoding_losses
+        input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
+        output, (encoding, lengths) = model(input, use_encoding=use_encoding)
+
+        val_loss = 0.0
+        if use_encoding:
+            for h_t in encoding.transpose(0, 1):
+                val_loss += loss_fn(h_t, target)
+        val_loss += loss_fn(output, target)
+
+        if use_encoding:
+            val_loss /= encoding.shape[1] + 1
+
+        running_vloss += val_loss
+        accuracy += sum(output.argmax(axis=1) == target)
+
+    avg_vloss = running_vloss / (i_batch + 1)
+    accuracy /= target.shape[0]
+    return avg_vloss, accuracy
 
 
 def load_save_dataset(config, split_type="train"):
@@ -73,7 +76,8 @@ def load_save_dataset(config, split_type="train"):
         dataset = dataset_cls(config.scenario, split_type)
         torch.save({"dataset": dataset.dataset,
                     "labels": dataset.labels,
-                    "lengths": dataset.lengths},
+                    "lengths": dataset.lengths,
+                    "fractions_observed": dataset.fractions_observed},
                    dataset_path)
     else:
         dataset_dict = torch.load(dataset_path)
@@ -81,6 +85,7 @@ def load_save_dataset(config, split_type="train"):
         dataset.dataset = dataset_dict["dataset"]
         dataset.labels = dataset_dict["labels"]
         dataset.lengths = dataset_dict["lengths"]
+        dataset.fractions_observed = dataset_dict["fractions_observed"]
     return dataset
 
 
@@ -130,7 +135,7 @@ def train(config):
     logger.info(f"Dataset loaded: {str(dataset)}")
 
     val_dataset = load_save_dataset(config, "valid")
-    val_loader = DataLoader(val_dataset, shuffle=True, batch_size=len(val_dataset))
+    val_loader = DataLoader(val_dataset, shuffle=True, batch_size=min(config.batch_size, len(val_dataset)))
 
     # Create model and send to device
     model = LSTMModel(dataset.dataset.shape[-1],
@@ -169,7 +174,7 @@ def train(config):
 
         model.eval()
 
-        val_loss, accuracy, _ = run_evaluation(model, loss_fn, val_loader, device, use_encoding=config.use_encoding)
+        val_loss, accuracy = run_evaluation(model, loss_fn, val_loader, device, use_encoding=config.use_encoding)
         schedule.step(val_loss)
         logger.info(f"Validation Loss: {val_loss.item()}; Accuracy {accuracy.item()} "
                     f"LR: {optim.param_groups[0]['lr']}")
