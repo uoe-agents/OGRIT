@@ -12,10 +12,9 @@ def main():
     parser.add_argument('--scenario', type=str, help='Name of scenario to process', default=None)
     parser.add_argument('--workers', type=int, help='Number of multiprocessing workers', default=2)
     parser.add_argument('--no_indicator_features', help='If you don`t want to extract the indicator features',
-                        action='store_false')
+                        action='store_true')
 
     args = parser.parse_args()
-    set_working_dir()
 
     if args.scenario is None:
         scenarios = get_all_scenarios()
@@ -37,4 +36,5 @@ def main():
 
 
 if __name__ == '__main__':
+    set_working_dir()
     main()
