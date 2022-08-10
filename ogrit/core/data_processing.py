@@ -278,6 +278,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             sample['initial_frame_id'] = target_initial_frame
                             sample['fraction_observed'] = (current_frame_id - target_initial_frame) / target_lifespan
 
+                            samples_list.append(sample)
+
     samples = pd.DataFrame(data=samples_list)
     return samples
 
