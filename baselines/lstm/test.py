@@ -3,6 +3,7 @@ import json
 import time
 
 import numpy as np
+import pandas as pd
 import torch
 from ogrit.core.base import get_lstm_dir
 from torch.nn.utils.rnn import pack_padded_sequence
@@ -46,13 +47,16 @@ def main(config):
 
     output, (encoding, lengths) = model(input, use_encoding=True)
 
+    """
     matches = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
     mask = (torch.arange(encoding.shape[1])[None, :] >= lengths[:, None])
     matches = matches.masked_fill(mask, 0)
     goal_probs = torch.exp(encoding)
+    """
 
     step = 0.1  # todo: config.step
     count = int(1 / step + 1)
+    """
     if encoding.shape[1] > count:  # todo, necessary given below it's determinsitic and not dynamic?
         # For each trajectory, take the points at every "step" distance in the path. todo: is it lenghts[i] + 1?
 
@@ -67,11 +71,51 @@ def main(config):
         # take the prediction at the length-step and give the fraction observed as x axis
     else:
         # todo: update itttt
-        corrects = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
+    """
+    matches = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
+    mask = (torch.arange(encoding.shape[1])[None, :] >= lengths[:, None])
+    matches = matches.masked_fill(mask, 0)
+
+    goal_probs = torch.exp(encoding).detach().numpy()
+
+    # For each trajectory, take the points at every "step" distance in the path.
+    goal_probs_df = {"true_goal_prob": [], "fraction_observed": []}
+
+    # For each trajectory, take the steps in which we have data in te OGRIT dataset todo
+    for trajectory_idx in range(len(fractions_observed)):
+
+        # todo: [-1.0, -1.0] is the padding value
+        fractions_for_trajectory = fractions_observed[trajectory_idx]
+
+        for fraction in fractions_for_trajectory:
+
+            frame, fo = fraction
+            frame = int(frame)
+
+            if frame == -1:
+                # We reached the end of the frames (as -1 is the padding value)
+                break
+
+            fo = round(fo, 1)
+
+            true_goal = target[trajectory_idx]
+            aa_predicted = goal_probs[trajectory_idx][frame]
+            aa_goal_p = aa_predicted.argmax()
+            aaaaa = aa_predicted[true_goal]
+            traj = trajectories[trajectory_idx]
+            ora = traj[frame - 1:frame + 1]
+            futre = traj[frame:]
+
+            true_goal_prob = goal_probs[trajectory_idx][frame][true_goal]
+            goal_probs_df["true_goal_prob"].append(true_goal_prob)  # todo:rename
+            goal_probs_df["fraction_observed"].append(fo)
+            # goal_probs_grouped[fo].append(goal_probs[i]) todo
 
     dur = time.time() - start
+    goal_probs_df = pd.DataFrame(goal_probs_df)
 
-    return corrects, goal_probs, dur
+    return goal_probs_df, dur
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
