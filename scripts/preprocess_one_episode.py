@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 from ogrit.core.data_processing import prepare_episode_dataset
+from ogrit.core.base import set_working_dir
 
 
 def main():
@@ -18,4 +19,5 @@ def main():
 
 
 if __name__ == '__main__':
+    set_working_dir()
     main()
