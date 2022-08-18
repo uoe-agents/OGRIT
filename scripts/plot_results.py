@@ -8,22 +8,27 @@ plt.style.use('ggplot')
 
 model_names = ['prior_baseline', 'grit', 'generalised_grit',
                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
-scenario_names = get_all_scenarios()
+#scenario_names = get_all_scenarios()
+scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']
 
 model_names = ['generalised_grit', 'occlusion_baseline', 'occlusion_grit']
-#model_names = ['grit_uniform_prior', 'generalised_grit']
+#model_names = ['grit', 'no_possibly_missing_features_grit']
 
 label_map = {'generalised_grit': 'G-GRIT',
              'occlusion_grit': 'OGRIT',
              'occlusion_baseline': 'truncated G-GRIT',
              'uniform_prior_baseline': 'uniform prior baseline',
-             'grit_uniform_prior': 'GRIT'}
+             'grit_uniform_prior': 'GRIT',
+             'grit':'GRIT',
+             'no_possibly_missing_features_grit':'no missing features grit'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
              'frankenburg': 'Frankenburg',
              'neuweiler': 'Neuweiler'}
 
+
+results_dir = get_base_dir() + "/predictions/occlusion_subset/"
 
 # plot accuracy
 fig, axes = plt.subplots(2, 2)
@@ -38,8 +43,8 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
 
     for model_name in model_names:
         if model_name != 'uniform_prior_baseline':
-            accuracy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
-            accuracy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
+            accuracy_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_acc_sem.csv')
+            accuracy = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_acc.csv')
 
             plt.plot(accuracy.fraction_observed, accuracy.model_correct, label=label_map[model_name], marker=next(marker))
             plt.fill_between(accuracy_sem.fraction_observed, (accuracy + accuracy_sem).model_correct.to_numpy(),
@@ -60,8 +65,8 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
-        entropy_norm_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm_sem.csv')
-        entropy_norm = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm.csv')
+        entropy_norm_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_entropy_norm_sem.csv')
+        entropy_norm = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_entropy_norm.csv')
 
         plt.plot(entropy_norm.fraction_observed, entropy_norm.model_entropy_norm, label=label_map[model_name], marker=next(marker))
         plt.fill_between(entropy_norm_sem.fraction_observed, (entropy_norm + entropy_norm_sem).model_entropy_norm.to_numpy(),
@@ -87,8 +92,8 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
-        true_goal_prob_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
-        true_goal_prob = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob.csv')
+        true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+        true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
         plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, label=label_map[model_name], marker=next(marker))
         plt.fill_between(true_goal_prob_sem.fraction_observed, (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
@@ -110,8 +115,8 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
-        cross_entropy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy_sem.csv')
-        cross_entropy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy.csv')
+        cross_entropy_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_cross_entropy_sem.csv')
+        cross_entropy = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_cross_entropy.csv')
 
         plt.plot(cross_entropy.fraction_observed, cross_entropy.cross_entropy, label=label_map[model_name], marker=next(marker))
         plt.fill_between(cross_entropy.fraction_observed, (cross_entropy + cross_entropy_sem).cross_entropy.to_numpy(),

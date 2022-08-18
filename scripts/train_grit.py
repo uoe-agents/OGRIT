@@ -2,12 +2,14 @@ import argparse
 import json
 
 from ogrit.core.base import get_dt_config_dir, get_all_scenarios
+from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import Grit
 
 
 def main():
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenario', type=str, help='Name of scenario to validate', default=None)
+    parser.add_argument('--dataset', type=str, help='subset of data to train on', default='train')
     args = parser.parse_args()
 
     if args.scenario is None:
@@ -18,7 +20,8 @@ def main():
     for scenario_name in scenario_names:
         with open(get_dt_config_dir() + scenario_name + '.json') as f:
             dt_params = json.load(f)
-        model = Grit.train(scenario_name, **dt_params)
+        training_set = get_dataset(scenario_name, args.dataset)
+        model = Grit.train(scenario_name, training_set=training_set, **dt_params)
         model.save(scenario_name)
 
 
