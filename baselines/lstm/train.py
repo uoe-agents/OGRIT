@@ -46,10 +46,8 @@ def run_evaluation(model, loss_fn, data_loader, device, use_encoding=False):
 
         trajectories = sample_batched[0].to(device)
         target = sample_batched[1].to(device)
-        lengths = sample_batched[2]
 
-        input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
-        output, (encoding, lengths) = model(input, use_encoding=use_encoding)
+        output, (encoding, lengths) = model(trajectories, use_encoding=use_encoding, device=device)
 
         val_loss = 0.0
         if use_encoding:
@@ -95,11 +93,9 @@ def train_epoch(model, loss_fn, data_loader, device, optim, epoch, use_encoding=
     for i_batch, sample_batched in enumerate(data_loader):
         trajectories = sample_batched[0].to(device)
         target = sample_batched[1].to(device)
-        lengths = sample_batched[2]
-        input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
 
         optim.zero_grad()
-        output, (encoding, lengths) = model(input, use_encoding=use_encoding)
+        output, (encoding, lengths) = model(trajectories, use_encoding=use_encoding, device=device)
         loss = 0.0
         if use_encoding:
             # todo: for each time step t with t_max = len(longest trajectory), compute the loss for the predicted
