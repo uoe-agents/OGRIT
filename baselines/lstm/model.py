@@ -22,7 +22,7 @@ class LSTMModel(nn.Module):
                 nn.init.xavier_normal_(layer.weight)
                 nn.init.constant_(layer.bias, 0.0)
 
-    def forward(self, x, use_encoding=False, device='cpu'):
+    def forward(self, x, use_encoding=False, device='cuda'):
         # todo: H_n = hidden state | c_n = cell stateF | encoding = output of lstm ("last" depth-wise layer)
 
         lengths = torch.tensor([len(trajectory) for trajectory in x])
