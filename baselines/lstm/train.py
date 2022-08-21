@@ -95,7 +95,7 @@ def train_epoch(model, loss_fn, data_loader, device, optim, epoch, use_encoding=
         target = sample_batched[1].to(device)
 
         optim.zero_grad()
-        output, (encoding, lengths) = model(trajectories, use_encoding=use_encoding, device=device)
+        output, (encoding, lengths) = model(x=trajectories, use_encoding=use_encoding, device=device)
         loss = 0.0
         if use_encoding:
             # todo: for each time step t with t_max = len(longest trajectory), compute the loss for the predicted
@@ -143,7 +143,7 @@ def train(config):
     logger.info(f"Model created: {str(model)}")
     if torch.cuda.is_available():
         # todo: install pytorch with cuda: conda install pytorch torchvision torchaudio cudatoolkit=11.3 -c pytorch
-        device = torch.device("cuda:0")
+        device = torch.device("cuda")
     else:
         device = torch.device("cpu")
     if torch.cuda.device_count() > 1:

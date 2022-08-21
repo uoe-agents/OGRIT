@@ -22,7 +22,7 @@ class LSTMModel(nn.Module):
                 nn.init.xavier_normal_(layer.weight)
                 nn.init.constant_(layer.bias, 0.0)
 
-    def forward(self, x, use_encoding=False, device='cpu'):
+    def forward(self, x, use_encoding=False, device='cuda'):
         # todo: H_n = hidden state | c_n = cell stateF | encoding = output of lstm ("last" depth-wise layer)
 
         lengths = torch.tensor([len(trajectory) for trajectory in x])
@@ -39,6 +39,7 @@ class LSTMModel(nn.Module):
             encoding = encoding.masked_fill(mask.unsqueeze(-1).repeat(1, 1, encoding.shape[-1]), 0.0)
             # todo: we pass through fc as we do for the output above to get probabilities for the goals
             encoding = self.fc(encoding)
+            lengths = lengths.to(device)
             return output, (encoding, lengths)
         else:
             return output, (None, None)
