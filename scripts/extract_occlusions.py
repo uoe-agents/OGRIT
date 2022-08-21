@@ -34,7 +34,6 @@ def main():
     args = parser.parse_args()
 
     create_folders()
-    set_working_dir()
 
     if args.scenario is None:
         scenarios = get_all_scenarios()
@@ -52,4 +51,5 @@ def main():
 
 
 if __name__ == '__main__':
+    set_working_dir()
     main()
