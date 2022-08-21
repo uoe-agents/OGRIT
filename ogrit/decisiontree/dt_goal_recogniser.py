@@ -1,5 +1,6 @@
 import pickle
 from typing import List
+import pandas as pd
 import numpy as np
 from igp2 import VelocityTrajectory
 
@@ -84,10 +85,17 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
                 decision_trees[goal_idx][goal_type] = goal_tree
         return cls(goal_priors, scenario_config, decision_trees, scenario_config.goals)
 
-    def save(self, scenario_name):
-        with open(get_data_dir() + 'trained_trees_{}.p'.format(scenario_name), 'wb') as f:
+    def save(self, scenario_name, model=""):
+        for goal_idx in self.goal_priors.true_goal.unique():
+            goal_types = self.goal_priors.loc[self.goal_priors.true_goal == goal_idx].true_goal_type.unique()
+            for goal_type in goal_types:
+                goal_tree = self.decision_trees[goal_idx][goal_type]
+                pydot_tree = goal_tree.pydot_tree()
+                pydot_tree.write_png(get_img_dir() + model + 'trained_tree_{}_G{}_{}.png'.format(
+                    scenario_name, goal_idx, goal_type))
+        with open(get_data_dir() + model + 'trained_trees_{}.p'.format(scenario_name), 'wb') as f:
             pickle.dump(self.decision_trees, f)
-        self.goal_priors.to_csv(get_data_dir() + '{}_priors.csv'.format(scenario_name), index=False)
+        self.goal_priors.to_csv(get_data_dir() + model + '{}_priors.csv'.format(scenario_name), index=False)
 
 
 class HandcraftedGoalTrees(DecisionTreeGoalRecogniser):
@@ -153,6 +161,7 @@ class GeneralisedGrit(GoalRecogniser):
         return cls(priors, decision_trees)
 
     def save(self):
+        self.save_images()
         with open(get_data_dir() + f'{self.get_model_name()}.p', 'wb') as f:
             pickle.dump(self.decision_trees, f)
 
@@ -231,6 +240,50 @@ class OcclusionGrit(GeneralisedGrit):
         return cls(priors, decision_trees)
 
 
+class SpecializedOgrit(Grit):
+    """
+    OGRIT which is trained as the original GRIT method, with a DT per goaltype per goal location per scenario.
+    """
+
+    @classmethod
+    def train(cls, scenario_name:str , alpha=1, criterion='gini', min_samples_leaf=10, max_leaf_nodes=None,
+              max_depth=None, training_set=None, ccp_alpha=0, features=None):
+        decision_trees = {}
+        scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
+
+        if training_set is None:
+            training_set = get_dataset(scenario_name, subset='train')
+        goal_priors = get_goal_priors(training_set, scenario_config.goal_types, alpha=alpha)
+
+        # Train a DT for each goal type per goal position in the scenario.
+        for goal_idx in goal_priors.true_goal.unique():
+            decision_trees[goal_idx] = {}
+            goal_types = goal_priors.loc[goal_priors.true_goal == goal_idx].true_goal_type.unique()
+            for goal_type in goal_types:
+                dt_training_set = training_set.loc[(training_set.possible_goal == goal_idx)
+                                                   & (training_set.goal_type == goal_type)]
+                if dt_training_set.shape[0] > 0:
+                    goal_tree = Node.fit(dt_training_set, goal_type, alpha=alpha, min_samples_leaf=min_samples_leaf,
+                                         max_depth=max_depth, ccp_alpha=ccp_alpha)
+                else:
+                    goal_tree = Node(0.5)
+
+                decision_trees[goal_idx][goal_type] = goal_tree
+        return cls(goal_priors, scenario_config, decision_trees, scenario_config.goals)
+
+    @staticmethod
+    def load_decision_trees(scenario_name):
+        with open(get_data_dir() + 'ogrit_trained_trees_{}.p'.format(scenario_name), 'rb') as f:
+            return pickle.load(f)
+
+    def save(self, scenario_name, model="ogrit_"):
+        super(SpecializedOgrit, self).save(scenario_name, model)
+
+    @staticmethod
+    def load_priors(scenario_name):
+        return pd.read_csv(get_data_dir() + "ogrit_" + scenario_name + '_priors.csv')
+
+
 class OcclusionBaseline(GeneralisedGrit):
 
     def goal_likelihood_from_features(self, features, goal_type, goal):
@@ -261,9 +314,8 @@ class NoPossiblyMissingFeaturesGrit(Grit):
                              min_samples_leaf=min_samples_leaf, max_leaf_nodes=max_leaf_nodes,
                              max_depth=max_depth, training_set=None, ccp_alpha=ccp_alpha, features=features)
 
-    def save(self, scenario_name):
-        with open(get_data_dir() + f'{self.get_model_name()}_trained_trees_{scenario_name}.p', 'wb') as f:
-            pickle.dump(self.decision_trees, f)
+    def save(self, scenario_name, model="no_possibly_missing_features_grit_"):
+        super(NoPossiblyMissingFeaturesGrit, self).save(scenario_name, model)
 
     @staticmethod
     def load_decision_trees(scenario_name):

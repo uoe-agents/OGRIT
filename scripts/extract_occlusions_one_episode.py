@@ -21,7 +21,6 @@ def main():
     args = parser.parse_args()
 
     create_folders()
-    set_working_dir()
 
     print('scenario {} episode {}'.format(args.scenario, args.episode_idx))
 
@@ -33,4 +32,5 @@ def main():
 
 
 if __name__ == '__main__':
+    set_working_dir()
     main()

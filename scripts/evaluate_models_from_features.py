@@ -2,11 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
+import pickle
 
-from ogrit.core.base import get_base_dir, get_all_scenarios
+from ogrit.core.base import get_base_dir, get_all_scenarios, get_data_dir, set_working_dir
 from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import Grit, GeneralisedGrit, UniformPriorGrit, OcclusionGrit, \
-    OcclusionBaseline, NoPossiblyMissingFeaturesGrit
+    OcclusionBaseline, NoPossiblyMissingFeaturesGrit, SpecializedOgrit
 from ogrit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -26,7 +27,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenario', type=str, help='Name of scenario to validate', default=None)
-    parser.add_argument('--models', type=str, help='List of models, comma separated', default='generalised_grit,occlusion_grit')
+    parser.add_argument('--models', type=str, help='List of models, comma separated', default='occlusion_grit')
     args = parser.parse_args()
 
     if args.scenario is None:
@@ -37,7 +38,8 @@ def main():
     model_classes = {'prior_baseline': PriorBaseline,
                      'uniform_prior_baseline': UniformPriorBaseline,
                      'occlusion_grit': OcclusionGrit,
-                     'ogrit': Grit,
+                     'specialized_ogrit': SpecializedOgrit,
+                     'grit': Grit,
                      'generalised_grit': GeneralisedGrit,
                      'grit_uniform_prior': UniformPriorGrit,
                      'occlusion_baseline': OcclusionBaseline,
@@ -94,6 +96,9 @@ def main():
 
         predictions[scenario_name] = dataset_predictions
 
+    pickle.dump(({k: model_classes[k] for k in model_names}, predictions),
+                open(get_data_dir() + "grit_eval_data.p", "wb")) # todo
+
     print('accuracy:')
     print(accuracies)
     print('accuracy sem:')
@@ -145,4 +150,5 @@ def main():
 
 
 if __name__ == '__main__':
+    set_working_dir()
     main()
