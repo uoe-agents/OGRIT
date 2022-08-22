@@ -29,7 +29,7 @@ def draw_line_with_sem(group, ax, key, value, i=0):
 
 
 def main():
-    scenarios = ["bendplatz", "frankenburg", "heckstrasse"]  # todo: get_all_scenarios()  # todo: use get_all_scenarios / argument
+    scenarios = get_all_scenarios()  # todo: use get_all_scenarios / argument
     lstm_dataset = "trajectory"
 
     matplotlib.rcParams["pdf.fonttype"] = 42

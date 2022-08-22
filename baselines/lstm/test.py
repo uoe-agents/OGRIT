@@ -2,11 +2,9 @@ import argparse
 import json
 import time
 
-import numpy as np
 import pandas as pd
 import torch
 from ogrit.core.base import get_lstm_dir
-from torch.nn.utils.rnn import pack_padded_sequence
 from torch.utils.data import DataLoader
 
 from baselines.lstm.model import LSTMModel
@@ -32,20 +30,24 @@ def main(config):
                       test_dataset.labels.unique().shape[-1],
                       num_layers=config.lstm_layers,
                       dropout=0.0)
-    model.load_state_dict(model_dict["model_state_dict"])
+
+    try:
+        model.load_state_dict(model_dict["model_state_dict"])
+    except RuntimeError:
+        # We used DataParallel during training todo: could save dict withoutd "model" using torch.save(model.module.state_dict(), "model_ckpt.py")
+        pretrained_dict = model_dict["model_state_dict"]
+        pretrained_dict = {key.replace("module.", ""): value for key, value, in pretrained_dict.items()}
+        model.load_state_dict(pretrained_dict)
 
     start = time.time()
 
     trajectories = test_data[0]
     target = test_data[1]
-    lengths = test_data[2]
     fractions_observed = test_data[3].tolist()
-
-    input = pack_padded_sequence(trajectories, lengths, batch_first=True, enforce_sorted=False)
 
     model.eval()
 
-    output, (encoding, lengths) = model(input, use_encoding=True)
+    output, (encoding, lengths) = model(trajectories, use_encoding=True, device="cpu")
 
     """
     matches = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
@@ -100,7 +102,7 @@ def main(config):
 
             true_goal = target[trajectory_idx]
             aa_predicted = goal_probs[trajectory_idx][frame]
-            aa_goal_p = aa_predicted.argmax()
+            aa_goal_p = aa_predicted.argmax() # todo: for debugginh
             aaaaa = aa_predicted[true_goal]
             traj = trajectories[trajectory_idx]
             ora = traj[frame - 1:frame + 1]
