@@ -93,6 +93,9 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
 
         predictions[scenario_name] = dataset_predictions
 
+    pickle.dump(({k: model_classes[k] for k in model_names}, predictions),
+                open(data_dir + "/grit_eval_data.p", "wb")) # todo
+
     print('accuracy:')
     print(accuracies)
     print('accuracy sem:')

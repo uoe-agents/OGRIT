@@ -19,9 +19,10 @@ class GRITDataset(Dataset):
         self.dataset = None
         self.labels = None
         self.lengths = None
+        self.fractions_observed = None
 
     def __len__(self):
         return self.dataset.shape[0]
 
     def __getitem__(self, index):
-        return self.dataset[index], self.labels[index], self.lengths[index]
+        return self.dataset[index], self.labels[index], self.lengths[index], self.fractions_observed[index]
