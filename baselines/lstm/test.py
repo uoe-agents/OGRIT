@@ -23,7 +23,7 @@ def main(config):
     test_data = [_ for _ in test_loader][0]
     logger.info(f"Running testing")
 
-    model_dict = torch.load(get_lstm_dir() + config.model_path)
+    model_dict = torch.load(get_lstm_dir() + config.model_path, map_location=torch.device('cpu'))
     model = LSTMModel(test_dataset.dataset.shape[-1],
                       config.lstm_hidden_dim,
                       config.fc_hidden_dim,
