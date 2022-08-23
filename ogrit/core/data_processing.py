@@ -23,15 +23,16 @@ def load_dataset_splits():
         return json.load(f)
 
 
-def get_dataset(scenario_name, subset='train', features=True):
-
+def get_dataset(scenario_name, subset='train', features=True, data_dir=None):
+    if data_dir is None:
+        data_dir = get_data_dir()
     data_set_splits = load_dataset_splits()
     episode_idxes = data_set_splits[scenario_name][subset]
     episode_training_sets = []
 
     for episode_idx in episode_idxes:
         episode_training_set = pd.read_csv(
-            get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx, subset))
+            data_dir + '{}_e{}.csv'.format(scenario_name, episode_idx, subset))
         episode_training_set['episode'] = episode_idx
         episode_training_sets.append(episode_training_set)
     training_set = pd.concat(episode_training_sets)
@@ -45,10 +46,10 @@ def get_dataset(scenario_name, subset='train', features=True):
         return unique_training_samples
 
 
-def get_multi_scenario_dataset(scenario_names: List[str], subset='train') -> pd.DataFrame:
+def get_multi_scenario_dataset(scenario_names: List[str], subset='train', data_dir=None) -> pd.DataFrame:
     scenario_datasets = []
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        scenario_dataset = get_dataset(scenario_name, subset)
+        scenario_dataset = get_dataset(scenario_name, subset=subset, data_dir=data_dir)
         scenario_dataset['scenario'] = scenario_idx
         scenario_datasets.append(scenario_dataset)
     dataset = pd.concat(scenario_datasets)

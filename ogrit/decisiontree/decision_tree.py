@@ -158,9 +158,9 @@ class Node:
             node.counts = [Nng, Nn - Nng]
             features = node_samples.loc[:, feature_names]
             if node.decision is not None:
-                rule_true = node.decision.rule(features)
+                rule_true = node.decision.rule(features).astype('bool')
                 true_child_samples = node_samples.loc[rule_true]
-                false_child_samples = node_samples.loc[~rule_true]
+                false_child_samples = node_samples.loc[~rule_true.astype('bool')]
                 recurse(node.decision.true_child, true_child_samples)
                 recurse(node.decision.false_child, false_child_samples)
 
@@ -218,7 +218,7 @@ class Node:
                     indicator = possibly_missing_features[feature]
                     indicator_impurity_decrease, indicator_threshold = cls.get_best_threshold(
                         node_samples, indicator, N, Nn, Nng, alpha, goal_normaliser, non_goal_normaliser, impurity)
-                    child_samples = node_samples.loc[~node_samples[indicator]]
+                    child_samples = node_samples.loc[~node_samples[indicator].astype('bool')]
                     child_impurity = cls.cross_entropy(child_samples, goal_normaliser, non_goal_normaliser, alpha)
                     child_impurity_decrease, _ = cls.get_best_threshold(
                         child_samples, feature, N, Nn, Nng, alpha, goal_normaliser, non_goal_normaliser,
@@ -233,7 +233,7 @@ class Node:
                 if best_impurity_decrease > 0:
                     true_idx = node_samples[best_feature] > best_threshold
                     true_samples = node_samples.loc[true_idx]
-                    false_samples = node_samples.loc[~true_idx]
+                    false_samples = node_samples.loc[~true_idx.astype('bool')]
                     true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser,
                                               non_goal_normaliser, alpha)
                     false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
@@ -251,7 +251,7 @@ class Node:
                         false_child_false_indicators = false_indicators
                     _recursive_split(node.decision.true_child, node_samples.loc[true_idx],
                                      true_child_true_indicators, false_indicators)
-                    _recursive_split(node.decision.false_child, node_samples.loc[~true_idx],
+                    _recursive_split(node.decision.false_child, node_samples.loc[~true_idx.astype('bool')],
                                      true_indicators, false_child_false_indicators)
             return node
 
@@ -317,7 +317,7 @@ class Node:
             impurity = self.cross_entropy(node_samples, goal_normaliser, non_goal_normaliser)
             true_idx = self.decision.rule(node_samples)
             true_samples = node_samples.loc[true_idx]
-            false_samples = node_samples.loc[~true_idx]
+            false_samples = node_samples.loc[~true_idx.astype('bool')]
 
             self.decision.true_child.prune(true_samples, total_samples, ccp_alpha, goal_normaliser,
                                            non_goal_normaliser, alpha)

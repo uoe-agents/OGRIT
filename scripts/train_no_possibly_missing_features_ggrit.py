@@ -1,7 +1,7 @@
 import argparse
 
 from ogrit.core.data_processing import get_multi_scenario_dataset
-from ogrit.decisiontree.dt_goal_recogniser import GeneralisedGrit
+from ogrit.decisiontree.dt_goal_recogniser import GeneralisedGrit, NoPossiblyMissingFeaturesGGrit
 from ogrit.core.base import get_all_scenarios
 
 
@@ -18,7 +18,7 @@ def main():
 
     dataset = get_multi_scenario_dataset(scenario_names, subset=args.dataset)
 
-    ggrit = GeneralisedGrit.train(scenario_names,
+    ggrit = NoPossiblyMissingFeaturesGGrit.train(scenario_names,
                                  criterion='entropy',
                                  min_samples_leaf=10,
                                  max_depth=7,
