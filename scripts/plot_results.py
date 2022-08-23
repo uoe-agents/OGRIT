@@ -1,23 +1,29 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from ogrit.core.base import get_base_dir, get_all_scenarios
+import baselines.lstm.test as eval_lstm
 import itertools
-
+import argparse
 
 plt.style.use('ggplot')
 
-model_names = ['prior_baseline', 'grit', 'generalised_grit',
-               'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
+
+import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+
 scenario_names = get_all_scenarios()
 
-model_names = ['generalised_grit', 'occlusion_baseline', 'occlusion_grit']
-#model_names = ['grit_uniform_prior', 'generalised_grit']
+# model_names = ['specialised_ogrit', 'occlusion_grit', 'lstm', 'grit']
+model_names = ['lstm']
 
 label_map = {'generalised_grit': 'G-GRIT',
              'occlusion_grit': 'OGRIT',
              'occlusion_baseline': 'truncated G-GRIT',
              'uniform_prior_baseline': 'uniform prior baseline',
-             'grit_uniform_prior': 'GRIT'}
+             'grit_uniform_prior': 'GRIT',
+             'specialized_ogrit': 'S-OGRIT',
+             'lstm': 'LSTM'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
@@ -37,7 +43,7 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
-        if model_name != 'uniform_prior_baseline':
+        if model_name != 'uniform_prior_baseline' and model_name != 'lstm':
             accuracy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc_sem.csv')
             accuracy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_acc.csv')
 
@@ -60,6 +66,10 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
+
+        if model_name == 'lstm':
+            continue
+
         entropy_norm_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm_sem.csv')
         entropy_norm = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_entropy_norm.csv')
 
@@ -73,6 +83,36 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
 # plot true goal probability
 plt.rcParams["figure.figsize"] = (20,4)
 fig, axes = plt.subplots(1, 4)
+
+
+def plot_lstm(scenario_name, label, marker):
+    lstm_dataset = "trajectory"
+
+    # Plot LSTM
+    test_config = argparse.Namespace(**{
+        "dataset": lstm_dataset,
+        "shuffle": True,
+        "scenario": scenario_name,
+        "model_path": f"/checkpoint/{scenario_name}_{lstm_dataset}_best.pt",
+        "lstm_hidden_dim": 64,
+        "fc_hidden_dim": 725,
+        "lstm_layers": 1,
+        "step": 0.1
+    })
+    lstm_probs, _ = eval_lstm.main(test_config)
+
+    fraction_observed_grouped = lstm_probs.groupby('fraction_observed')
+    true_goal_prob = fraction_observed_grouped.mean()
+    true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
+
+    xs = np.arange(fraction_observed_grouped.ngroups)
+    plt.plot(xs, true_goal_prob.true_goal_prob, label=label,
+                          marker=marker)
+    plt.fill_between(xs,
+                     (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
+                     (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
+
+
 for scenario_idx, scenario_name in enumerate(scenario_names):
     #ax = axes[scenario_idx % 2, scenario_idx // 2]
     ax = axes[scenario_idx]
@@ -86,7 +126,13 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     plt.title(title_map[scenario_name])
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
+    # Plot OGRIT and the baselines.
     for model_name in model_names:
+
+        if model_name == "lstm":
+            plot_lstm(scenario_name, label=label_map[model_name], marker=next(marker))
+            continue
+
         true_goal_prob_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
         true_goal_prob = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_true_goal_prob.csv')
 
@@ -110,6 +156,10 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
 
     for model_name in model_names:
+
+        if model_name == 'lstm':
+            continue
+
         cross_entropy_sem = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy_sem.csv')
         cross_entropy = pd.read_csv(get_base_dir() + f'/results/{scenario_name}_{model_name}_cross_entropy.csv')
 
@@ -120,3 +170,5 @@ for scenario_idx, scenario_name in enumerate(scenario_names):
     plt.legend()
 
 plt.show()
+
+
