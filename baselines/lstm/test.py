@@ -49,34 +49,7 @@ def main(config):
 
     output, (encoding, lengths) = model(trajectories, use_encoding=True, device="cpu")
 
-    """
-    matches = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
-    mask = (torch.arange(encoding.shape[1])[None, :] >= lengths[:, None])
-    matches = matches.masked_fill(mask, 0)
-    goal_probs = torch.exp(encoding)
-    """
-
     step = 0.1  # todo: config.step
-    count = int(1 / step + 1)
-    """
-    if encoding.shape[1] > count:  # todo, necessary given below it's determinsitic and not dynamic?
-        # For each trajectory, take the points at every "step" distance in the path. todo: is it lenghts[i] + 1?
-
-        corrects = {round(k, 1): [] for k in np.linspace(0, 1, count)}  # todo: explain
-        goal_probs_grouped = {round(k, 1): [] for k in np.linspace(0, 1, count)}
-
-        for i in range(len(fractions_observed)):
-            fo = round(fractions_observed[i], 1)
-            corrects[fo].append(matches[i][lengths[i] - 1])
-            goal_probs_grouped[fo].append(goal_probs[i][lengths[i] - 1])
-
-        # take the prediction at the length-step and give the fraction observed as x axis
-    else:
-        # todo: update itttt
-    """
-    matches = (encoding.argmax(axis=-1) == target.unsqueeze(-1)).to(float)
-    mask = (torch.arange(encoding.shape[1])[None, :] >= lengths[:, None])
-    matches = matches.masked_fill(mask, 0)
 
     goal_probs = torch.exp(encoding).detach().numpy()
 
@@ -86,7 +59,6 @@ def main(config):
     # For each trajectory, take the steps in which we have data in te OGRIT dataset todo
     for trajectory_idx in range(len(fractions_observed)):
 
-        # todo: [-1.0, -1.0] is the padding value
         fractions_for_trajectory = fractions_observed[trajectory_idx]
 
         for fraction in fractions_for_trajectory:
@@ -101,17 +73,9 @@ def main(config):
             fo = round(fo, 1)
 
             true_goal = target[trajectory_idx]
-            aa_predicted = goal_probs[trajectory_idx][frame]
-            aa_goal_p = aa_predicted.argmax() # todo: for debugginh
-            aaaaa = aa_predicted[true_goal]
-            traj = trajectories[trajectory_idx]
-            ora = traj[frame - 1:frame + 1]
-            futre = traj[frame:]
-
             true_goal_prob = goal_probs[trajectory_idx][frame][true_goal]
-            goal_probs_df["true_goal_prob"].append(true_goal_prob)  # todo:rename
+            goal_probs_df["true_goal_prob"].append(true_goal_prob)
             goal_probs_df["fraction_observed"].append(fo)
-            # goal_probs_grouped[fo].append(goal_probs[i]) todo
 
     dur = time.time() - start
     goal_probs_df = pd.DataFrame(goal_probs_df)
