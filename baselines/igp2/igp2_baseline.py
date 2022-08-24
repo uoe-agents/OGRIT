@@ -224,7 +224,7 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
             trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
                                                                  agent_id=aid,
                                                                  frame=frames[idx_last_seen].agents,
-                                                                 goal=PointGoal(frame.agents[aid].position, 1),
+                                                                 goal=PointGoal(frame.agents[aid].position, 2),
                                                                  state_trajectory=state_trajectory,
                                                                  n_resample=nr_occluded_frames)
 
