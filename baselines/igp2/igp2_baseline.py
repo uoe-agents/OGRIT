@@ -8,7 +8,7 @@ import sys
 import time
 
 import igp2 as ip
-from igp2 import setup_logging, AgentState, StateTrajectory
+from igp2 import setup_logging, AgentState
 from igp2.data.data_loaders import InDDataLoader
 from igp2.goal import PointGoal
 from scipy.interpolate import CubicSpline
@@ -198,7 +198,7 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
 
     from ogrit.occlusion_detection.visualisation_tools import get_box  # todo
 
-    idx_last_seen = None
+    idx_last_seen = 0
     occlusion_frames = []
     initial_frame_id = frames[0].time
     metadata = frames[0].agents[aid].metadata
@@ -209,27 +209,31 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
         ego_occlusions = occlusions[frame_id][ego_id]["occlusions"]
         target_occluded = LineString(get_box(frame.agents[aid]).boundary).buffer(0.001).within(ego_occlusions) # todo: could make it function
 
-        smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr") # todo remove
+        nr_occluded_frames = i-idx_last_seen
+
         # If the target was visible in the previous frame, do nothing. Else, use a* to fill in the occluded part.
         if target_occluded:
             continue
 
-        if idx_last_seen == i-1 or idx_last_seen is None:
+        if idx_last_seen == i-1 or idx_last_seen == 0:
             idx_last_seen = i
         else:
 
-            # ip.plot_map(smap)  # todo: remove
+            state_trajectory = ip.StateTrajectory(25, [frames[idx_last_seen].agents[aid]]) # todo: make 25 a variable `framerate`
             # Generate trajectory for those frames in which the target was occluded.
             trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
                                                                  agent_id=aid,
                                                                  frame=frames[idx_last_seen].agents,
                                                                  goal=PointGoal(frame.agents[aid].position, 1),
-                                                                 state_trajectory=StateTrajectory(25, [frame.agents[aid]]),
-                                                                 n_resample=i-idx_last_seen) # todo: add state traj.
+                                                                 state_trajectory=state_trajectory,
+                                                                 n_resample=nr_occluded_frames)
 
             """
+            smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr")
+            ip.plot_map(smap)
             plt.plot(*frames[idx_last_seen].agents[aid].position, marker=".")
             plt.plot(*frame.agents[aid].position, marker="x")
+            
 
             for traj in trajectory:
                 plt.plot(*list(zip(*traj.path)), color="r")
@@ -243,18 +247,19 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
             initial_direction = np.array([np.cos(initial_heading), np.sin(initial_heading)])
             final_direction = np.array([np.cos(final_heading), np.sin(final_heading)])
 
-            cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
-                                                                              (1, final_direction)))
+            if nr_occluded_frames > 1:
+                cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
+                                                                                  (1, final_direction)))
 
-            cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
+                cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
 
-            num_points = i - idx_last_seen
-            ts = np.linspace(0, trajectory.times[-1], num_points)
+                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
 
-            new_path = cs_path(ts)
-            new_vel = cs_velocity(ts)
-
-            assert len(new_vel) == i - idx_last_seen
+                new_path = cs_path(ts)
+                new_vel = cs_velocity(ts)
+            else:
+                new_path = trajectory.path
+                new_vel = trajectory.velocity
 
             for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
                 new_frame_id = initial_frame_id + frame_idx
