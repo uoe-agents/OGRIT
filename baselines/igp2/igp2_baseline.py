@@ -247,19 +247,15 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
             initial_direction = np.array([np.cos(initial_heading), np.sin(initial_heading)])
             final_direction = np.array([np.cos(final_heading), np.sin(final_heading)])
 
-            if nr_occluded_frames > 1:
-                cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
-                                                                                  (1, final_direction)))
+            cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
+                                                                              (1, final_direction)))
 
-                cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
+            cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
 
-                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
+            ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
 
-                new_path = cs_path(ts)
-                new_vel = cs_velocity(ts)
-            else:
-                new_path = trajectory.path
-                new_vel = trajectory.velocity
+            new_path = cs_path(ts)
+            new_vel = cs_velocity(ts)
 
             for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
                 new_frame_id = initial_frame_id + frame_idx
