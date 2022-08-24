@@ -81,8 +81,8 @@ def main():
         true_goal_prob = fraction_observed_grouped.mean()
         true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
 
-        true_goal_prob_sem.to_csv(get_results_dir + f'/{scenario_name}_lstm_true_goal_prob_sem.csv')
-        true_goal_prob.to_csv(get_results_dir + f'/{scenario_name}_lstm_true_goal_prob.csv')
+        true_goal_prob_sem.to_csv(get_results_dir() + f'/{scenario_name}_lstm_true_goal_prob_sem.csv')
+        true_goal_prob.to_csv(get_results_dir() + f'/{scenario_name}_lstm_true_goal_prob.csv')
 
         xs = np.arange(fraction_observed_grouped.ngroups)
         ax[scenario_idx].plot(xs, true_goal_prob.true_goal_prob, label="LSTM",
