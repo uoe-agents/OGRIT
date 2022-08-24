@@ -8,9 +8,10 @@ import sys
 import time
 
 import igp2 as ip
-from igp2 import setup_logging, AgentState
+from igp2 import setup_logging, AgentState, StateTrajectory
 from igp2.data.data_loaders import InDDataLoader
 from igp2.goal import PointGoal
+from scipy.interpolate import CubicSpline
 from shapely.geometry import Point, LineString
 from igp2.recognition.goalrecognition import *
 from igp2.recognition.astar import AStar
@@ -217,48 +218,56 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
             idx_last_seen = i
         else:
 
-
-            if np.linalg.norm(frames[idx_last_seen].agents[aid].position - frame.agents[aid].position) < 2:
-                continue
-
-            ip.plot_map(smap)  # todo: remove
+            # ip.plot_map(smap)  # todo: remove
             # Generate trajectory for those frames in which the target was occluded.
             trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
                                                                  agent_id=aid,
                                                                  frame=frames[idx_last_seen].agents,
                                                                  goal=PointGoal(frame.agents[aid].position, 1),
-                                                                 state_trajectory=None,
+                                                                 state_trajectory=StateTrajectory(25, [frame.agents[aid]]),
                                                                  n_resample=i-idx_last_seen) # todo: add state traj.
 
-
+            """
             plt.plot(*frames[idx_last_seen].agents[aid].position, marker=".")
             plt.plot(*frame.agents[aid].position, marker="x")
 
             for traj in trajectory:
                 plt.plot(*list(zip(*traj.path)), color="r")
             plt.show()
+            """
 
             trajectory = trajectory[0]
 
-            # assert len(trajectory.timesteps) == i - idx_last_seen
+            initial_heading = trajectory.heading[0]
+            final_heading = trajectory.heading[-1]
+            initial_direction = np.array([np.cos(initial_heading), np.sin(initial_heading)])
+            final_direction = np.array([np.cos(final_heading), np.sin(final_heading)])
+
+            cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
+                                                                              (1, final_direction)))
+
+            cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
+
+            num_points = i - idx_last_seen
+            ts = np.linspace(0, trajectory.times[-1], num_points)
+
+            new_path = cs_path(ts)
+            new_vel = cs_velocity(ts)
+
+            assert len(new_vel) == i - idx_last_seen
 
             for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame_agents = frames[frame_idx].agents
                 old_frame_agents[aid] = AgentState(new_frame_id,
-                                                   trajectory.path[j],
-                                                   trajectory.velocity[j],
-                                                   trajectory.acceleration[j],
-                                                   trajectory.heading[j],
+                                                   new_path[j],
+                                                   new_vel[j],
+                                                   None,
+                                                   None,
                                                    metadata)
                 occlusion_frames.append(old_frame_agents)
 
-
-
-
         occlusion_frames.append(frame)
-
-
     return frames  # todo: return the updated frames
 
 def dump_results(objects, name: str):
