@@ -74,7 +74,7 @@ def read_and_process_data(scenario, episode_id): # todo: use this instead
     return data
 
 
-def goal_recognition_agent(frames, recordingID, framerate, aid, ego_id, data, goal_recognition: GoalRecognition,
+def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recognition: GoalRecognition,
                            goal_probabilities: GoalsProbabilities):
     """Computes the goal recognition results for specified agent at specified frames."""
     goal_probabilities_c = copy.deepcopy(goal_probabilities)
@@ -108,7 +108,7 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, ego_id, data, go
 def multi_proc_helper(arg_list):
     """Allows to pass multiple arguments as multiprocessing routine."""
     return goal_recognition_agent(arg_list[0], arg_list[1], arg_list[2], arg_list[3], arg_list[4], arg_list[5],
-                                  arg_list[6], arg_list[7])
+                                  arg_list[6])
 
 
 def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = True, max_workers: int = None):
