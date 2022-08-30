@@ -153,14 +153,16 @@ class FixedGoalRecogniser(GoalRecogniser):
 
     @classmethod
     def load(cls, scenario_name, data_dir=None):
-        priors = cls.load_priors(scenario_name)
+        priors = cls.load_priors(scenario_name, data_dir)
         scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
         scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
         return cls(priors, scenario_map, scenario_config.goals)
 
     @staticmethod
-    def load_priors(scenario_name):
-        return pd.read_csv(get_data_dir() + scenario_name + '_priors.csv')
+    def load_priors(scenario_name, data_dir=None):
+        if data_dir is None:
+            data_dir = get_data_dir()
+        return pd.read_csv(data_dir + scenario_name + '_priors.csv')
 
     def get_goal_prior(self, goal_idx, route):
         goal_type = self.feature_extractor.goal_type(route)

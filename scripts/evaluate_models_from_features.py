@@ -38,7 +38,6 @@ def main():
     else:
         scenario_names = args.scenarios.split(',')
 
-
     model_names = args.models.split(',')
 
     evaluate_models(scenario_names, model_names, args.dataset)

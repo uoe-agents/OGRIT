@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import pickle
 
 from ogrit.core.base import get_base_dir, get_all_scenarios, get_data_dir
 from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, Grit, GeneralisedGrit, UniformPriorGrit, \
-    OcclusionBaseline, NoPossiblyMissingFeaturesGrit, NoPossiblyMissingFeaturesGGrit
+    OcclusionBaseline, NoPossiblyMissingFeaturesGrit, NoPossiblyMissingFeaturesGGrit, SpecializedOgrit, TruncatedGrit
 from ogrit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -21,7 +22,7 @@ def drop_low_sample_agents(dataset, min_samples=2):
 
 
 def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', results_dir=None, data_dir=None,
-                    predictions_dir=None):
+                    predictions_dir=None, models_dir=None):
 
     if results_dir is None:
         results_dir = get_base_dir() + '/results/'
@@ -29,6 +30,8 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
         data_dir = get_data_dir()
     if predictions_dir is None:
         predictions_dir = get_base_dir() + '/predictions/'
+    if models_dir is None:
+        models_dir = data_dir
 
     plt.style.use('ggplot')
 
@@ -45,6 +48,8 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
                      'generalised_grit': GeneralisedGrit,
                      'grit_uniform_prior': UniformPriorGrit,
                      'occlusion_baseline': OcclusionBaseline,
+                     'sogrit': SpecializedOgrit,
+                     'truncated_grit': TruncatedGrit,
                      'no_possibly_missing_features_grit': NoPossiblyMissingFeaturesGrit,
                      'no_possibly_missing_features_ggrit': NoPossiblyMissingFeaturesGGrit}
 
@@ -68,7 +73,7 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
         for model_name in model_names:
             print(model_name)
             model_class = model_classes[model_name]
-            model = model_class.load(scenario_name, data_dir)
+            model = model_class.load(scenario_name, models_dir)
             unique_samples = model.batch_goal_probabilities(dataset)
             unique_samples['model_correct'] = (unique_samples['model_prediction']
                                                == unique_samples['true_goal'])

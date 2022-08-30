@@ -142,15 +142,15 @@ class Node:
         samples['has_goal'] = samples.possible_goal == samples.true_goal
         goal_training_samples = samples.loc[possible_goal == goal]
 
-        N = goal_training_samples.shape[0]
-        Ng = goal_training_samples.has_goal.sum()
+        N = goal_training_samples.weight.sum()
+        Ng = (goal_training_samples.has_goal * goal_training_samples.weight).sum()
         goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
         non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
         feature_names = [*FeatureExtractor.feature_names]
 
         def recurse(node, node_samples):
-            Nng = node_samples.loc[node_samples.has_goal].shape[0]
-            Nn = node_samples.shape[0]
+            Nng = node_samples.loc[node_samples.has_goal].weight.sum()
+            Nn = node_samples.weight.sum()
             Nng_norm = (Nng + alpha) * goal_normaliser
             Nn_norm = Nng_norm + (Nn - Nng + alpha) * non_goal_normaliser
             value = Nng_norm / Nn_norm
@@ -169,12 +169,16 @@ class Node:
     @classmethod
     def fit(cls, samples: pd.DataFrame, goal: Union[int, str], alpha=0, min_samples_leaf=1, max_depth=None,
             ccp_alpha=0.):
+
+        if 'weight' not in samples.columns:
+            samples['weight'] = 1.
+
         possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
         samples['has_goal'] = samples.possible_goal == samples.true_goal
         goal_training_samples = samples.loc[possible_goal == goal]
 
-        N = goal_training_samples.shape[0]
-        Ng = goal_training_samples.has_goal.sum()
+        N = goal_training_samples.weight.sum()
+        Ng = goal_training_samples.loc[goal_training_samples.has_goal].weight.sum()
         goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
         non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
 
@@ -194,8 +198,8 @@ class Node:
                 best_threshold = None
                 impurity = cls.cross_entropy(node_samples, goal_normaliser, non_goal_normaliser, alpha)
 
-                Nn = node_samples.shape[0]
-                Nng = node_samples.loc[node_samples.has_goal].shape[0]
+                Nn = node_samples.weight.sum()
+                Nng = node_samples.loc[node_samples.has_goal].weight.sum()
 
                 allowed_features = [f for f in (list(base_features) + indicator_features) if
                                     f not in possibly_missing_features
@@ -267,9 +271,9 @@ class Node:
     def get_best_threshold(node_samples, feature, N, Nn, Nng, alpha, goal_normaliser, non_goal_normaliser,
                            impurity):
 
-        df = node_samples[[feature, 'has_goal']].sort_values(feature)
-        df['Nnt'] = np.arange(1, df.shape[0] + 1)
-        df['Nng_true'] = df.has_goal.cumsum()
+        df = node_samples[[feature, 'has_goal', 'weight']].sort_values(feature)
+        df['Nnt'] = df.weight.cumsum()
+        df['Nng_true'] = (df.has_goal * df.weight).cumsum()
         df.drop_duplicates(feature, inplace=True, keep='last')
         if df.shape[0] < 2:
             return 0, None
@@ -304,11 +308,11 @@ class Node:
         possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
         samples['has_goal'] = samples.possible_goal == samples.true_goal
         goal_training_samples = samples.loc[possible_goal == goal]
-        N = goal_training_samples.shape[0]
-        Ng = goal_training_samples.has_goal.sum()
+        N = goal_training_samples.weight.sum()
+        Ng = (goal_training_samples.has_goal * goal_training_samples.weight).sum()
         goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
         non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
-        self.prune(goal_training_samples, N, ccp_alpha, goal_normaliser, non_goal_normaliser, ccp_alpha, alpha)
+        self.prune(goal_training_samples, N, ccp_alpha, goal_normaliser, non_goal_normaliser, alpha)
 
     def prune(self, node_samples: pd.DataFrame, total_samples: int, ccp_alpha=0., goal_normaliser=1.,
               non_goal_normaliser=1., alpha=1.):
@@ -328,9 +332,9 @@ class Node:
                 true_impurity = self.cross_entropy(true_samples, goal_normaliser, non_goal_normaliser, alpha)
                 false_impurity = self.cross_entropy(false_samples, goal_normaliser, non_goal_normaliser, alpha)
 
-                Nn = node_samples.shape[0]
-                Nnt = true_samples.shape[0]
-                Nnf = false_samples.shape[0]
+                Nn = node_samples.weight.sum()
+                Nnt = true_samples.weight.sum()
+                Nnf = false_samples.weight.sum()
                 impurity_decrease = Nn / total_samples * (impurity - Nnt / Nn * true_impurity
                                                                    - Nnf / Nn * false_impurity)
                 if impurity_decrease <= ccp_alpha:
@@ -338,16 +342,16 @@ class Node:
 
     @staticmethod
     def cross_entropy(samples: pd.DataFrame, goal_normaliser=1., non_goal_normaliser=1., alpha=0.) -> float:
-        Nng = samples.loc[samples.has_goal].shape[0]
-        Nn = samples.shape[0]
+        Nng = samples.loc[samples.has_goal].weight.sum()
+        Nn = samples.weight.sum()
         pg = (Nng + alpha) / (Nn + 2 * alpha)
         png = 1 - pg
         return - goal_normaliser * xlogy(pg, pg) - non_goal_normaliser * xlogy(png, png)
 
     @classmethod
     def get_node(cls, node_samples: pd.DataFrame, level, goal_normaliser: float, non_goal_normaliser: float, alpha=0.):
-        Nng = node_samples.loc[node_samples.has_goal].shape[0]
-        Nn = node_samples.shape[0]
+        Nng = node_samples.loc[node_samples.has_goal].weight.sum()
+        Nn = node_samples.weight.sum()
         Nng_norm = (Nng + alpha) * goal_normaliser
         Nn_norm = Nng_norm + (Nn - Nng + alpha) * non_goal_normaliser
         value = Nng_norm / Nn_norm
