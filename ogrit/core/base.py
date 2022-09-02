@@ -69,6 +69,10 @@ def get_lstm_dir():
     return get_base_dir() + '/baselines/lstm/'
 
 
+def get_results_dir():
+    return get_base_dir() + '/results/'
+
+
 def set_working_dir():
     os.chdir(get_base_dir())
 

@@ -11,6 +11,7 @@ import igp2 as ip
 from igp2 import setup_logging, AgentState
 from igp2.data.data_loaders import InDDataLoader
 from igp2.goal import PointGoal
+from scipy.interpolate import CubicSpline
 from shapely.geometry import Point, LineString
 from igp2.recognition.goalrecognition import *
 from igp2.recognition.astar import AStar
@@ -73,7 +74,7 @@ def read_and_process_data(scenario, episode_id): # todo: use this instead
     return data
 
 
-def goal_recognition_agent(frames, recordingID, framerate, aid, ego_id, data, goal_recognition: GoalRecognition,
+def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recognition: GoalRecognition,
                            goal_probabilities: GoalsProbabilities):
     """Computes the goal recognition results for specified agent at specified frames."""
     goal_probabilities_c = copy.deepcopy(goal_probabilities)
@@ -107,7 +108,7 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, ego_id, data, go
 def multi_proc_helper(arg_list):
     """Allows to pass multiple arguments as multiprocessing routine."""
     return goal_recognition_agent(arg_list[0], arg_list[1], arg_list[2], arg_list[3], arg_list[4], arg_list[5],
-                                  arg_list[6], arg_list[7])
+                                  arg_list[6])
 
 
 def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = True, max_workers: int = None):
@@ -197,7 +198,7 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
 
     from ogrit.occlusion_detection.visualisation_tools import get_box  # todo
 
-    idx_last_seen = None
+    idx_last_seen = 0
     occlusion_frames = []
     initial_frame_id = frames[0].time
     metadata = frames[0].agents[aid].metadata
@@ -208,57 +209,66 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
         ego_occlusions = occlusions[frame_id][ego_id]["occlusions"]
         target_occluded = LineString(get_box(frame.agents[aid]).boundary).buffer(0.001).within(ego_occlusions) # todo: could make it function
 
-        smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr") # todo remove
+        nr_occluded_frames = i-idx_last_seen
+
         # If the target was visible in the previous frame, do nothing. Else, use a* to fill in the occluded part.
         if target_occluded:
             continue
 
-        if idx_last_seen == i-1 or idx_last_seen is None:
+        if idx_last_seen == i-1 or idx_last_seen == 0:
             idx_last_seen = i
         else:
 
-
-            if np.linalg.norm(frames[idx_last_seen].agents[aid].position - frame.agents[aid].position) < 2:
-                continue
-
-            ip.plot_map(smap)  # todo: remove
+            state_trajectory = ip.StateTrajectory(25, [frames[idx_last_seen].agents[aid]]) # todo: make 25 a variable `framerate`
             # Generate trajectory for those frames in which the target was occluded.
             trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
                                                                  agent_id=aid,
                                                                  frame=frames[idx_last_seen].agents,
-                                                                 goal=PointGoal(frame.agents[aid].position, 1),
-                                                                 state_trajectory=None,
-                                                                 n_resample=i-idx_last_seen) # todo: add state traj.
+                                                                 goal=PointGoal(frame.agents[aid].position, 3),
+                                                                 state_trajectory=state_trajectory,
+                                                                 n_resample=nr_occluded_frames)
 
-
+            """
+            smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr")
+            ip.plot_map(smap)
             plt.plot(*frames[idx_last_seen].agents[aid].position, marker=".")
             plt.plot(*frame.agents[aid].position, marker="x")
+            
 
             for traj in trajectory:
                 plt.plot(*list(zip(*traj.path)), color="r")
             plt.show()
+            """
 
             trajectory = trajectory[0]
 
-            # assert len(trajectory.timesteps) == i - idx_last_seen
+            initial_heading = trajectory.heading[0]
+            final_heading = trajectory.heading[-1]
+            initial_direction = np.array([np.cos(initial_heading), np.sin(initial_heading)])
+            final_direction = np.array([np.cos(final_heading), np.sin(final_heading)])
+
+            cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
+                                                                              (1, final_direction)))
+
+            cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
+
+            ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
+
+            new_path = cs_path(ts)
+            new_vel = cs_velocity(ts)
 
             for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame_agents = frames[frame_idx].agents
                 old_frame_agents[aid] = AgentState(new_frame_id,
-                                                   trajectory.path[j],
-                                                   trajectory.velocity[j],
-                                                   trajectory.acceleration[j],
-                                                   trajectory.heading[j],
+                                                   new_path[j],
+                                                   new_vel[j],
+                                                   None,
+                                                   None,
                                                    metadata)
                 occlusion_frames.append(old_frame_agents)
 
-
-
-
         occlusion_frames.append(frame)
-
-
     return frames  # todo: return the updated frames
 
 def dump_results(objects, name: str):
