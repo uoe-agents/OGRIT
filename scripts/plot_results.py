@@ -13,23 +13,27 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 # model_names = ['prior_baseline', 'grit', 'generalised_grit',
 #                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 #scenario_names = get_all_scenarios()
-scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
+scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
 
-#model_names = ['generalised_grit', 'occlusion_grit', 'truncated_grit', 'lstm']
-model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
+model_names = ['generalised_grit', 'occlusion_grit', 'truncated_grit',
+               'no_possibly_missing_features_ogrit', 'no_possibly_missing_features_grit',
+               'grit_no_missing_uniform'] #, 'lstm']
+#model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
 
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
              'occlusion_grit_loocv': 'OGRIT (LOOCV)',
              'occlusion_baseline': 'truncated G-GRIT',
+             'no_possibly_missing_features_ogrit': 'OGRIT baseline',
              'uniform_prior_baseline': 'uniform prob. baseline',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
              'sogrit': 'S-OGRIT',
              'truncated_grit': 'Truncated GRIT',
-             'no_possibly_missing_features_grit': 'no missing features grit'}
+             'no_possibly_missing_features_grit': 'no missing features grit',
+             'grit_no_missing_uniform': 'no missing features grit uniform'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
@@ -42,8 +46,8 @@ plot_cross_entropy = False
 plot_true_goal_prob = True
 
 # results_dir = get_base_dir() + "/predictions/occlusion_subset/"
-# results_dir = get_base_dir() + "/results/"
-results_dir = get_base_dir() + f'/results/loocv/'
+results_dir = get_base_dir() + "/results/"
+# results_dir = get_base_dir() + f'/results/loocv/'
 
 # plot accuracy
 if plot_accuracy:
@@ -185,5 +189,3 @@ if plot_cross_entropy:
         plt.legend()
 
 plt.show()
-
-

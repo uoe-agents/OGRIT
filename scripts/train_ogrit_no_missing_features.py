@@ -1,6 +1,6 @@
 import argparse
 
-from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit
+from ogrit.decisiontree.dt_goal_recogniser import NoPossiblyMissingFeaturesOGrit
 from ogrit.core.base import get_all_scenarios
 
 
@@ -14,7 +14,7 @@ def main():
     else:
         scenario_names = [args.scenario]
 
-    model = OcclusionGrit.train(scenario_names,
+    model = NoPossiblyMissingFeaturesOGrit.train(scenario_names,
                                 criterion='entropy', min_samples_leaf=10, max_depth=7,
                                 alpha=1, ccp_alpha=0.0001, balance_scenarios=True)
     model.save()

@@ -56,6 +56,7 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
 
         if training_set is None:
             training_set = get_dataset(scenario_name, subset='train')
+        training_set['weight'] = 1.
         goal_priors = get_goal_priors(training_set, scenario_config.goal_types, alpha=alpha)
 
         for goal_idx in goal_priors.true_goal.unique():
@@ -253,7 +254,7 @@ class OcclusionGrit(GeneralisedGrit):
             dt_training_set = dataset.loc[dataset.goal_type == goal_type]
             if dt_training_set.shape[0] > 0:
                 goal_tree = Node.fit(dt_training_set, goal_type, alpha=alpha, min_samples_leaf=min_samples_leaf,
-                                     max_depth=max_depth, ccp_alpha=ccp_alpha)
+                                     max_depth=max_depth, ccp_alpha=ccp_alpha, features=features)
             else:
                 goal_tree = Node(0.5)
 
@@ -366,19 +367,24 @@ class NoPossiblyMissingFeaturesGrit(Grit):
             return pickle.load(f)
 
 
-class NoPossiblyMissingFeaturesGGrit(GeneralisedGrit):
+class NoPossiblyMissingFeaturesUniformPriorGrit(NoPossiblyMissingFeaturesGrit):
+    def __init__(self, goal_priors, scenario, decision_trees, goal_locs):
+        super().__init__(goal_priors, scenario, decision_trees, goal_locs)
+        self.goal_priors['prior'] = 1.0 / self.goal_priors.shape[0]
+
+
+class NoPossiblyMissingFeaturesOGrit(OcclusionGrit):
     """Model without the features that could be missing"""
     FEATURES = [feature for feature in FeatureExtractor.feature_names.keys()
-                if feature not in ["vehicle_in_front_dist", "vehicle_in_front_speed",
-                                   "oncoming_vehicle_dist", "oncoming_vehicle_speed",
-                                   "exit_number"]]
+                if feature not in FeatureExtractor.possibly_missing_features]
 
     @staticmethod
     def get_model_name():
-        return 'no_possibly_missing_features_ggrit'
+        return 'no_possibly_missing_features_ogrit'
     
     @classmethod
-    def train(cls, scenario_names: List[str], alpha=1, criterion='gini', min_samples_leaf=1,
-              max_leaf_nodes=None, max_depth=None, ccp_alpha=0, dataset=None, features=None):
+    def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1,
+              max_leaf_nodes=None, max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False):
         return super().train(scenario_names, alpha, criterion, min_samples_leaf,
-                             max_leaf_nodes, max_depth, ccp_alpha, dataset, features=cls.FEATURES)
+                             max_leaf_nodes, max_depth, ccp_alpha, dataset, features=cls.FEATURES,
+                             balance_scenarios=balance_scenarios)

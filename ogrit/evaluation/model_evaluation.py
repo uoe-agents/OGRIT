@@ -6,7 +6,8 @@ import pickle
 from ogrit.core.base import get_base_dir, get_all_scenarios, get_data_dir
 from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, Grit, GeneralisedGrit, UniformPriorGrit, \
-    OcclusionBaseline, NoPossiblyMissingFeaturesGrit, NoPossiblyMissingFeaturesGGrit, SpecializedOgrit, TruncatedGrit
+    OcclusionBaseline, NoPossiblyMissingFeaturesGrit, SpecializedOgrit, TruncatedGrit, \
+    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesUniformPriorGrit
 from ogrit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -51,7 +52,8 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
                      'sogrit': SpecializedOgrit,
                      'truncated_grit': TruncatedGrit,
                      'no_possibly_missing_features_grit': NoPossiblyMissingFeaturesGrit,
-                     'no_possibly_missing_features_ggrit': NoPossiblyMissingFeaturesGGrit}
+                     'no_possibly_missing_features_ogrit': NoPossiblyMissingFeaturesOGrit,
+                     'grit_no_missing_uniform': NoPossiblyMissingFeaturesUniformPriorGrit}
 
     accuracies = pd.DataFrame(index=model_names, columns=scenario_names)
     accuracies_sem = pd.DataFrame(index=model_names, columns=scenario_names)

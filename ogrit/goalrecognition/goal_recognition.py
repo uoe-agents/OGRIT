@@ -77,7 +77,10 @@ class GoalRecogniser:
             goal_prob_entropy = entropy(goals.model_prob)
             uniform_entropy = entropy(np.ones(goals.model_prob.shape[0])
                                       / goals.model_prob.shape[0])
-            norm_entropy = goal_prob_entropy / uniform_entropy
+            if uniform_entropy == 0:
+                norm_entropy = 0
+            else:
+                norm_entropy = goal_prob_entropy / uniform_entropy
             model_prediction = goals['possible_goal'].loc[idx]
             predicted_goal_type = goals['goal_type'].loc[idx]
             predicted_goal_types.append(predicted_goal_type)
