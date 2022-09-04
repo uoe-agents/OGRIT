@@ -16,8 +16,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
 
 model_names = ['generalised_grit', 'occlusion_grit', 'truncated_grit',
-               'no_possibly_missing_features_ogrit', 'no_possibly_missing_features_grit',
-               'grit_no_missing_uniform'] #, 'lstm']
+               'no_possibly_missing_features_ogrit', 'grit_no_missing_uniform'] #, 'lstm']
 #model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
 
 
@@ -32,8 +31,8 @@ label_map = {'generalised_grit': 'Oracle',
              'lstm': 'LSTM',
              'sogrit': 'S-OGRIT',
              'truncated_grit': 'Truncated GRIT',
-             'no_possibly_missing_features_grit': 'no missing features grit',
-             'grit_no_missing_uniform': 'no missing features grit uniform'}
+             'no_possibly_missing_features_grit': 'no missing features GRIT',
+             'grit_no_missing_uniform': 'no missing features GRIT uniform prior'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
