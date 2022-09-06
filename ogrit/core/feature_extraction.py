@@ -14,6 +14,10 @@ from ogrit.core.goal_generator import TypedGoal, GoalGenerator
 from ogrit.core.base import get_occlusions_dir
 
 
+def heading_diff(a: float, b: float) -> float:
+    return np.diff(np.unwrap([a, b]))[0]
+
+
 class FeatureExtractor:
 
     MAX_ONCOMING_VEHICLE_DIST = 100
@@ -37,14 +41,34 @@ class FeatureExtractor:
                      'oncoming_vehicle_dist': 'scalar',
                      'oncoming_vehicle_speed': 'scalar',
                      'road_heading': 'scalar',
-                     'exit_number': 'integer'}
+                     'exit_number': 'integer',
+                     'speed_change_1s': 'scalar',
+                     'speed_change_2s': 'scalar',
+                     'speed_change_3s': 'scalar',
+                     'heading_change_1s': 'scalar',
+                     'heading_change_2s': 'scalar',
+                     'heading_change_3s': 'scalar',
+                     'dist_travelled_1s': 'scalar',
+                     'dist_travelled_2s': 'scalar',
+                     'dist_travelled_3s': 'scalar'
+                     }
 
-    indicator_features = ['exit_number_missing', 'vehicle_in_front_missing', 'oncoming_vehicle_missing']
     possibly_missing_features = {'exit_number': 'exit_number_missing',
                                  'oncoming_vehicle_dist': 'oncoming_vehicle_missing',
                                  'oncoming_vehicle_speed': 'oncoming_vehicle_missing',
                                  'vehicle_in_front_dist': 'vehicle_in_front_missing',
-                                 'vehicle_in_front_speed': 'vehicle_in_front_missing'}
+                                 'vehicle_in_front_speed': 'vehicle_in_front_missing',
+                                 'speed_change_1s': 'target_1s_occluded',
+                                 'speed_change_2s': 'target_2s_occluded',
+                                 'speed_change_3s': 'target_3s_occluded',
+                                 'heading_change_1s': 'target_1s_occluded',
+                                 'heading_change_2s': 'target_2s_occluded',
+                                 'heading_change_3s': 'target_3s_occluded',
+                                 'dist_travelled_1s': 'target_1s_occluded',
+                                 'dist_travelled_2s': 'target_2s_occluded',
+                                 'dist_travelled_3s': 'target_3s_occluded'
+                                 }
+    indicator_features = list(set(possibly_missing_features.values()))
 
     def __init__(self, scenario_map: Map, *args):
         self.scenario_map = scenario_map
@@ -58,7 +82,7 @@ class FeatureExtractor:
                 self.occlusions = pickle.load(file)
 
     def extract(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
-                initial_frame: Dict[int, AgentState] = None) \
+                initial_frame: Dict[int, AgentState] = None, target_occlusion_history: List[bool] = None) \
             -> Dict[str, Union[float, bool]]:
         """Extracts a dict of features describing the observation
 
@@ -68,6 +92,7 @@ class FeatureExtractor:
             goal:  goal of the agent
             ego_agent_id: id of the ego agent from whose pov the occlusions are taken. Used for indicator features
             initial_frame: first frame in which the target agent is visible to the ego. Used for indicator features
+            target_occlusion_history: list indicating whether the target vehicle was occluded in previous frames
 
         Returns: dict of features values
 
@@ -102,6 +127,19 @@ class FeatureExtractor:
         else:
             oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
 
+        fps = 25
+        speed_change_1s = self.get_speed_change(agent_id, frames, frames_ago=fps)
+        speed_change_2s = self.get_speed_change(agent_id, frames, frames_ago=2*fps)
+        speed_change_3s = self.get_speed_change(agent_id, frames, frames_ago=3*fps)
+
+        heading_change_1s = self.get_heading_change(agent_id, frames, frames_ago=fps)
+        heading_change_2s = self.get_heading_change(agent_id, frames, frames_ago=2*fps)
+        heading_change_3s = self.get_heading_change(agent_id, frames, frames_ago=3*fps)
+
+        dist_travelled_1s = self.get_dist_travelled(agent_id, frames, frames_ago=fps)
+        dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2*fps)
+        dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3*fps)
+
         features = {'path_to_goal_length': path_to_goal_length,
                     'in_correct_lane': in_correct_lane,
                     'speed': speed,
@@ -113,7 +151,16 @@ class FeatureExtractor:
                     'oncoming_vehicle_speed': oncoming_vehicle_speed,
                     'road_heading': road_heading,
                     'exit_number': exit_number,
-                    'goal_type': goal_type}
+                    'goal_type': goal_type,
+                    'speed_change_1s': speed_change_1s,
+                    'speed_change_2s': speed_change_2s,
+                    'speed_change_3s': speed_change_3s,
+                    'heading_change_1s': heading_change_1s,
+                    'heading_change_2s': heading_change_2s,
+                    'heading_change_3s': heading_change_3s,
+                    'dist_travelled_1s': dist_travelled_1s,
+                    'dist_travelled_2s': dist_travelled_2s,
+                    'dist_travelled_3s': dist_travelled_3s}
 
         # We pass the ego_agent_id only if we want to extract the indicator features.
         if ego_agent_id is not None:
@@ -130,12 +177,55 @@ class FeatureExtractor:
             exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
                 if self.scenario_name == "neuweiler" else False
 
+            target_1s_occluded = self.target_previously_occluded(frames, fps, target_occlusion_history)
+            target_2s_occluded = self.target_previously_occluded(frames, 2*fps, target_occlusion_history)
+            target_3s_occluded = self.target_previously_occluded(frames, 3*fps, target_occlusion_history)
+
             indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
                                   'oncoming_vehicle_missing': oncoming_vehicle_occluded,
-                                  'exit_number_missing': exit_number_occluded}
+                                  'exit_number_missing': exit_number_occluded,
+                                  'target_1s_occluded': target_1s_occluded,
+                                  'target_2s_occluded': target_2s_occluded,
+                                  'target_3s_occluded': target_3s_occluded,}
 
             features.update(indicator_features)
         return features
+
+    @staticmethod
+    def get_speed_change(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
+        if frames_ago + 1 > len(frames):
+            return 0.
+        initial_speed = frames[-(frames_ago + 1)][agent_id].speed
+        current_speed = frames[-1][agent_id].speed
+        speed_change = current_speed - initial_speed
+        return speed_change
+
+    @staticmethod
+    def target_previously_occluded(frames: List[Dict[int, AgentState]], frames_ago: int,
+                                   target_occlusion_history: List[bool], fps=25) -> bool:
+        assert frames_ago % fps == 0
+        return (frames_ago + 1 > len(frames)
+                or len(target_occlusion_history) < frames_ago//fps + 1
+                or target_occlusion_history[-(frames_ago//fps + 1)]
+                or target_occlusion_history[-1])
+
+    @staticmethod
+    def get_heading_change(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
+        if frames_ago + 1 > len(frames):
+            return 0.
+        initial_heading = frames[-(frames_ago + 1)][agent_id].heading
+        current_heading = frames[-1][agent_id].heading
+        heading_change = heading_diff(initial_heading, current_heading)
+        return heading_change
+
+    @staticmethod
+    def get_dist_travelled(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
+        if frames_ago + 1 > len(frames):
+            return 0.
+        initial_pos = frames[-(frames_ago + 1)][agent_id].position
+        current_pos = frames[-1][agent_id].position
+        dist_travelled = np.linalg.norm(current_pos - initial_pos)
+        return dist_travelled
 
     @staticmethod
     def get_vehicles_in_route(ego_agent_id: int, path: List[Lane], frame: Dict[int, AgentState]):
@@ -160,7 +250,7 @@ class FeatureExtractor:
         """
         lon = lane.distance_at(state.position)
         lane_heading = lane.get_heading_at(lon)
-        angle_diff = np.diff(np.unwrap([lane_heading, state.heading]))[0]
+        angle_diff = heading_diff(lane_heading, state.heading)
         return angle_diff
 
     @staticmethod
@@ -168,7 +258,7 @@ class FeatureExtractor:
         lane = lane_path[-1]
         start_heading = lane.get_heading_at(0)
         end_heading = lane.get_heading_at(lane.length)
-        heading_change = np.diff(np.unwrap([start_heading, end_heading]))[0]
+        heading_change = heading_diff(start_heading, end_heading)
         return heading_change
 
     @staticmethod
@@ -299,7 +389,7 @@ class FeatureExtractor:
     @staticmethod
     def angle_to_goal(state, goal):
         goal_heading = np.arctan2(goal[1] - state.y, goal[0] - state.x)
-        return np.diff(np.unwrap([goal_heading, state.heading]))[0]
+        return heading_diff(goal_heading, state.heading)
 
     @staticmethod
     def get_junction_lane(lane_path: List[Lane]) -> Union[Lane, None]:
@@ -318,7 +408,6 @@ class FeatureExtractor:
         midline_points.extend(lane_path[-1].midline.coords)
         lane_ls = LineString(midline_points)
         return lane_ls
-
 
     def _get_split_at(self, midline, point):
         """

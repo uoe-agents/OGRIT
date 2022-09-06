@@ -235,6 +235,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                 # Save the first frame in which the target vehicle wasn't occluded w.r.t the ego.
                 first_frame_target_not_occluded = None
 
+                target_occlusion_history = []  # booleans indicating whether the target was occluded in each frame
+
                 # Get a sample every FRAME_STEP_SIZE time steps from when the target first becomes visible to the ego
                 # until it is last visible.
                 for step_idx in range(initial_frame_offset, len(reachable_goals_list), FRAME_STEP_SIZE):
@@ -245,8 +247,10 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                     # Don't include the frames in which the target vehicle is occluded w.r.t the ego.
                     if extract_missing_features:
 
-                        if is_target_vehicle_occluded(current_frame_id, feature_extractor.occlusions, target_agent_id,
-                                                      ego_agent_id, episode_frames):
+                        target_occluded = is_target_vehicle_occluded(current_frame_id, feature_extractor.occlusions,
+                                                                     target_agent_id, ego_agent_id, episode_frames)
+                        target_occlusion_history.append(target_occluded)
+                        if target_occluded:
                             continue
 
                         if first_frame_target_not_occluded is None:
@@ -263,7 +267,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
 
                                 features = feature_extractor.extract(target_agent_id, frames, typed_goal,
                                                                      ego_agent_id=ego_agent_id,
-                                                                     initial_frame=first_frame_target_not_occluded)
+                                                                     initial_frame=first_frame_target_not_occluded,
+                                                                     target_occlusion_history=target_occlusion_history)
                             else:
                                 features = feature_extractor.extract(target_agent_id, frames, typed_goal)
 

@@ -240,9 +240,9 @@ class Node:
                         best_threshold = 0.5
 
                 if best_impurity_decrease > 0:
-                    true_idx = node_samples[best_feature] > best_threshold
+                    true_idx = (node_samples[best_feature] > best_threshold).astype('bool')
                     true_samples = node_samples.loc[true_idx]
-                    false_samples = node_samples.loc[~true_idx.astype('bool')]
+                    false_samples = node_samples.loc[~true_idx]
                     true_child = cls.get_node(true_samples, node.level + 1, goal_normaliser,
                                               non_goal_normaliser, alpha)
                     false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
@@ -251,7 +251,7 @@ class Node:
                         node.decision = BinaryDecision(best_feature, true_child, false_child)
                     else:
                         node.decision = ThresholdDecision(best_threshold, best_feature, true_child, false_child)
-                    true_idx = node.decision.rule(node_samples)
+
                     if best_feature in indicator_features:
                         true_child_true_indicators = true_indicators + [best_feature]
                         false_child_false_indicators = false_indicators + [best_feature]
@@ -260,7 +260,7 @@ class Node:
                         false_child_false_indicators = false_indicators
                     _recursive_split(node.decision.true_child, node_samples.loc[true_idx],
                                      true_child_true_indicators, false_indicators)
-                    _recursive_split(node.decision.false_child, node_samples.loc[~true_idx.astype('bool')],
+                    _recursive_split(node.decision.false_child, node_samples.loc[~true_idx],
                                      true_indicators, false_child_false_indicators)
             return node
 
