@@ -147,21 +147,62 @@ class GoalGenerator:
         return best_idx
 
     @staticmethod
-    def get_juction_goal_type(lane: Lane):
+    def has_priority(a, b):
+        for priority in a.junction.priorities:
+            if (priority.high_id == a.id
+                    and priority.low_id == b.id):
+                return True
+        return False
+
+    @classmethod
+    def is_junction_entry(cls, lane: Lane, direction: str):
+        # for priority in lane.parent_road.junction.priorities:
+        #     if priority.high_id == lane.parent_road.id:
+        #         return False
+        # return True
+
+        junction = lane.parent_road.junction
+        target_successor = lane.link.successor[0]
+
+        for connection in junction.connections:
+            for lane_link in connection.lane_links:
+                other_lane = lane_link.to_lane
+                other_direction = cls.get_lane_direction(other_lane)
+                other_successor = other_lane.link.successor[0]
+                if (target_successor == other_successor
+                        and (other_direction == 'straight' or direction == 'straight')
+                        and cls.has_priority(other_lane.parent_road,
+                                             lane.parent_road)):
+                    return True
+        return False
+
+    @staticmethod
+    def get_lane_direction(lane: Lane):
         start_heading = lane.get_heading_at(0)
         end_heading = lane.get_heading_at(lane.length)
         heading_change = np.diff(np.unwrap([start_heading, end_heading]))[0]
+        if np.pi * 7 / 8 > heading_change > np.pi / 8:
+            return 'left'
+        elif -np.pi * 7 / 8 < heading_change < -np.pi / 8:
+            return 'right'
+        elif -np.pi / 8 <= heading_change <= np.pi / 8:
+            return 'straight'
+        else:
+            return 'backward'
+
+    @classmethod
+    def get_juction_goal_type(cls, lane: Lane):
         junction = lane.parent_road.junction
 
         if junction.junction_group is not None and junction.junction_group.type == 'roundabout':
-            goal_type = 'exit-roundabout'
-        elif np.pi * 7 / 8 > heading_change > np.pi / 8:
-            goal_type = 'turn-left'
-        elif -np.pi * 7 / 8 < heading_change < -np.pi / 8:
-            goal_type = 'turn-right'
-        elif -np.pi / 8 <= heading_change <= np.pi / 8:
-            goal_type = 'straight-on'
-        else:
-            goal_type = 'u-turn'
+            return 'exit-roundabout'
 
-        return goal_type
+        direction = cls.get_lane_direction(lane)
+        is_entry = cls.is_junction_entry(lane, direction)
+        if direction == 'left':
+            return 'enter-left' if is_entry else 'exit-left'
+        if direction == 'right':
+            return 'enter-right' if is_entry else 'exit-right'
+        if direction == 'straight':
+            return 'cross-road' if is_entry else 'straight-on'
+        return 'u-turn'

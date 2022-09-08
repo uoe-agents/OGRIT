@@ -5,7 +5,7 @@ import numpy as np
 import pickle
 import math
 
-from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map
+from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map, Road
 
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split
@@ -578,10 +578,10 @@ class FeatureExtractor:
         return lane_sequence
 
     @staticmethod
-    def _has_priority(ego_road, other_road):
-        for priority in ego_road.junction.priorities:
-            if (priority.high_id == ego_road.id
-                    and priority.low_id == other_road.id):
+    def _has_priority(a: Road, b: Road):
+        for priority in a.junction.priorities:
+            if (priority.high_id == a.id
+                    and priority.low_id == b.id):
                 return True
         return False
 
