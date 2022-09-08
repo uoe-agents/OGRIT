@@ -182,7 +182,7 @@ class Node:
         goal_normaliser = (N + 2 * alpha) / 2 / (Ng + alpha)
         non_goal_normaliser = (N + 2 * alpha) / 2 / (N - Ng + alpha)
 
-        base_features = FeatureExtractor.feature_names.keys()
+        base_features = list(FeatureExtractor.feature_names.keys())
         possibly_missing_features = FeatureExtractor.possibly_missing_features
         indicator_features = FeatureExtractor.indicator_features
 
@@ -192,7 +192,7 @@ class Node:
             indicator_features = [f for f in indicator_features if f in list(possibly_missing_features.keys())]
 
         if oracle:
-            base_features += list(possibly_missing_features)
+            base_features += list(possibly_missing_features.keys())
             possibly_missing_features = {}
             indicator_features = []
 

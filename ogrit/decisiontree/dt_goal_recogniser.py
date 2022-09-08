@@ -246,7 +246,8 @@ class OcclusionGrit(GeneralisedGrit):
 
     @classmethod
     def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1,
-              max_leaf_nodes=None, max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False):
+              max_leaf_nodes=None, max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False,
+              oracle=False):
         if dataset is None:
             dataset = get_multi_scenario_dataset(scenario_names)
         if balance_scenarios:
@@ -258,7 +259,7 @@ class OcclusionGrit(GeneralisedGrit):
             dt_training_set = dataset.loc[dataset.goal_type == goal_type]
             if dt_training_set.shape[0] > 0:
                 goal_tree = Node.fit(dt_training_set, goal_type, alpha=alpha, min_samples_leaf=min_samples_leaf,
-                                     max_depth=max_depth, ccp_alpha=ccp_alpha, features=features)
+                                     max_depth=max_depth, ccp_alpha=ccp_alpha, features=features, oracle=oracle)
             else:
                 goal_tree = Node(0.5)
 
@@ -269,18 +270,17 @@ class OcclusionGrit(GeneralisedGrit):
 
 
 class OgritOracle(OcclusionGrit):
-    def goal_likelihood_from_features(self, features, goal_type, goal):
-        oracle_features = features.copy()
-        for feature_name in oracle_features.index:
-            if feature_name in FeatureExtractor.indicator_features:
-                oracle_features[feature_name] = False
+    @staticmethod
+    def get_model_name():
+        return 'ogrit_oracle'
 
-        if goal_type in self.decision_trees:
-            tree = self.decision_trees[goal_type]
-            tree_likelihood = tree.traverse(oracle_features)
-        else:
-            tree_likelihood = 0.5
-        return tree_likelihood
+    @classmethod
+    def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1,
+              max_leaf_nodes=None, max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False,
+              oracle=True):
+        return super().train(scenario_names, alpha, criterion, min_samples_leaf,
+                             max_leaf_nodes, max_depth, ccp_alpha, dataset, features,
+                             balance_scenarios=balance_scenarios, oracle=oracle)
 
 
 class SpecializedOgrit(Grit):
