@@ -58,6 +58,8 @@ class FeatureExtractor:
                                  'oncoming_vehicle_speed': 'oncoming_vehicle_missing',
                                  'vehicle_in_front_dist': 'vehicle_in_front_missing',
                                  'vehicle_in_front_speed': 'vehicle_in_front_missing',
+                                 'speed': 'target_1s_occluded',
+                                 'acceleration': 'target_1s_occluded',
                                  'speed_change_1s': 'target_1s_occluded',
                                  'speed_change_2s': 'target_2s_occluded',
                                  'speed_change_3s': 'target_3s_occluded',

@@ -168,7 +168,7 @@ class Node:
 
     @classmethod
     def fit(cls, samples: pd.DataFrame, goal: Union[int, str], alpha=0, min_samples_leaf=1, max_depth=None,
-            ccp_alpha=0., features=None):
+            ccp_alpha=0., features=None, oracle=False):
 
         if 'weight' not in samples.columns:
             samples['weight'] = 1.
@@ -190,6 +190,11 @@ class Node:
             base_features = [f for f in base_features if f in features]
             possibly_missing_features = {k: v for k, v in possibly_missing_features.items() if k in features}
             indicator_features = [f for f in indicator_features if f in list(possibly_missing_features.keys())]
+
+        if oracle:
+            base_features += list(possibly_missing_features)
+            possibly_missing_features = {}
+            indicator_features = []
 
         def _recursive_split(node: Node, node_samples: pd.DataFrame, true_indicators, false_indicators):
 

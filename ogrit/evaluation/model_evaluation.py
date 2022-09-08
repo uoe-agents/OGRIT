@@ -7,7 +7,7 @@ from ogrit.core.base import get_base_dir, get_all_scenarios, get_data_dir
 from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, Grit, GeneralisedGrit, UniformPriorGrit, \
     OcclusionBaseline, NoPossiblyMissingFeaturesGrit, SpecializedOgrit, TruncatedGrit, \
-    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesUniformPriorGrit
+    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesUniformPriorGrit, OgritOracle
 from ogrit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -53,7 +53,8 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
                      'truncated_grit': TruncatedGrit,
                      'no_possibly_missing_features_grit': NoPossiblyMissingFeaturesGrit,
                      'no_possibly_missing_features_ogrit': NoPossiblyMissingFeaturesOGrit,
-                     'grit_no_missing_uniform': NoPossiblyMissingFeaturesUniformPriorGrit}
+                     'grit_no_missing_uniform': NoPossiblyMissingFeaturesUniformPriorGrit,
+                     'ogrit_oracle': OgritOracle}
 
     accuracies = pd.DataFrame(index=model_names, columns=scenario_names)
     accuracies_sem = pd.DataFrame(index=model_names, columns=scenario_names)

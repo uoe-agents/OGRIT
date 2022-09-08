@@ -13,10 +13,10 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 # model_names = ['prior_baseline', 'grit', 'generalised_grit',
 #                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 #scenario_names = get_all_scenarios()
-scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
+scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
 
-model_names = ['generalised_grit', 'occlusion_grit', 'truncated_grit',
-               'no_possibly_missing_features_ogrit', 'grit_no_missing_uniform'] #, 'lstm']
+model_names = ['occlusion_grit', 'ogrit_oracle',
+               'no_possibly_missing_features_ogrit', 'lstm']
 #model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
 
 
@@ -30,6 +30,8 @@ label_map = {'generalised_grit': 'Oracle',
              'grit': 'GRIT',
              'lstm': 'LSTM',
              'sogrit': 'S-OGRIT',
+             'ogrit_oracle': 'Oracle',
+             'trained_trees': 'GRIT',
              'truncated_grit': 'Truncated GRIT',
              'no_possibly_missing_features_grit': 'no missing features GRIT',
              'grit_no_missing_uniform': 'no missing features GRIT uniform prior'}
@@ -99,7 +101,7 @@ if plot_normalised_entropy:
 if plot_true_goal_prob:
     plt.rcParams["figure.figsize"] = (20,4)
 
-    fig, axes = plt.subplots(1, 4)
+    fig, axes = plt.subplots(1, len(scenario_names))
 
 
     def plot_lstm(scenario_name, label, marker):
@@ -146,9 +148,9 @@ if plot_true_goal_prob:
         # Plot OGRIT and the baselines.
         for model_name in model_names:
 
-            if model_name == "lstm":
-                plot_lstm(scenario_name, label=label_map[model_name], marker=next(marker))
-                continue
+            # if model_name == "lstm":
+            #     plot_lstm(scenario_name, label=label_map[model_name], marker=next(marker))
+            #     continue
 
             true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')

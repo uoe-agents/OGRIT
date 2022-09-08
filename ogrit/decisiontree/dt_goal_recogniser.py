@@ -147,9 +147,13 @@ class GeneralisedGrit(GoalRecogniser):
 
     @classmethod
     def train(cls, scenario_names: List[str], alpha=1, criterion='gini', min_samples_leaf=1,
-              max_leaf_nodes=None, max_depth=None, ccp_alpha=0, dataset=None, features=None):
+              max_leaf_nodes=None, max_depth=None, ccp_alpha=0, dataset=None, features=None, balance_scenarios=False):
         if dataset is None:
             dataset = get_multi_scenario_dataset(scenario_names)
+        if balance_scenarios:
+            dataset = cls.add_scenario_balanced_weights(dataset)
+        else:
+            dataset['weight'] = 1.
         decision_trees = {}
         goal_types = dataset.goal_type.unique()
         for goal_type in goal_types:
@@ -262,6 +266,21 @@ class OcclusionGrit(GeneralisedGrit):
 
         priors = np.ones(len(decision_trees)) / len(decision_trees)
         return cls(priors, decision_trees)
+
+
+class OgritOracle(OcclusionGrit):
+    def goal_likelihood_from_features(self, features, goal_type, goal):
+        oracle_features = features.copy()
+        for feature_name in oracle_features.index:
+            if feature_name in FeatureExtractor.indicator_features:
+                oracle_features[feature_name] = False
+
+        if goal_type in self.decision_trees:
+            tree = self.decision_trees[goal_type]
+            tree_likelihood = tree.traverse(oracle_features)
+        else:
+            tree_likelihood = 0.5
+        return tree_likelihood
 
 
 class SpecializedOgrit(Grit):

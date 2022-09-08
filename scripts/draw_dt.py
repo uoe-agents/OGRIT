@@ -1,13 +1,14 @@
 from ogrit.core.base import get_img_dir, get_data_dir
-from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit
+from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit, OcclusionBaseline, OgritOracle, \
+    NoPossiblyMissingFeaturesOGrit
 
-test_scenario = 'heckstrasse'
+test_scenario = 'bendplatz'
 models_dir = get_data_dir() #+ f'/loocv/{test_scenario}/'
-model = OcclusionGrit.load(test_scenario)
+model = NoPossiblyMissingFeaturesOGrit.load(test_scenario)
 model.save_images()
 # truncate = ['RT', 'RFTT', 'RFFF']
 truncate = []
-goal_type = 'turn-right'
+goal_type = 'turn-left'
 
 goal_tree = model.decision_trees[goal_type]
 model_name = model.get_model_name()
