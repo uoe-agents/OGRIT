@@ -781,10 +781,10 @@
         <priority high="5" low="7" />
         <priority high="5" low="8" />
         <priority high="5" low="9" />
+        <priority high="5" low="12" />
         <priority high="5" low="14" />
         <priority high="5" low="15" />
         <priority high="4" low="14" />
-        <priority high="4" low="12" />
         <priority high="4" low="12" />
         <priority high="6" low="14" />
         <priority high="6" low="8" />
