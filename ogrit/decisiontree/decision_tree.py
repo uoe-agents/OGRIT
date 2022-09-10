@@ -141,6 +141,7 @@ class Node:
         possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
         samples['has_goal'] = samples.possible_goal == samples.true_goal
         goal_training_samples = samples.loc[possible_goal == goal]
+        alpha = alpha * samples.weight.mean()
 
         N = goal_training_samples.weight.sum()
         Ng = (goal_training_samples.has_goal * goal_training_samples.weight).sum()
@@ -172,6 +173,7 @@ class Node:
 
         if 'weight' not in samples.columns:
             samples['weight'] = 1.
+        alpha = alpha * samples.weight.mean()
 
         possible_goal = samples.goal_type if isinstance(goal, str) else samples.possible_goal
         samples['has_goal'] = samples.possible_goal == samples.true_goal

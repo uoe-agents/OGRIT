@@ -42,15 +42,15 @@ class FeatureExtractor:
                      'oncoming_vehicle_speed': 'scalar',
                      'road_heading': 'scalar',
                      'exit_number': 'integer',
-                     'speed_change_1s': 'scalar',
-                     'speed_change_2s': 'scalar',
-                     'speed_change_3s': 'scalar',
+                     # 'speed_change_1s': 'scalar',
+                     # 'speed_change_2s': 'scalar',
+                     # 'speed_change_3s': 'scalar',
                      'heading_change_1s': 'scalar',
-                     'heading_change_2s': 'scalar',
-                     'heading_change_3s': 'scalar',
-                     'dist_travelled_1s': 'scalar',
-                     'dist_travelled_2s': 'scalar',
-                     'dist_travelled_3s': 'scalar'
+                     # 'heading_change_2s': 'scalar',
+                     # 'heading_change_3s': 'scalar',
+                     # 'dist_travelled_1s': 'scalar',
+                     # 'dist_travelled_2s': 'scalar',
+                     # 'dist_travelled_3s': 'scalar'
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -60,15 +60,15 @@ class FeatureExtractor:
                                  'vehicle_in_front_speed': 'vehicle_in_front_missing',
                                  'speed': 'target_1s_occluded',
                                  'acceleration': 'target_1s_occluded',
-                                 'speed_change_1s': 'target_1s_occluded',
-                                 'speed_change_2s': 'target_2s_occluded',
-                                 'speed_change_3s': 'target_3s_occluded',
+                                 # 'speed_change_1s': 'target_1s_occluded',
+                                 # 'speed_change_2s': 'target_2s_occluded',
+                                 # 'speed_change_3s': 'target_3s_occluded',
                                  'heading_change_1s': 'target_1s_occluded',
-                                 'heading_change_2s': 'target_2s_occluded',
-                                 'heading_change_3s': 'target_3s_occluded',
-                                 'dist_travelled_1s': 'target_1s_occluded',
-                                 'dist_travelled_2s': 'target_2s_occluded',
-                                 'dist_travelled_3s': 'target_3s_occluded'
+                                 # 'heading_change_2s': 'target_2s_occluded',
+                                 # 'heading_change_3s': 'target_3s_occluded',
+                                 # 'dist_travelled_1s': 'target_1s_occluded',
+                                 # 'dist_travelled_2s': 'target_2s_occluded',
+                                 # 'dist_travelled_3s': 'target_3s_occluded'
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 
@@ -269,6 +269,11 @@ class FeatureExtractor:
             if lane_path[idx].lane_section == lane_path[idx+1].lane_section:
                 return False
         return True
+
+    @staticmethod
+    def multi_lane(lane: Lane):
+        # check if can switch lane - see igp2
+        pass
 
     @classmethod
     def path_to_goal_length(cls, state: AgentState, goal: TypedGoal, path: List[Lane]) -> float:

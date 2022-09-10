@@ -5,10 +5,10 @@
             [57.9, -30.2],
             [45.2, -35.0],
             [38.6, -30.6]],
-  "goal_types": [["turn-left", "turn-right", "straight-on"],
-                 ["turn-left", "turn-right", "straight-on"],
-                 ["turn-left", "turn-right", "straight-on"],
-                 ["turn-left", "turn-right", "straight-on"]
+  "goal_types": [["enter-left", "exit-right", "cross-road"],
+                 ["enter-left", "exit-right", "cross-road"],
+                 ["enter-left", "exit-right", "cross-road"],
+                 ["enter-left", "exit-right", "cross-road"]
   ],
   "goals_priors":[0.16918189038919776,
     0.5671167593328038,

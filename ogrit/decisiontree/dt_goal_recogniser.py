@@ -53,7 +53,8 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
               max_depth=None, training_set=None, ccp_alpha=0, features=None):
         decision_trees = {}
         scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
-
+        if features is None:
+            features = list(FeatureExtractor.feature_names.keys())
         if training_set is None:
             training_set = get_dataset(scenario_name, subset='train')
         training_set['weight'] = 1.
@@ -66,10 +67,7 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
                 dt_training_set = training_set.loc[(training_set.possible_goal == goal_idx)
                                                    & (training_set.goal_type == goal_type)]
                 if dt_training_set.shape[0] > 0:
-                    if features is None:
-                        X = dt_training_set[FeatureExtractor.feature_names.keys()].to_numpy()
-                    else:
-                        X = dt_training_set[features].to_numpy()
+                    X = dt_training_set[features].to_numpy()
                     y = (dt_training_set.possible_goal == dt_training_set.true_goal).to_numpy()
                     if y.all() or not y.any():
                         goal_tree = Node(0.5)
@@ -78,7 +76,8 @@ class DecisionTreeGoalRecogniser(FixedGoalRecogniser):
                             min_samples_leaf=min_samples_leaf, max_depth=max_depth, class_weight='balanced',
                             criterion=criterion, ccp_alpha=ccp_alpha)
                         clf = clf.fit(X, y)
-                        goal_tree = Node.from_sklearn(clf, FeatureExtractor.feature_names)
+                        feature_types = {k: v for k, v in FeatureExtractor.feature_names.items() if k in features}
+                        goal_tree = Node.from_sklearn(clf, feature_types)
                         goal_tree.set_values(dt_training_set, goal_idx, alpha=alpha)
                 else:
                     goal_tree = Node(0.5)
@@ -360,9 +359,7 @@ class NoPossiblyMissingFeaturesGrit(Grit):
 
     """Model without the features that could be missing"""
     FEATURES = [feature for feature in FeatureExtractor.feature_names.keys()
-                if feature not in ["vehicle_in_front_dist", "vehicle_in_front_speed",
-                                   "oncoming_vehicle_dist", "oncoming_vehicle_speed",
-                                   "exit_number"]]
+                if feature not in FeatureExtractor.possibly_missing_features]
     
     @staticmethod
     def get_model_name():
