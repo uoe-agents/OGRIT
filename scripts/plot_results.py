@@ -15,7 +15,7 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 scenario_names = get_all_scenarios()
 #scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
 
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm']#, 'igp2']
 #model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
 
 
