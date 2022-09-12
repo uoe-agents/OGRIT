@@ -77,6 +77,10 @@ def set_working_dir():
     os.chdir(get_base_dir())
 
 
+def get_igp2_results_dir():
+    return get_base_dir() + '/baselines/igp2/results'
+
+
 if __name__ == "__main__":
     set_working_dir()
     create_folders()
