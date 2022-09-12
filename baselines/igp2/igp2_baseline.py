@@ -20,7 +20,7 @@ from igp2.results import *
 from igp2.planlibrary.maneuver import Maneuver, SwitchLane
 from igp2.planlibrary.macro_action import ChangeLane
 
-from ogrit.core.base import set_working_dir, get_occlusions_dir
+from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir
 
 # todo: code from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
 def create_args():
@@ -37,7 +37,7 @@ Make sure to create these folders ahead of running the script.
 
     config_specification.add_argument('--num_workers', default="0",
                                       help="Number of parralel processes. Set 0 for auto", type=int)
-    config_specification.add_argument('--output', default="experiment",
+    config_specification.add_argument('--output', default="_igp2_baseline",
                                       help="Output .pkl filename", type=str)
     config_specification.add_argument('--tuning', default="0",
                                       help="0: runs default tuning parameters defined in the scenario JSON. \
@@ -49,6 +49,7 @@ Make sure to create these folders ahead of running the script.
     config_specification.add_argument('--dataset', default="valid",
                                       help="valid: runs on the validation dataset, test: runs on the test dataset",
                                       type=str)
+    config_specification.add_argument('--scenario', default="heckstrasse", type=str)
 
     parsed_config_specification = vars(config_specification.parse_args())
     return parsed_config_specification
@@ -68,7 +69,7 @@ def read_and_process_data(scenario, episode_id): # todo: use this instead
     """Identifies which frames and agents to perform goal recognition for in episode,
     from a provided .csv file."""
 
-    file_path = f'data/{scenario}_e{episode_id}.csv'
+    file_path = get_data_dir() + f'/{scenario}_e{episode_id}.csv'
     data = pd.read_csv(file_path).drop_duplicates(['frame_id', 'agent_id', 'ego_agent_id'])
     # todo: remove duplicates
     return data
@@ -90,14 +91,15 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
             if result_agent is None:
                 result_agent = AgentResult(row['true_goal'])
             frame_id = row['frame_id']
-            agent_states = [frame.agents[aid] for frame in frames[0:frame_id - frame_ini + 1]] # todo: replace where frames come from
+            agent_states = [frame.agents[aid] for frame in frames[0:frame_id - frame_ini + 1]]
             trajectory = ip.StateTrajectory(framerate, frames=agent_states)
             t_start = time.perf_counter()
             goal_recognition.update_goals_probabilities(goal_probabilities_c, trajectory, aid,
                                                         frame_ini=frames[0].agents,
                                                         frame=frames[frame_id - frame_ini].agents, maneuver=None)
             t_end = time.perf_counter()
-            result_agent.add_data((frame_id, copy.deepcopy(goal_probabilities_c), t_end - t_start, trajectory.path[-1]))
+            result_agent.add_data((frame_id, copy.deepcopy(goal_probabilities_c), t_end - t_start, trajectory.path[-1],
+                                   row['fraction_observed']))
         except Exception as e:
             logger.error(f"Fatal in recording_id: {recordingID} for aid: {aid} at frame {frame_id}.")
             logger.error(f"Error message: {str(e)}")
@@ -306,7 +308,8 @@ if __name__ == '__main__':
 
     set_working_dir()
     config = create_args()
-    experiment_name = config['output']
+    scenario_name = config['scenario']
+    experiment_name = scenario_name + config['output']
     logger = setup_logging(level=logging.INFO, log_dir="baselines/igp2/logs", log_name=experiment_name)
 
     SCENARIOS = ["heckstrasse"] # todo: add all scenarios
