@@ -20,7 +20,7 @@ from igp2.results import *
 from igp2.planlibrary.maneuver import Maneuver, SwitchLane
 from igp2.planlibrary.macro_action import ChangeLane
 
-from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir
+from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir, get_igp2_results_dir
 
 # todo: code from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
 def create_args():
@@ -276,8 +276,7 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
 def dump_results(objects, name: str):
     """Saves results binary"""
     filename = name + '.pkl'
-    foldername = 'baselines/igp2/results/'
-    filename = foldername + filename
+    filename = get_igp2_results_dir() + f"/{filename}"
 
     with open(filename, 'wb') as f:
         dill.dump(objects, f)
@@ -312,7 +311,7 @@ if __name__ == '__main__':
     experiment_name = scenario_name + config['output']
     logger = setup_logging(level=logging.INFO, log_dir="baselines/igp2/logs", log_name=experiment_name)
 
-    SCENARIOS = ["heckstrasse"] # todo: add all scenarios
+    SCENARIOS = [scenario_name]
 
     DATASET = config["dataset"]
     if DATASET not in ('test', 'valid'):
