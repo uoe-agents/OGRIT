@@ -135,7 +135,7 @@ class GeneralisedGrit(GoalRecogniser):
     @staticmethod
     def add_scenario_balanced_weights(dataset):
         num_scenarios = len(dataset.scenario.unique())
-        scenario_weights = dataset.scenario.value_counts() / dataset.shape[0] * num_scenarios
+        scenario_weights = dataset.shape[0] / dataset.scenario.value_counts() / num_scenarios
         scenario_weights = scenario_weights.rename('weight').to_frame()
         dataset = dataset.merge(scenario_weights, left_on='scenario', right_index=True)
         return dataset
@@ -186,6 +186,8 @@ class GeneralisedGrit(GoalRecogniser):
             data_dir = get_data_dir()
         with open(data_dir + f'{self.get_model_name()}.p', 'wb') as f:
             pickle.dump(self.decision_trees, f)
+        with open(data_dir + f'{self.get_model_name()}_priors.p', 'wb') as f:
+            pickle.dump(self.goal_priors, f)
 
     def save_images(self, truncated_edges=None):
         for goal_type, goal_tree in self.decision_trees.items():
@@ -206,7 +208,8 @@ class GeneralisedGrit(GoalRecogniser):
             data_dir = get_data_dir()
         with open(data_dir + f'{cls.get_model_name()}.p', 'rb') as f:
             decision_trees = pickle.load(f)
-        priors = np.ones(len(decision_trees)) / len(decision_trees)
+        with open(data_dir + f'{cls.get_model_name()}_priors.p', 'rb') as f:
+            priors = pickle.load(f)
         scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
         scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
         feature_extractor = FeatureExtractor(scenario_map)
@@ -244,15 +247,21 @@ class OcclusionGrit(GeneralisedGrit):
         return 'occlusion_grit'
 
     @classmethod
-    def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1,
-              max_leaf_nodes=None, max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False,
-              oracle=False):
+    def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1, max_leaf_nodes=None,
+              max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False, oracle=False):
         if dataset is None:
             dataset = get_multi_scenario_dataset(scenario_names)
         if balance_scenarios:
             dataset = cls.add_scenario_balanced_weights(dataset)
         decision_trees = {}
         goal_types = dataset.goal_type.unique()
+
+        priors = ((dataset.groupby('true_goal_type').weight.sum() + alpha)
+                  / (dataset.weight.sum() + goal_types.shape[0] * alpha))
+        priors = priors.rename('prior').to_frame().reset_index()
+
+        priors['prior'] = 1 / priors.shape[0]  # uniform prior
+
         for goal_type in goal_types:
 
             dt_training_set = dataset.loc[dataset.goal_type == goal_type]
@@ -264,11 +273,11 @@ class OcclusionGrit(GeneralisedGrit):
 
             decision_trees[goal_type] = goal_tree
 
-        priors = np.ones(len(decision_trees)) / len(decision_trees)
         return cls(priors, decision_trees)
 
 
 class OgritOracle(OcclusionGrit):
+
     @staticmethod
     def get_model_name():
         return 'ogrit_oracle'

@@ -63,8 +63,12 @@ class GoalRecogniser:
             goals = dataset.loc[indices][['possible_goal', 'goal_type', 'model_likelihood']]
 
             if isinstance(self.goal_priors, pd.DataFrame):
-                goals = goals.merge(self.goal_priors, 'left', left_on=['possible_goal', 'goal_type'],
-                                    right_on=['true_goal', 'true_goal_type'])
+                left_on = ['goal_type']
+                right_on = ['true_goal_type']
+                if 'true_goal' in self.goal_priors:
+                    left_on.append('possible_goal')
+                    right_on.append('true_goal')
+                goals = goals.merge(self.goal_priors, 'left', left_on=left_on, right_on=right_on)
             else:
                 # use uniform prior for now
                 num_goal_types = goals.possible_goal.unique().shape[0]
