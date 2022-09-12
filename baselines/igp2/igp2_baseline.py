@@ -223,12 +223,17 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
 
             state_trajectory = ip.StateTrajectory(25, [frames[idx_last_seen].agents[aid]]) # todo: make 25 a variable `framerate`
             # Generate trajectory for those frames in which the target was occluded.
-            trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
-                                                                 agent_id=aid,
-                                                                 frame=frames[idx_last_seen].agents,
-                                                                 goal=PointGoal(frame.agents[aid].position, 3),
-                                                                 state_trajectory=state_trajectory,
-                                                                 n_resample=nr_occluded_frames)
+
+            try:
+                trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
+                                                                     agent_id=aid,
+                                                                     frame=frames[idx_last_seen].agents,
+                                                                     goal=PointGoal(frame.agents[aid].position, 3),
+                                                                     state_trajectory=state_trajectory,
+                                                                     n_resample=nr_occluded_frames)
+            except RuntimeError as e:
+                print(e)
+                continue
 
             """
             smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr")
