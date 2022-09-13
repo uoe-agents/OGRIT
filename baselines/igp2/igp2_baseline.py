@@ -78,6 +78,7 @@ def read_and_process_data(scenario, episode_id): # todo: use this instead
 def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recognition: GoalRecognition,
                            goal_probabilities: GoalsProbabilities):
     """Computes the goal recognition results for specified agent at specified frames."""
+
     goal_probabilities_c = copy.deepcopy(goal_probabilities)
     result_agent = None
     for frame in frames:
@@ -91,6 +92,7 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
             if result_agent is None:
                 result_agent = AgentResult(row['true_goal'])
             frame_id = row['frame_id']
+
             agent_states = [frame.agents[aid] for frame in frames[0:frame_id - frame_ini + 1]]
             trajectory = ip.StateTrajectory(framerate, frames=agent_states)
             t_start = time.perf_counter()
@@ -213,14 +215,11 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
 
         nr_occluded_frames = i-idx_last_seen
 
-        # If the target was visible in the previous frame, do nothing. Else, use a* to fill in the occluded part.
         if target_occluded:
             continue
 
-        if idx_last_seen == i-1 or idx_last_seen == 0:
-            idx_last_seen = i
-        else:
-
+        # If the target was visible in the previous frame, do nothing. Else, use a* to fill in the occluded part.
+        if idx_last_seen != i-1 and idx_last_seen != 0:
             state_trajectory = ip.StateTrajectory(25, [frames[idx_last_seen].agents[aid]]) # todo: make 25 a variable `framerate`
             # Generate trajectory for those frames in which the target was occluded.
 
@@ -228,12 +227,26 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
                 trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
                                                                      agent_id=aid,
                                                                      frame=frames[idx_last_seen].agents,
-                                                                     goal=PointGoal(frame.agents[aid].position, 3),
+                                                                     goal=PointGoal(frame.agents[aid].position, 4),
                                                                      state_trajectory=state_trajectory,
                                                                      n_resample=nr_occluded_frames)
             except RuntimeError as e:
-                print(e)
-                continue
+
+                if not ip.Map.parse_from_opendrive(f"scenarios/maps/bendplatz.xodr").best_road_at(frames[idx_last_seen].agents[aid].position):
+
+                    print(f"IGNOREEEEEEEEEEEEEE {aid} at {frames[idx_last_seen].agents[aid].position}")
+                    #### todo assume full visibility for this path which we cannot reconstruct
+                    for j, frame_idx in enumerate(range(idx_last_seen + 1, i), 1):
+                        old_frame = frames[frame_idx]
+                        occlusion_frames.append(old_frame)
+                    occlusion_frames.append(frame)
+                    idx_last_seen = i
+                    continue
+
+                else:
+                    print(f"ERRRRRRROOOOOOOOOOOOOOOOOR {aid} at {frames[idx_last_seen].agents[aid].position}")
+                    continue
+
 
             """
             smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr")
@@ -258,25 +271,33 @@ def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
                                                                               (1, final_direction)))
 
             cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
+            cs_acceleration = CubicSpline(trajectory.times, trajectory.acceleration)
+            cs_heading = CubicSpline(trajectory.times, trajectory.heading)
 
             ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
 
             new_path = cs_path(ts)
             new_vel = cs_velocity(ts)
+            new_acc = cs_acceleration(ts)
+            new_heading = cs_heading(ts)
 
             for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
                 new_frame_id = initial_frame_id + frame_idx
-                old_frame_agents = frames[frame_idx].agents
-                old_frame_agents[aid] = AgentState(new_frame_id,
-                                                   new_path[j],
-                                                   new_vel[j],
-                                                   None,
-                                                   None,
-                                                   metadata)
-                occlusion_frames.append(old_frame_agents)
+                old_frame = frames[frame_idx]
+                old_frame_agents = old_frame.all_agents
 
+                new_frame = ip.data.episode.Frame(old_frame.time, old_frame.dead_ids)
+
+                for agent_id, agent in old_frame_agents.items():
+                    if agent_id == aid:
+                        agent = AgentState(new_frame_id, new_path[j], new_vel[j], new_acc[j], new_heading[j], metadata)
+                    new_frame.add_agent_state(agent_id, agent)
+
+                occlusion_frames.append(new_frame)
+
+        idx_last_seen = i
         occlusion_frames.append(frame)
-    return frames  # todo: return the updated frames
+    return occlusion_frames
 
 def dump_results(objects, name: str):
     """Saves results binary"""
