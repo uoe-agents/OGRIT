@@ -241,6 +241,26 @@ def test_round_south():
     assert goal_in_list(goals, 'exit-roundabout', (53.3, -35.9))
 
 
+def test_neukoellnerstrasse_sw_left_lane():
+    xodr = "../scenarios/maps/neukoellnerstrasse.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(30)
+    speed = 5
+    time = 0
+    position = np.array((94.8, -86.3))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 2
+    assert goal_in_list(goals, 'straight-on', (158.7, -58.1))
+    assert goal_in_list(goals, 'exit-left', (145.6, -30.9))
+
+
 # def test_town01_mainroad():
 #     xodr = "../scenarios/maps/town01.xodr"
 #     scenario_map = Map.parse_from_opendrive(xodr)

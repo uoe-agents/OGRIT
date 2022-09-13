@@ -12,10 +12,10 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 # model_names = ['prior_baseline', 'grit', 'generalised_grit',
 #                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
-#scenario_names = get_all_scenarios()
-scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
+scenario_names = get_all_scenarios()
+#scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
 
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm']#, 'igp2']
 #model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
 
 
@@ -29,11 +29,11 @@ label_map = {'generalised_grit': 'Oracle',
              'grit': 'GRIT',
              'lstm': 'LSTM',
              'sogrit': 'S-OGRIT',
-             'ogrit_oracle': 'OGRIT Oracle',
+             'ogrit_oracle': 'OGRIT (oracle)',
              'trained_trees': 'GRIT',
              'truncated_grit': 'Truncated GRIT',
-             'no_possibly_missing_features_grit': 'no missing features GRIT',
-             'grit_no_missing_uniform': 'GRIT baseline',
+             'no_possibly_missing_features_grit': 'GRIT',
+             'grit_no_missing_uniform': 'GRIT',
              'igp2': 'IGP2'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
@@ -48,7 +48,7 @@ plot_true_goal_prob = True
 
 # results_dir = get_base_dir() + "/predictions/occlusion_subset/"
 results_dir = get_base_dir() + "/results/"
-# results_dir = get_base_dir() + f'/results/loocv/'
+#results_dir = get_base_dir() + f'/results/loocv/'
 
 # plot accuracy
 if plot_accuracy:
@@ -99,9 +99,9 @@ if plot_normalised_entropy:
 
 # plot true goal probability
 if plot_true_goal_prob:
-    plt.rcParams["figure.figsize"] = (20,4)
+    plt.rcParams["figure.figsize"] = (8,8)
 
-    fig, axes = plt.subplots(1, len(scenario_names))
+    fig, axes = plt.subplots(2, 2)
 
 
     def plot_lstm(scenario_name, label, marker):
@@ -133,13 +133,12 @@ if plot_true_goal_prob:
 
 
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        #ax = axes[scenario_idx % 2, scenario_idx // 2]
-        ax = axes[scenario_idx]
+        ax = axes[scenario_idx % 2, scenario_idx // 2]
+        #ax = axes[scenario_idx]
         plt.sca(ax)
-        #if scenario_idx % 2 == 1:
-
-        plt.xlabel('fraction of trajectory completed')
-        if scenario_idx == 0:
+        if scenario_idx % 2 == 1:
+            plt.xlabel('fraction of trajectory completed')
+        if scenario_idx // 2 == 0:
             plt.ylabel('Probability assigned to true goal')
 
         plt.title(title_map[scenario_name])
@@ -152,6 +151,9 @@ if plot_true_goal_prob:
             #     plot_lstm(scenario_name, label=label_map[model_name], marker=next(marker))
             #     continue
 
+            if model_name == 'occlusion_grit_loocv' and scenario_name == 'neuweiler':
+                continue
+
             true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
@@ -161,7 +163,7 @@ if plot_true_goal_prob:
         plt.ylim([0, 1.1])
         if scenario_idx == 0:
             plt.legend()
-    plt.savefig(get_base_dir() + '/images/true_goal_prob_generalisation.pdf', bbox_inches='tight')
+    plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')
 
 # plot cross entropy
 if plot_cross_entropy:

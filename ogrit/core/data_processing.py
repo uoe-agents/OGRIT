@@ -257,7 +257,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             first_frame_target_not_occluded = episode_frames[current_frame_id]
 
                     # Take the frames of what the ego has seen from the moment both the ego and target became alive.
-                    frames = episode_frames[initial_frame_id:current_frame_id + 1]
+                    frames = episode_frames[target_initial_frame:current_frame_id + 1]
 
                     # iterate through each goal for that point in time.
                     for goal_idx, typed_goal in enumerate(reachable_goals):

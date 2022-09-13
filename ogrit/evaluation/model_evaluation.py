@@ -23,7 +23,7 @@ def drop_low_sample_agents(dataset, min_samples=2):
 
 
 def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', results_dir=None, data_dir=None,
-                    predictions_dir=None, models_dir=None):
+                    predictions_dir=None, models_dir=None, suffix=''):
 
     if results_dir is None:
         results_dir = get_base_dir() + '/results/'
@@ -123,7 +123,9 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
 
     for scenario_name in scenario_names:
         for model_name in model_names:
+
             unique_samples = predictions[scenario_name][model_name]
+            model_name += suffix
             unique_samples['fraction_observed'] = unique_samples['fraction_observed'].round(1)
             # save accuracy
             fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')

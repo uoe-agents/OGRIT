@@ -6,9 +6,6 @@ from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, SpecializedOgri
 from ogrit.evaluation.model_evaluation import evaluate_models
 
 scenarios = ['heckstrasse', 'bendplatz', 'frankenburg']
-results_dir = get_base_dir() + f'/results/loocv/'
-
-Path(results_dir).mkdir(parents=True, exist_ok=True)
 
 predictions_dir = get_predictions_dir() + f'/loocv/'
 Path(predictions_dir).mkdir(parents=True, exist_ok=True)
@@ -31,15 +28,8 @@ for test_scenario in scenarios:
                                 balance_scenarios=True)
     ogrit.save(data_dir=models_dir)
 
-    sogrit = SpecializedOgrit.train(scenario_name=test_scenario,
-                                    criterion='entropy',
-                                    min_samples_leaf=10,
-                                    max_depth=7,
-                                    alpha=1, ccp_alpha=0.0001)
-    sogrit.save(test_scenario, data_dir=models_dir)
-
     # evaluate
-    evaluate_models(model_names=['sogrit', 'occlusion_grit'], dataset_name='test', predictions_dir=predictions_dir,
-                    models_dir=models_dir, results_dir=results_dir, scenario_names=[test_scenario])
+    evaluate_models(model_names=['occlusion_grit'], dataset_name='test', predictions_dir=predictions_dir,
+                    models_dir=models_dir, scenario_names=[test_scenario], suffix='_loocv')
 
 
