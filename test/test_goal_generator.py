@@ -8,7 +8,7 @@ from ogrit.core.goal_generator import GoalGenerator
 
 
 def goal_in_list(goals, goal_type, goal_center):
-    return sum([g.goal_type == goal_type and np.allclose(g.goal.center, goal_center, atol=1) for g in goals]) == 1
+    return sum([g.goal_type == goal_type and np.allclose(g.goal.center, goal_center, atol=3.5) for g in goals]) == 1
 
 
 def test_heckstrasse_north_west():
@@ -260,6 +260,85 @@ def test_neukoellnerstrasse_sw_left_lane():
     assert goal_in_list(goals, 'straight-on', (158.7, -58.1))
     assert goal_in_list(goals, 'exit-left', (145.6, -30.9))
 
+
+def test_neukoellnerstrasse_sw_right_lane():
+    xodr = "../scenarios/maps/neukoellnerstrasse.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(30)
+    speed = 5
+    time = 0
+    position = np.array((111.2, -82.9))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 2
+    assert goal_in_list(goals, 'straight-on', (158.7, -58.1))
+    assert goal_in_list(goals, 'exit-left', (145.6, -30.9))
+
+
+def test_neukoellnerstrasse_north_right_lane():
+    xodr = "../scenarios/maps/neukoellnerstrasse.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(-100)
+    speed = 5
+    time = 0
+    position = np.array((132.3, -28.3))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 2
+    assert goal_in_list(goals, 'enter-right', (119.9, -63.3))
+    assert goal_in_list(goals, 'enter-left', (158.7, -58.1))
+
+
+def test_neukoellnerstrasse_east_left_lane():
+    xodr = "../scenarios/maps/neukoellnerstrasse.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(-150)
+    speed = 5
+    time = 0
+    position = np.array((175.2, -42.2))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 2
+    assert goal_in_list(goals, 'straight-on', (119.9, -63.3))
+    assert goal_in_list(goals, 'exit-right', (145.6, -30.9))
+
+
+def test_neukoellnerstrasse_east_right_lane():
+    xodr = "../scenarios/maps/neukoellnerstrasse.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(-150)
+    speed = 5
+    time = 0
+    position = np.array((174.1, -39.7))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 2
+    assert goal_in_list(goals, 'straight-on', (119.9, -63.3))
+    assert goal_in_list(goals, 'exit-right', (145.6, -30.9))
 
 # def test_town01_mainroad():
 #     xodr = "../scenarios/maps/town01.xodr"

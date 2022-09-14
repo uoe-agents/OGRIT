@@ -2,7 +2,7 @@ from ogrit.core.base import get_img_dir, get_data_dir
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit, OcclusionBaseline, OgritOracle, \
     NoPossiblyMissingFeaturesOGrit
 
-models = [OcclusionGrit, NoPossiblyMissingFeaturesOGrit, OgritOracle]
+models = [OcclusionGrit]
 for model_class in models:
     test_scenario = 'neuweiler'
     models_dir = get_data_dir() #+ f'/loocv/{test_scenario}/'

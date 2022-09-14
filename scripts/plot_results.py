@@ -104,6 +104,8 @@ if plot_true_goal_prob:
     fig, axes = plt.subplots(2, 2)
 
 
+
+
     def plot_lstm(scenario_name, label, marker):
         lstm_dataset = "trajectory"
 
@@ -132,6 +134,7 @@ if plot_true_goal_prob:
                          (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
 
 
+
     for scenario_idx, scenario_name in enumerate(scenario_names):
         ax = axes[scenario_idx % 2, scenario_idx // 2]
         #ax = axes[scenario_idx]
@@ -140,6 +143,10 @@ if plot_true_goal_prob:
             plt.xlabel('fraction of trajectory completed')
         if scenario_idx // 2 == 0:
             plt.ylabel('Probability assigned to true goal')
+
+        ogrit_marker = None
+        ogrit_color = None
+
 
         plt.title(title_map[scenario_name])
         marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
@@ -157,9 +164,26 @@ if plot_true_goal_prob:
             true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
-            plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, label=label_map[model_name], marker=next(marker))
+
+
+            if model_name == 'ogrit_oracle':
+                current_marker = None
+                color = ogrit_color
+                line_style = '--'
+            else:
+                current_marker = next(marker)
+                color = None
+                line_style = '-'
+
+            p = plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, line_style,
+                         label=label_map[model_name], marker=current_marker, color=color)
+
+            if model_name == 'occlusion_grit':
+                ogrit_color = p[0].get_color()
+                ogrit_marker = current_marker
+
             plt.fill_between(true_goal_prob_sem.fraction_observed, (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
-                             (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
+                             (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2, color=p[0].get_color())
         plt.ylim([0, 1.1])
         if scenario_idx == 0:
             plt.legend()

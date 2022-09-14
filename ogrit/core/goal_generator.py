@@ -96,7 +96,7 @@ class GoalGenerator:
         for goals in lane_goals:
             for goal in goals:
                 for goal_loc in goal_loc_goals:
-                    if np.allclose(goal_loc, goal.goal.center.coords[0], atol=1.):
+                    if np.allclose(goal_loc, goal.goal.center.coords[0], atol=3.5):
                         goal_loc_goals[goal_loc].append(goal)
                         break
                 else:
