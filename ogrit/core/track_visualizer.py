@@ -382,7 +382,8 @@ class TrackVisualizer(object):
 
         state_history = [f[track_id] for f in frames]
         trajectory = VelocityTrajectory.from_agent_states(state_history)
-        typed_goals = self.goal_recogniser.feature_extractor.get_typed_goals(trajectory, self.scenario.config.goals)
+        typed_goals = self.goal_recogniser.feature_extractor.get_typed_goals(trajectory, self.scenario.config.goals,
+                                                                             self.scenario.config.goal_threshold)
 
         #goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
 

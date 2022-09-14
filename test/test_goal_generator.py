@@ -258,7 +258,7 @@ def test_neukoellnerstrasse_sw_left_lane():
 
     assert len(goals) == 2
     assert goal_in_list(goals, 'straight-on', (158.7, -58.1))
-    assert goal_in_list(goals, 'exit-left', (145.6, -30.9))
+    assert goal_in_list(goals, 'exit-left', (145.2, -23.6))
 
 
 def test_neukoellnerstrasse_sw_right_lane():
@@ -278,7 +278,7 @@ def test_neukoellnerstrasse_sw_right_lane():
 
     assert len(goals) == 2
     assert goal_in_list(goals, 'straight-on', (158.7, -58.1))
-    assert goal_in_list(goals, 'exit-left', (145.6, -30.9))
+    assert goal_in_list(goals, 'exit-left', (145.2, -23.6))
 
 
 def test_neukoellnerstrasse_north_right_lane():
@@ -318,7 +318,7 @@ def test_neukoellnerstrasse_east_left_lane():
 
     assert len(goals) == 2
     assert goal_in_list(goals, 'straight-on', (119.9, -63.3))
-    assert goal_in_list(goals, 'exit-right', (145.6, -30.9))
+    assert goal_in_list(goals, 'exit-right', (145.2, -23.6))
 
 
 def test_neukoellnerstrasse_east_right_lane():
@@ -338,7 +338,7 @@ def test_neukoellnerstrasse_east_right_lane():
 
     assert len(goals) == 2
     assert goal_in_list(goals, 'straight-on', (119.9, -63.3))
-    assert goal_in_list(goals, 'exit-right', (145.6, -30.9))
+    assert goal_in_list(goals, 'exit-right', (145.2, -23.6))
 
 
 def test_neukoellnerstrasse_sw_right_lane_path():
@@ -362,15 +362,15 @@ def test_neukoellnerstrasse_sw_right_lane_path():
     else:
         raise ValueError('no exit-left goal')
 
-    lane_path_1 = [scenario_map.get_lane(4, -2, 1),
-                   scenario_map.get_lane(4, -1, 1),
-                   scenario_map.get_lane(4, -1, 2),
-                   scenario_map.get_lane(11, -1, 0)]
+    lane_path_1 = [scenario_map.get_lane(4, 2, 0),
+                   scenario_map.get_lane(5, -2, 0),
+                   scenario_map.get_lane(5, -1, 0),
+                   scenario_map.get_lane(9, -1, 0)]
 
-    lane_path_2 = [scenario_map.get_lane(4, -2, 1),
-                   scenario_map.get_lane(4, -2, 2),
-                   scenario_map.get_lane(4, -1, 2),
-                   scenario_map.get_lane(11, -1, 0)]
+    lane_path_2 = [scenario_map.get_lane(4, 2, 0),
+                   scenario_map.get_lane(4, 1, 0),
+                   scenario_map.get_lane(5, -1, 0),
+                   scenario_map.get_lane(9, -1, 0)]
     assert goal.lane_path in [lane_path_1, lane_path_2]
 
 # def test_town01_mainroad():

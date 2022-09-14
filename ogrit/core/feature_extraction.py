@@ -670,10 +670,10 @@ class FeatureExtractor:
                                    and self.scenario_map.road_in_roundabout(lane.link.predecessor[0].parent_road))
         return self.is_roundabout_junction(lane) and not predecessor_in_roundabout
 
-    def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]]):
+    def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]], goal_radius=3.5):
         typed_goals = []
         goal_gen = GoalGenerator()
-        gen_goals = goal_gen.generate(self.scenario_map, trajectory)
+        gen_goals = goal_gen.generate(self.scenario_map, trajectory, goal_radius=goal_radius)
         for goal in goals:
             for gen_goal in gen_goals:
                 if gen_goal.goal.reached(Point(*goal)):

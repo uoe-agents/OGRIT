@@ -301,8 +301,8 @@ def test_exit_number_no_roundabout():
 def test_in_correct_lane_neukoellnerstrasse():
     scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neukoellnerstrasse.xodr")
     feature_extractor = FeatureExtractor(scenario_map)
-    lane_path = [scenario_map.get_lane(4, -1, 1),
-                 scenario_map.get_lane(4, -1, 2),
+    lane_path = [scenario_map.get_lane(4, 1, 0),
+                 scenario_map.get_lane(5, 1, 0),
                  scenario_map.get_lane(11, -1, 0)]
     assert feature_extractor.in_correct_lane(lane_path)
 
@@ -310,8 +310,8 @@ def test_in_correct_lane_neukoellnerstrasse():
 def test_not_in_correct_lane_neukoellnerstrasse():
     scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neukoellnerstrasse.xodr")
     feature_extractor = FeatureExtractor(scenario_map)
-    lane_path = [scenario_map.get_lane(4, -2, 1),
-                 scenario_map.get_lane(4, -1, 1),
-                 scenario_map.get_lane(4, -1, 2),
-                 scenario_map.get_lane(11, -1, 0)]
+    lane_path = [scenario_map.get_lane(4, 2, 0),
+                 scenario_map.get_lane(5, -2, 0),
+                 scenario_map.get_lane(5, -1, 0),
+                 scenario_map.get_lane(9, -1, 0)]
     assert not feature_extractor.in_correct_lane(lane_path)

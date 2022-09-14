@@ -125,7 +125,8 @@ def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
     reachable_goals_list = []
     # get reachable goals at each timestep until there is only 1 possible goal.
     for idx in range(0, len(trajectory.path)):
-        typed_goals = feature_extractor.get_typed_goals(trajectory.slice(0, idx + 1), scenario.config.goals)
+        typed_goals = feature_extractor.get_typed_goals(trajectory.slice(0, idx + 1), scenario.config.goals,
+                                                        scenario.config.goal_threshold)
         if len([r for r in typed_goals if r is not None]) > 0:
             reachable_goals_list.append(typed_goals)
         else:
