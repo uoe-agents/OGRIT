@@ -78,7 +78,6 @@ def read_and_process_data(scenario, episode_id): # todo: use this instead
 def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recognition: GoalRecognition,
                            goal_probabilities: GoalsProbabilities):
     """Computes the goal recognition results for specified agent at specified frames."""
-
     goal_probabilities_c = copy.deepcopy(goal_probabilities)
     result_agent = None
     for frame in frames:
@@ -115,7 +114,7 @@ def multi_proc_helper(arg_list):
                                   arg_list[6])
 
 
-def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = True, max_workers: int = None):
+def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = False, max_workers: int = None):
     """Run goal prediction in parralel for each agent, across all specified scenarios."""
     result_experiment = ExperimentResult()
 
@@ -172,11 +171,11 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Tru
             args = []
             for (aid, ego_id), group in grouped_data:
                 data = group.copy()
-                frame_ini = data.frame_id.values[0]
-                frame_last = data.frame_id.values[-1]
+                frame_ini = min(data.frame_id.values)
+                frame_last = max(data.frame_id.values)
                 frames = episode.frames[frame_ini:frame_last + 1]
-                frames = _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition)
-                arg = [frames, recordingID, framerate, aid, data, goal_recognition, goal_probabilities]
+                frames_new = _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition)
+                arg = [frames_new, recordingID, framerate, aid, data, goal_recognition, goal_probabilities]
                 args.append(copy.deepcopy(arg))
 
             # Perform multiprocessing
@@ -383,14 +382,14 @@ if __name__ == '__main__':
         for idx, cost_factors in enumerate(cost_factors_arr):
             logger.info(f"Starting experiment {idx} with cost factors {cost_factors}.")
             t_start = time.perf_counter()
-            result_experiment = run_experiment(cost_factors, use_priors=True, max_workers=max_workers)
+            result_experiment = run_experiment(cost_factors, use_priors=False, max_workers=max_workers)
             results.append(copy.deepcopy(result_experiment))
             t_end = time.perf_counter()
             logger.info(f"Experiment {idx} completed in {t_end - t_start} seconds.")
     else:
         logger.info(f"Starting experiment")
         t_start = time.perf_counter()
-        result_experiment = run_experiment(cost_factors=None, use_priors=True, max_workers=max_workers)
+        result_experiment = run_experiment(cost_factors=None, use_priors=False, max_workers=max_workers)
         results.append(copy.deepcopy(result_experiment))
         t_end = time.perf_counter()
         logger.info(f"Experiment completed in {t_end - t_start} seconds.")
