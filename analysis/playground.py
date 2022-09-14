@@ -7,7 +7,7 @@ from igp2.data.scenario import ScenarioConfig, InDScenario
 
 scenario_name = 'neukoellnerstrasse'
 #scenario_name = 'heckstrasse'
-episode_idx = 0
+episode_idx = 5
 config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
 scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
 scenario = InDScenario(config)
