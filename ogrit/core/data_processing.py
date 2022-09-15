@@ -107,7 +107,7 @@ def get_trimmed_trajectories(scenario, episode):
     trimmed_trajectories = {}
 
     # detect goal, and trim trajectory past the goal
-    goal_detector = GoalDetector(scenario.config.goals)
+    goal_detector = GoalDetector(scenario.config.goals, scenario.config.goal_threshold)
     for agent_id, agent in episode.agents.items():
         if agent.metadata.agent_type in ['car', 'truck_bus']:
             agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)

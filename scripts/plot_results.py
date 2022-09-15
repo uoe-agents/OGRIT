@@ -14,10 +14,10 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 #                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 scenario_names = get_all_scenarios()
 #scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
-
+scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neukoellnerstrasse']
 model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm']#, 'igp2']
 #model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
-
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'occlusion_grit_loocv', 'uniform_prior_baseline']
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -39,7 +39,8 @@ label_map = {'generalised_grit': 'Oracle',
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
              'frankenburg': 'Frankenburg',
-             'neuweiler': 'Neuweiler'}
+             'neuweiler': 'Neuweiler',
+             'neukoellnerstrasse': 'Neukoellner Strasse'}
 
 plot_accuracy = False
 plot_normalised_entropy = False

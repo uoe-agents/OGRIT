@@ -5,7 +5,7 @@ from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, SpecializedOgrit
 from ogrit.evaluation.model_evaluation import evaluate_models
 
-scenarios = ['heckstrasse', 'bendplatz', 'frankenburg']
+scenarios = ['heckstrasse', 'bendplatz', 'frankenburg', 'neukoellnerstrasse']
 
 predictions_dir = get_predictions_dir() + f'/loocv/'
 Path(predictions_dir).mkdir(parents=True, exist_ok=True)

@@ -3,7 +3,7 @@ import os
 
 
 def get_all_scenarios():
-    return ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
+    return ['heckstrasse', 'bendplatz', 'frankenburg', 'neukoellnerstrasse']
 
 
 def create_folders():
