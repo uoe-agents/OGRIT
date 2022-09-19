@@ -10,7 +10,7 @@ for model_class in models:
     model.save_images()
     # truncate = ['RT', 'RFTT', 'RFFF']
     truncate = []
-    goal_type = 'turn-left'
+    goal_type = 'exit-roundabout'
 
     # goal_tree = model.decision_trees[goal_type]
     # model_name = model.get_model_name()

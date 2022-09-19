@@ -1,11 +1,15 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 from ogrit.core.base import get_base_dir, get_all_scenarios
 import baselines.lstm.test as eval_lstm
 import itertools
 import argparse
 import os
+
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
@@ -14,22 +18,22 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 #                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 scenario_names = get_all_scenarios()
 #scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
-scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neukoellnerstrasse']
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm']#, 'igp2']
+scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
 #model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'occlusion_grit_loocv', 'uniform_prior_baseline']
+#model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'occlusion_grit_loocv']
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
-             'occlusion_grit_loocv': 'OGRIT (LOOCV)',
+             'occlusion_grit_loocv': 'OGRIT-LOOCV',
              'occlusion_baseline': 'truncated G-GRIT',
              'no_possibly_missing_features_ogrit': 'OGRIT baseline',
-             'uniform_prior_baseline': 'uniform prob. baseline',
+             'uniform_prior_baseline': 'OGRIT-no-DT',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
              'sogrit': 'S-OGRIT',
-             'ogrit_oracle': 'OGRIT (oracle)',
+             'ogrit_oracle': 'OGRIT-oracle',
              'trained_trees': 'GRIT',
              'truncated_grit': 'Truncated GRIT',
              'no_possibly_missing_features_grit': 'GRIT',
@@ -185,7 +189,7 @@ if plot_true_goal_prob:
 
             plt.fill_between(true_goal_prob_sem.fraction_observed, (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
                              (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2, color=p[0].get_color())
-        plt.ylim([0, 1.1])
+        plt.ylim([0.0, 1.0])
         if scenario_idx == 0:
             plt.legend()
     plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')

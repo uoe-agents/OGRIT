@@ -2,6 +2,7 @@ from pathlib import Path
 
 from ogrit.core.base import get_data_dir, get_base_dir, get_predictions_dir
 from ogrit.core.data_processing import get_multi_scenario_dataset
+from ogrit.core.feature_extraction import FeatureExtractor
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, SpecializedOgrit
 from ogrit.evaluation.model_evaluation import evaluate_models
 

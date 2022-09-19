@@ -191,10 +191,10 @@ class Node:
         if features is not None:
             base_features = [f for f in base_features if f in features]
             possibly_missing_features = {k: v for k, v in possibly_missing_features.items() if k in features}
-            indicator_features = [f for f in indicator_features if f in list(possibly_missing_features.keys())]
+            indicator_features = [f for f in indicator_features if f in list(possibly_missing_features.values())]
 
         if oracle:
-            base_features += list(possibly_missing_features.keys())
+            base_features += list(indicator_features)
             possibly_missing_features = {}
             indicator_features = []
 
@@ -254,7 +254,8 @@ class Node:
                                               non_goal_normaliser, alpha)
                     false_child = cls.get_node(false_samples, node.level + 1, goal_normaliser,
                                                non_goal_normaliser, alpha)
-                    if best_feature in indicator_features or FeatureExtractor.feature_names[best_feature] == 'binary':
+                    if (best_feature in FeatureExtractor.indicator_features
+                            or FeatureExtractor.feature_names[best_feature] == 'binary'):
                         node.decision = BinaryDecision(best_feature, true_child, false_child)
                     else:
                         node.decision = ThresholdDecision(best_threshold, best_feature, true_child, false_child)
