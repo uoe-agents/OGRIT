@@ -46,8 +46,6 @@ class TrackVisualizer(object):
 
         # agent to record in video
         self.target_agent_id = target_agent_id
-        self.goal_idx = goal_idx
-        self.goal_type = goal_type
         self.ego_agent_id = ego_agent_id
         self.occlusion_histories = defaultdict(list)  # dict key is agent id
         self.initial_ego_target_frame = {}
@@ -264,7 +262,6 @@ class TrackVisualizer(object):
         return plotted_objects
 
     def update_figure(self):
-        saved_tree = False
         # Plot the bounding boxes, their text annotations and direction arrow
         plotted_objects = []
         ids_for_frame = self.ids_for_frame[self.current_frame]
@@ -392,10 +389,6 @@ class TrackVisualizer(object):
                         if prob > 0:
                             annotation_text += '\nG{}: {:.3f}'.format(goal_idx, prob)
 
-                    # if self.target_agent_id is not None:
-                    #     self.save_tree_image()
-                    #     saved_tree = True
-
                 # Differentiate between using an empty background image and using the virtual background
                 target_location = (
                     center_point[0],
@@ -416,6 +409,7 @@ class TrackVisualizer(object):
 
         if self.currently_recording:
             self.save_road_image()
+            self.save_tree_image()
 
     def get_occlusion_history(self, track_id):
         occlusion_histories = self.occlusion_histories[track_id]
@@ -425,18 +419,37 @@ class TrackVisualizer(object):
         return occlusion_histories
 
     def save_tree_image(self):
-        goal_idx = self.goal_idx
-        goal_type = self.goal_type
-        if isinstance(self.goal_recogniser, GeneralisedGrit):
-            pydot_tree = self.goal_recogniser.decision_trees[goal_type].pydot_tree()
-        else:
-            pydot_tree = self.goal_recogniser.decision_trees[goal_idx][goal_type].pydot_tree()
+        directory = get_img_dir() + f'/video_{self.ego_agent_id}_{self.target_agent_id}/'
 
-        directory = get_img_dir() + '/video_tree'
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        track_id = self.target_agent_id
 
-        pydot_tree.write_png(directory + '/{}.png'.format(self.current_frame))
+        # do goal inference to get correct higlighting on tree
+        static_track_information = self.static_info[track_id]
+        initial_frame = static_track_information["initialFrame"]
+        frames = self.episode.frames[initial_frame:self.current_frame + 1]
+        frames = [f.agents for f in frames]
+
+        state_history = [f[track_id] for f in frames]
+        trajectory = VelocityTrajectory.from_agent_states(state_history)
+        typed_goals = self.goal_recogniser.feature_extractor.get_typed_goals(trajectory, self.scenario.config.goals,
+                                                                             self.scenario.config.goal_threshold)
+        # select ego agent here
+        agent_data = self.episode_dataset.loc[(self.episode_dataset.agent_id == track_id)
+                                              & (self.ego_agent_id == self.episode_dataset.ego_agent_id)]
+        goal_idxes = agent_data.possible_goal.unique()
+        for goal_idx in goal_idxes:
+            goal_data = agent_data.loc[agent_data.possible_goal == goal_idx]
+            goal_type = goal_data.goal_type.iloc[0]
+            if isinstance(self.goal_recogniser, OcclusionGrit):
+                self.goal_recogniser.goal_likelihood(frames, typed_goals[goal_idx], track_id, self.ego_agent_id,
+                                                     self.initial_ego_target_frame[track_id],
+                                                     self.get_occlusion_history(track_id))
+                dt = self.goal_recogniser.decision_trees[goal_type]
+                truncate = dt.non_traversed_truncations()
+                goal_type_str = "-".join([s.capitalize() for s in goal_type.split('-')])
+                title = f'G{goal_idx}: {goal_type_str}'
+                pydot_tree = dt.pydot_tree(truncate_edges=truncate, title=title, track_viz=True)
+                pydot_tree.write_png(directory + f'/tree_{self.current_recording_idx}_{goal_idx}.png')
 
     def save_road_image(self):
 
@@ -445,7 +458,7 @@ class TrackVisualizer(object):
             os.makedirs(directory)
         fig = plt.gcf()
         extent = self.ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-        plt.savefig(directory + f'/img{self.current_recording_idx}.png', bbox_inches=extent, pad_inches=0)
+        plt.savefig(directory + f'/road_{self.current_recording_idx}.png', bbox_inches=extent, pad_inches=0)
         self.current_recording_idx += 1
 
     def display_features_on_click(self, event):

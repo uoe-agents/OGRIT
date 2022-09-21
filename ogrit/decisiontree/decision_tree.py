@@ -86,6 +86,39 @@ class Node:
             self.decision.true_child.reset_reached()
             self.decision.false_child.reset_reached()
 
+    def get_traversed_path(self):
+        path = 'R'
+        node = self
+        while node.decision is not None:
+            if node.decision.true_child.reached:
+                path += 'T'
+                node = node.decision.true_child
+            elif node.decision.false_child.reached:
+                path += 'F'
+                node = node.decision.false_child
+            else:
+                break
+        return path
+
+    def non_traversed_truncations(self):
+        path = 'R'
+        node = self
+        truncations = []
+        while node.decision is not None:
+            if node.decision.true_child.reached:
+                truncations.append(path + 'F')
+                path += 'T'
+                node = node.decision.true_child
+            elif node.decision.false_child.reached:
+                truncations.append(path + 'T')
+                path += 'F'
+                node = node.decision.false_child
+            else:
+                truncations.append(path + 'T')
+                truncations.append(path + 'F')
+                break
+        return truncations
+
     def __str__(self):
         text = ''
         text += '{0:.3f} {1}\n'.format(self.value, self.counts)
@@ -373,11 +406,18 @@ class Node:
         node.counts = [Nng, Nn - Nng]
         return node
 
-    def pydot_tree(self, truncate_edges=None):
+    def pydot_tree(self, truncate_edges=None, title='', track_viz=False):
         if truncate_edges is None:
             truncate_edges = []
+        if track_viz:
+            size = "4.0, 12.0"
+            ratio = "compress"
+        else:
+            size = None
+            ratio = None
 
-        graph = pydot.Dot(graph_type='digraph')
+        graph = pydot.Dot(graph_type='digraph', labelloc="t", label=title, fontsize="30pt",
+                          size=size, ratio=ratio)
 
         def recurse(graph, root, idx='R'):
 
@@ -402,9 +442,9 @@ class Node:
                 style = 'solid'
                 fillcolor = 'white'
 
-            if root.reached:
-                style = 'filled'
-                color = '#5ebfad'
+            # if root.reached:
+            #     style = 'filled'
+            #     color = '#5ebfad'
 
             node = pydot.Node(idx, label=root.get_text(), shape=shape, style=style, color=color, fillcolor=fillcolor)
             graph.add_node(node)
