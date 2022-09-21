@@ -169,8 +169,6 @@ if plot_true_goal_prob:
             true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
-
-
             if model_name == 'ogrit_oracle':
                 current_marker = None
                 color = ogrit_color

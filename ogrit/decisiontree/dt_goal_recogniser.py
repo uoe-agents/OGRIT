@@ -203,17 +203,22 @@ class GeneralisedGrit(GoalRecogniser):
         return tree_likelihood
 
     @classmethod
-    def load(cls, scenario_name, data_dir=None):
+    def load(cls, scenario_name, data_dir=None, episode_idx=None):
         if data_dir is None:
             data_dir = get_data_dir()
         with open(data_dir + f'{cls.get_model_name()}.p', 'rb') as f:
             decision_trees = pickle.load(f)
         with open(data_dir + f'{cls.get_model_name()}_priors.p', 'rb') as f:
             priors = pickle.load(f)
-        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
+
         scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")
-        feature_extractor = FeatureExtractor(scenario_map)
+        feature_extractor = cls.get_feature_extractor(scenario_name, episode_idx)
         return cls(priors, decision_trees, feature_extractor, scenario_config.goals)
+
+    @staticmethod
+    def get_feature_extractor(scenario_name, episode_idx):
+        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
+        return FeatureExtractor(scenario_map)
 
     def goal_likelihood(self, frames, goal, agent_id):
         features = self.feature_extractor.extract(agent_id, frames, goal)
@@ -246,6 +251,11 @@ class OcclusionGrit(GeneralisedGrit):
     def get_model_name():
         return 'occlusion_grit'
 
+    @staticmethod
+    def get_feature_extractor(scenario_name, episode_idx):
+        scenario_map = Map.parse_from_opendrive(get_base_dir() + f"/scenarios/maps/{scenario_name}.xodr")
+        return FeatureExtractor(scenario_map, scenario_name, episode_idx)
+
     @classmethod
     def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1, max_leaf_nodes=None,
               max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False, oracle=False):
@@ -274,6 +284,31 @@ class OcclusionGrit(GeneralisedGrit):
             decision_trees[goal_type] = goal_tree
 
         return cls(priors, decision_trees)
+
+    def goal_likelihood(self, frames, goal, agent_id, ego_agent_id, initial_frame, target_occlusion_history):
+        features = self.feature_extractor.extract(agent_id, frames, goal, ego_agent_id, initial_frame, target_occlusion_history)
+        self.decision_trees[features['goal_type']].reset_reached()
+        likelihood = self.decision_trees[features['goal_type']].traverse(features)
+        return likelihood
+
+    def goal_probabilities(self, frames, agent_id, ego_agent_id, initial_frame, target_occlusion_history):
+        state_history = [f[agent_id] for f in frames]
+        trajectory = VelocityTrajectory.from_agent_states(state_history)
+        typed_goals = self.feature_extractor.get_typed_goals(trajectory, self.goal_locs)
+        goal_probs = []
+        for typed_goal in typed_goals:
+            if typed_goal is None:
+                goal_prob = 0
+            else:
+                # get un-normalised "probability"
+                prior = 1 / len(typed_goals)
+                likelihood = self.goal_likelihood(frames, typed_goal, agent_id,
+                                                  ego_agent_id, initial_frame, target_occlusion_history)
+                goal_prob = likelihood * prior
+            goal_probs.append(goal_prob)
+        goal_probs = np.array(goal_probs)
+        goal_probs = goal_probs / goal_probs.sum()
+        return goal_probs
 
 
 class OgritOracle(OcclusionGrit):

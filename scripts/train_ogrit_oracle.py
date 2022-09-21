@@ -14,9 +14,8 @@ def main():
     else:
         scenario_names = args.scenarios.split(',')
 
-    model = OgritOracle.train(scenario_names,
-                                criterion='entropy', min_samples_leaf=10, max_depth=7,
-                                alpha=1, ccp_alpha=0.0001, balance_scenarios=True)
+    model = OgritOracle.train(scenario_names, criterion='entropy', min_samples_leaf=10, max_depth=7,
+                              alpha=1, ccp_alpha=0.0001, balance_scenarios=True)
     model.save()
 
 

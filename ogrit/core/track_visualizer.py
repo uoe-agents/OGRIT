@@ -3,24 +3,32 @@ Modified version of code from https://github.com/ika-rwth-aachen/drone-dataset-t
 """
 import io
 import os
+from collections import defaultdict
 
 import numpy as np
 import matplotlib.pyplot as plt
 import skimage.io
+from descartes import PolygonPatch
+from shapely import affinity
+from shapely.geometry import Polygon, MultiPolygon, Point
+
+from ogrit.core.data_processing import is_target_vehicle_occluded, get_episode_frames
 from ogrit.core.feature_extraction import FeatureExtractor
 from matplotlib.widgets import Button, Slider
 from loguru import logger
 import matplotlib.image as mpimg
 
 from ogrit.core.base import get_img_dir
-from ogrit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser, GeneralisedGrit
+from ogrit.decisiontree.dt_goal_recogniser import DecisionTreeGoalRecogniser, GeneralisedGrit, OcclusionGrit
 from igp2 import VelocityTrajectory
+
+from ogrit.occlusion_detection.visualisation_tools import plot_area_from_list
 
 
 class TrackVisualizer(object):
     def __init__(self, config, tracks, static_info, meta_info, fig=None,
-                 goal_recogniser=None, scenario=None, episode=None, agent_id=None, episode_dataset=None,
-                 goal_idx=None, goal_type=None):
+                 goal_recogniser=None, scenario=None, episode=None, target_agent_id=None, episode_dataset=None,
+                 goal_idx=None, goal_type=None, ego_agent_id=None):
         self.config = config
         self.input_path = config["input_path"]
         self.recording_name = config["recording_name"]
@@ -32,12 +40,17 @@ class TrackVisualizer(object):
         self.scenario = scenario
         self.episode = episode
         self.episode_dataset = episode_dataset
+        self.episode_frames = get_episode_frames(episode)
+        self.currently_recording = False
+        self.current_recording_idx = 0
 
         # agent to record in video
-        self.agent_id = agent_id
+        self.target_agent_id = target_agent_id
         self.goal_idx = goal_idx
         self.goal_type = goal_type
-        self.ego_agent_id = None
+        self.ego_agent_id = ego_agent_id
+        self.occlusion_histories = defaultdict(list)  # dict key is agent id
+        self.initial_ego_target_frame = {}
 
         # Get configurations
         if self.scale_down_factor % 2 != 0:
@@ -106,8 +119,9 @@ class TrackVisualizer(object):
                                 radius=8, zorder=30)
         self.circ_styler = dict(facecolor="b", fill=True, edgecolor="r", lw=0.1, alpha=1,
                                 radius=8, zorder=30)
-        self.colors = dict(car="blue", truck_bus="orange", pedestrian="red", bicycle="yellow", default="green")
+        self.colors = dict(car="blue", truck_bus="blue", pedestrian="red", bicycle="yellow", default="green")
 
+        self.plot_buildings()
         # Initialize the plot with the bounding boxes of the first frame
         self.update_figure()
 
@@ -120,6 +134,8 @@ class TrackVisualizer(object):
         self.ax_button_next2 = self.fig.add_axes([0.51, 0.035, 0.06, 0.04])
         self.ax_button_play = self.fig.add_axes([0.58, 0.035, 0.06, 0.04])
         self.ax_button_stop = self.fig.add_axes([0.65, 0.035, 0.06, 0.04])
+        self.ax_button_reset_ego = self.fig.add_axes([0.72, 0.035, 0.06, 0.04])
+        self.ax_button_start_rec = self.fig.add_axes([0.79, 0.035, 0.06, 0.04])
 
         # Define the widgets
         self.frame_slider = DiscreteSlider(self.ax_slider, 'Frame', 0, self.maximum_frames-1, valinit=self.current_frame,
@@ -130,6 +146,8 @@ class TrackVisualizer(object):
         self.button_next2 = Button(self.ax_button_next2, 'Next x%d' % self.skip_n_frames)
         self.button_play = Button(self.ax_button_play, 'Play')
         self.button_stop = Button(self.ax_button_stop, 'Stop')
+        self.button_reset_ego = Button(self.ax_button_reset_ego, 'Reset Ego')
+        self.button_start_rec = Button(self.ax_button_start_rec, 'Start Rec')
 
         # Define the callbacks for the widgets' actions
         self.frame_slider.on_changed(self.update_slider)
@@ -139,6 +157,8 @@ class TrackVisualizer(object):
         self.button_next2.on_clicked(self.update_button_next2)
         self.button_play.on_clicked(self.start_play)
         self.button_stop.on_clicked(self.stop_play)
+        self.button_reset_ego.on_clicked(self.reset_ego_vehicle)
+        self.button_start_rec.on_clicked(self.start_rec)
 
         self.timer = self.fig.canvas.new_timer(interval=25*self.skip_n_frames)
         self.timer.add_callback(self.update_button_next2, self.ax)
@@ -198,6 +218,16 @@ class TrackVisualizer(object):
         else:
             logger.warning("There are no frames available with an index lower than 1.")
 
+    def start_rec(self, _):
+        if self.currently_recording:
+            print('Stopping Recording')
+            self.button_start_rec.label.set_text('Start rec.')
+        else:
+            print('Starting Recording')
+            self.current_recording_idx = 0
+            self.button_start_rec.label.set_text('Stop rec.')
+        self.currently_recording = not self.currently_recording
+
     def start_play(self, _):
         self.timer.start()
 
@@ -211,12 +241,34 @@ class TrackVisualizer(object):
         self.frame_slider.update_val_external(self.current_frame)
         self.fig.canvas.draw_idle()
 
+    def plot_occlusions(self):
+        scale = 1 / (self.meta_info["orthoPxToMeter"] * self.scale_down_factor)
+        plotted_objects = []
+        if isinstance(self.goal_recogniser, OcclusionGrit) and self.ego_agent_id is not None:
+            frame_occlusions = self.goal_recogniser.feature_extractor.occlusions[self.current_frame]
+            if self.ego_agent_id in frame_occlusions:
+                ego_occlusions = frame_occlusions[self.ego_agent_id]['occlusions']
+                ego_occlusions_scaled = affinity.scale(ego_occlusions, xfact=scale, yfact=-scale, origin=Point([0, 0]))
+                occlusion_plot = self.ax.add_patch(PolygonPatch(ego_occlusions_scaled, color='r', alpha=0.5,
+                                                                fill=True, linewidth=None))
+                plotted_objects.append(occlusion_plot)
+        return plotted_objects
+
+    def plot_buildings(self):
+        scale = 1 / (self.meta_info["orthoPxToMeter"] * self.scale_down_factor)
+        plotted_objects = []
+        for building in self.scenario.config.buildings:
+            poly = affinity.scale(Polygon(building), xfact=scale, yfact=-scale, origin=Point([0, 0]))
+            building_plot = self.ax.add_patch(PolygonPatch(poly, color='#8a4721', alpha=0.5, fill=True, linewidth=None))
+            plotted_objects.append(building_plot)
+        return plotted_objects
+
     def update_figure(self):
         saved_tree = False
-        self.ego_agent_id = None
         # Plot the bounding boxes, their text annotations and direction arrow
         plotted_objects = []
-        for track_ind in self.ids_for_frame[self.current_frame]:
+        ids_for_frame = self.ids_for_frame[self.current_frame]
+        for track_ind in ids_for_frame:
             track = self.tracks[track_ind]
 
             track_id = track["trackId"]
@@ -231,6 +283,10 @@ class TrackVisualizer(object):
             center_point = center_points[current_index]
 
             color = self.colors[object_class] if object_class in self.colors else self.colors["default"]
+            if track_id == self.ego_agent_id:
+                color = '#24b00e'
+            elif track_id == self.target_agent_id:
+                color = '#fa8602'
 
             if self.config["plotBoundingBoxes"] and is_vehicle:
                 rect = plt.Polygon(bounding_box, True, facecolor=color, **self.rect_style)
@@ -278,7 +334,9 @@ class TrackVisualizer(object):
                             **self.track_style_future)
                         plotted_objects.append(plotted_centroids_future)
 
-            if self.config["showTextAnnotation"] and self.agent_id is None or self.agent_id == track_id:
+            if (self.config["showTextAnnotation"]
+                    and (self.target_agent_id is None or self.target_agent_id == track_id)
+                    and (not self.currently_recording or self.target_agent_id == track_id)):
                 # Plot the text annotation
                 annotation_text = "ID{}".format(track_id)
                 if self.config["showClassLabel"]:
@@ -302,21 +360,41 @@ class TrackVisualizer(object):
                         annotation_text += '|'
                     age = static_track_information["age"]
                     annotation_text += "Age%d/%d" % (current_index + 1, age)
+
+                ogrit_valid = (self.ego_agent_id is not None
+                               and self.ego_agent_id in ids_for_frame)
+
                 if (self.goal_recogniser is not None
                         and len(self.episode.agents[track_id].trajectory.path) < 25 * 120
-                        and object_class[0] == 'c'):
+                        and object_class[0] == 'c'
+                        and (not isinstance(self.goal_recogniser, OcclusionGrit) or ogrit_valid)):
                     initial_frame = static_track_information["initialFrame"]
                     frames = self.episode.frames[initial_frame:self.current_frame+1]
                     frames = [f.agents for f in frames]
-                    goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
+
+                    if ogrit_valid:
+                        if track_id not in self.initial_ego_target_frame:
+                            self.initial_ego_target_frame[track_id] = frames[-1]
+                        target_occluded = is_target_vehicle_occluded(self.current_frame,
+                                                            self.goal_recogniser.feature_extractor.occlusions,
+                                                            track_id, self.ego_agent_id, self.episode_frames)
+                        self.occlusion_histories[track_id].append(target_occluded)
+
+                    if isinstance(self.goal_recogniser, OcclusionGrit):
+                        occlusion_histories = self.get_occlusion_history(track_id)
+                        initial_frame = self.initial_ego_target_frame[track_id]
+                        goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id,
+                                                    self.ego_agent_id, initial_frame, occlusion_histories)
+                    else:
+                        goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
+
                     for goal_idx, prob in enumerate(goal_probabilities):
                         if prob > 0:
                             annotation_text += '\nG{}: {:.3f}'.format(goal_idx, prob)
 
-                    if self.agent_id is not None:
-                        assert isinstance(self.goal_recogniser, DecisionTreeGoalRecogniser)
-                        self.save_tree_image()
-                        saved_tree = True
+                    # if self.target_agent_id is not None:
+                    #     self.save_tree_image()
+                    #     saved_tree = True
 
                 # Differentiate between using an empty background image and using the virtual background
                 target_location = (
@@ -329,16 +407,24 @@ class TrackVisualizer(object):
                                               bbox={"fc": color, **self.text_box_style}, **self.text_style)
                 plotted_objects.append(text_patch)
 
+        plotted_objects.extend(self.plot_occlusions())
+
         # Add listener to figure
         self.fig.canvas.mpl_connect('pick_event', self.display_features_on_click)
         # Save the plotted objects in a list
         self.plotted_objects = plotted_objects
 
-        if saved_tree:
+        if self.currently_recording:
             self.save_road_image()
 
+    def get_occlusion_history(self, track_id):
+        occlusion_histories = self.occlusion_histories[track_id]
+        fps = 25
+        final_idx = len(occlusion_histories) - 1
+        occlusion_histories = occlusion_histories[final_idx % fps:fps:final_idx + 1]
+        return occlusion_histories
+
     def save_tree_image(self):
-        assert isinstance(self.goal_recogniser, DecisionTreeGoalRecogniser)
         goal_idx = self.goal_idx
         goal_type = self.goal_type
         if isinstance(self.goal_recogniser, GeneralisedGrit):
@@ -353,11 +439,14 @@ class TrackVisualizer(object):
         pydot_tree.write_png(directory + '/{}.png'.format(self.current_frame))
 
     def save_road_image(self):
-        directory = get_img_dir() + '/video_road'
+
+        directory = get_img_dir() + f'/video_{self.ego_agent_id}_{self.target_agent_id}/'
         if not os.path.exists(directory):
             os.makedirs(directory)
-
-        plt.savefig(directory + '/{}.png'.format(self.current_frame))
+        fig = plt.gcf()
+        extent = self.ax.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        plt.savefig(directory + f'/img{self.current_recording_idx}.png', bbox_inches=extent, pad_inches=0)
+        self.current_recording_idx += 1
 
     def display_features_on_click(self, event):
         artist = event.artist
@@ -370,9 +459,14 @@ class TrackVisualizer(object):
 
         if self.ego_agent_id is None:
             self.ego_agent_id = track_id
+            self.occlusion_histories = defaultdict(list)  # dict key is agent id
+            self.initial_ego_target_frame = {}
             print(f'Set ego agent to {track_id}')
             return
         print(f'Showing details for target agent {track_id} with ego agent {self.ego_agent_id}')
+
+        self.target_agent_id = track_id
+        print(f'Set target agent to {track_id}')
 
         # do goal inference to get correct higlighting on tree
         static_track_information = self.static_info[track_id]
@@ -388,7 +482,7 @@ class TrackVisualizer(object):
         #goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
 
         #select ego agent here
-        agent_data = self.episode_dataset.loc[(self.episode_dataset.agent_id==track_id)
+        agent_data = self.episode_dataset.loc[(self.episode_dataset.agent_id == track_id)
                                               & (self.ego_agent_id==self.episode_dataset.ego_agent_id)]
         goal_idxes = agent_data.possible_goal.unique()
 
@@ -413,7 +507,12 @@ class TrackVisualizer(object):
                 plt.xlabel('frame')
                 sub_plot.grid(True)
 
-            if isinstance(self.goal_recogniser, GeneralisedGrit):
+            if isinstance(self.goal_recogniser, OcclusionGrit):
+                self.goal_recogniser.goal_likelihood(frames, typed_goals[goal_idx], track_id, self.ego_agent_id,
+                                                     self.initial_ego_target_frame[track_id],
+                                                     self.get_occlusion_history(track_id))
+                pydot_tree = self.goal_recogniser.decision_trees[goal_type].pydot_tree()
+            elif isinstance(self.goal_recogniser, GeneralisedGrit):
                 self.goal_recogniser.goal_likelihood(frames, typed_goals[goal_idx], track_id)
                 pydot_tree = self.goal_recogniser.decision_trees[goal_type].pydot_tree()
             else:
@@ -435,6 +534,12 @@ class TrackVisualizer(object):
 
         plt.show()
         self.ego_agent_id = None
+
+    def reset_ego_vehicle(self, event):
+        self.ego_agent_id = None
+        self.occlusion_histories = defaultdict(list)  # dict key is agent id
+        self.initial_ego_target_frame = {}
+        print('Resetting ego vehicle')
 
     def on_click(self, event):
         artist = event.artist

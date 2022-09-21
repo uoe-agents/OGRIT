@@ -56,11 +56,13 @@ def plot_map(scenario_map, scenario_config=None, frame: Dict[int, AgentState] = 
             plot_area(Polygon(get_box(state).boundary), color=OBSTACLES_COLOR)
 
 
-def plot_area(polygon, color="r", alpha=.5, linewidth=None):
+def plot_area(polygon, color="r", alpha=.5, linewidth=None, ax=None):
     """
     Given a polygon, plot the boundaries and shade the interior.
     """
-    plt.gca().add_patch(PolygonPatch(polygon, color=color, alpha=alpha, fill=True, linewidth=linewidth))
+    if ax is None:
+        ax = plt.gca()
+    ax.add_patch(PolygonPatch(polygon, color=color, alpha=alpha, fill=True, linewidth=linewidth))
 
 
 def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int, int]]] = None,
@@ -120,14 +122,16 @@ def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int
     plot_area_from_list(lane_occlusions_all, color=OCCLUDED_LANE_COLOR, alpha=OCCLUDED_AREA_ALPHA)
 
 
-def plot_area_from_list(geometries, color="r", alpha=0.5):
+def plot_area_from_list(geometries, color="r", alpha=0.5, ax=None):
+    if ax is None:
+        ax = plt.gca()
     geometries = unary_union(geometries)
     if not geometries.is_empty:
         if isinstance(geometries, Polygon):
-            plot_area(geometries, color=color, alpha=alpha)
+            plot_area(geometries, color=color, alpha=alpha, ax=ax)
         elif isinstance(geometries, MultiPolygon):
             for geometry in geometries.geoms:
-                plot_area(geometry, color=color, alpha=alpha)
+                plot_area(geometry, color=color, alpha=alpha, ax=ax)
 
 
 def plot_ego_position(ego_position):
