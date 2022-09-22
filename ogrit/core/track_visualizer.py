@@ -369,6 +369,8 @@ class TrackVisualizer(object):
                     frames = self.episode.frames[initial_frame:self.current_frame+1]
                     frames = [f.agents for f in frames]
 
+                    target_occluded = False
+
                     if ogrit_valid:
                         if track_id not in self.initial_ego_target_frame:
                             self.initial_ego_target_frame[track_id] = frames[-1]
@@ -386,7 +388,7 @@ class TrackVisualizer(object):
                         goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
 
                     for goal_idx, prob in enumerate(goal_probabilities):
-                        if prob > 0:
+                        if prob > 0 and not target_occluded:
                             annotation_text += '\nG{}: {:.3f}'.format(goal_idx, prob)
 
                 # Differentiate between using an empty background image and using the virtual background
@@ -415,13 +417,15 @@ class TrackVisualizer(object):
         occlusion_histories = self.occlusion_histories[track_id]
         fps = 25
         final_idx = len(occlusion_histories) - 1
-        occlusion_histories = occlusion_histories[final_idx % fps:fps:final_idx + 1]
+        occlusion_histories = occlusion_histories[final_idx % fps:final_idx + 1:fps]
         return occlusion_histories
 
     def save_tree_image(self):
         directory = get_img_dir() + f'/video_{self.ego_agent_id}_{self.target_agent_id}/'
 
         track_id = self.target_agent_id
+        if self.occlusion_histories[track_id][-1]:
+            return
 
         # do goal inference to get correct higlighting on tree
         static_track_information = self.static_info[track_id]
@@ -437,19 +441,20 @@ class TrackVisualizer(object):
         agent_data = self.episode_dataset.loc[(self.episode_dataset.agent_id == track_id)
                                               & (self.ego_agent_id == self.episode_dataset.ego_agent_id)]
         goal_idxes = agent_data.possible_goal.unique()
-        for goal_idx in goal_idxes:
-            goal_data = agent_data.loc[agent_data.possible_goal == goal_idx]
-            goal_type = goal_data.goal_type.iloc[0]
-            if isinstance(self.goal_recogniser, OcclusionGrit):
-                self.goal_recogniser.goal_likelihood(frames, typed_goals[goal_idx], track_id, self.ego_agent_id,
-                                                     self.initial_ego_target_frame[track_id],
-                                                     self.get_occlusion_history(track_id))
-                dt = self.goal_recogniser.decision_trees[goal_type]
-                truncate = dt.non_traversed_truncations()
-                goal_type_str = "-".join([s.capitalize() for s in goal_type.split('-')])
-                title = f'G{goal_idx}: {goal_type_str}'
-                pydot_tree = dt.pydot_tree(truncate_edges=truncate, title=title, track_viz=True)
-                pydot_tree.write_png(directory + f'/tree_{self.current_recording_idx}_{goal_idx}.png')
+        for goal_idx, goal in enumerate(typed_goals):
+            if goal is not None:
+                goal_data = agent_data.loc[agent_data.possible_goal == goal_idx]
+                goal_type = goal_data.goal_type.iloc[0]
+                if isinstance(self.goal_recogniser, OcclusionGrit):
+                    self.goal_recogniser.goal_likelihood(frames, goal, track_id, self.ego_agent_id,
+                                                         self.initial_ego_target_frame[track_id],
+                                                         self.get_occlusion_history(track_id))
+                    dt = self.goal_recogniser.decision_trees[goal_type]
+                    truncate = dt.non_traversed_truncations()
+                    goal_type_str = "-".join([s.capitalize() for s in goal_type.split('-')])
+                    title = f'G{goal_idx}: {goal_type_str}'
+                    pydot_tree = dt.pydot_tree(truncate_edges=truncate, title=title, track_viz=True)
+                    pydot_tree.write_png(directory + f'/tree_{self.current_recording_idx}_{goal_idx}.png')
 
     def save_road_image(self):
 

@@ -68,7 +68,7 @@ def create_args():
     config_specification.add_argument('--showTextAnnotation', default=True,
                                       help="Optional: decide whether to plot the text annotation or not.",
                                       type=bool)
-    config_specification.add_argument('--showClassLabel', default=True,
+    config_specification.add_argument('--showClassLabel', default=False,
                                       help="Optional: decide whether to show the class in the text annotation.",
                                       type=bool)
     config_specification.add_argument('--showVelocityLabel', default=True,

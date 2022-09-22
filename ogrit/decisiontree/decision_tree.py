@@ -410,7 +410,7 @@ class Node:
         if truncate_edges is None:
             truncate_edges = []
         if track_viz:
-            size = "4.0, 12.0"
+            size = "4.0, 10.0"
             ratio = "compress"
         else:
             size = None
