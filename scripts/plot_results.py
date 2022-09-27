@@ -14,14 +14,8 @@ matplotlib.rcParams['ps.fonttype'] = 42
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-# model_names = ['prior_baseline', 'grit', 'generalised_grit',
-#                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 scenario_names = get_all_scenarios()
-#scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
-scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
 model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
-#model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
-#model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'occlusion_grit_loocv']
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -51,7 +45,6 @@ plot_normalised_entropy = False
 plot_cross_entropy = False
 plot_true_goal_prob = True
 
-# results_dir = get_base_dir() + "/predictions/occlusion_subset/"
 results_dir = get_base_dir() + "/results/"
 #results_dir = get_base_dir() + f'/results/loocv/'
 
