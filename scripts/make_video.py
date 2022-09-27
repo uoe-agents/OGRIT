@@ -18,7 +18,7 @@ def padding(array, xx, yy):
 
 def create_frame(args):
     idx, vid_dir, max_goals = args
-    height = 1152
+    height = 960
     tree_width = 384
 
     road_image = skimage.io.imread(vid_dir + f'/road_{idx}.png')[:, :, :3]

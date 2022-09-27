@@ -136,8 +136,8 @@ class TrackVisualizer(object):
         self.ax_button_start_rec = self.fig.add_axes([0.79, 0.035, 0.06, 0.04])
 
         # Define the widgets
-        self.frame_slider = DiscreteSlider(self.ax_slider, 'Frame', 0, self.maximum_frames-1, valinit=self.current_frame,
-                                           valfmt='%s')
+        self.frame_slider = DiscreteSlider(self.ax_slider, 'Frame', 0, self.maximum_frames-1,
+                                           valinit=self.current_frame, valfmt='%s')
         self.button_previous2 = Button(self.ax_button_previous2, 'Previous x%d' % self.skip_n_frames)
         self.button_previous = Button(self.ax_button_previous, 'Previous')
         self.button_next = Button(self.ax_button_next, 'Next')
@@ -193,8 +193,9 @@ class TrackVisualizer(object):
                 "There are no frames available with an index higher than {}.".format(self.maximum_frames))
 
     def update_button_next2(self, _):
-        if self.current_frame + self.skip_n_frames < self.maximum_frames:
-            self.current_frame = self.current_frame + self.skip_n_frames
+        skip_n_frames = 1 if self.currently_recording else self.skip_n_frames
+        if self.current_frame + skip_n_frames < self.maximum_frames:
+            self.current_frame = self.current_frame + skip_n_frames
             self.changed_button = True
             self.trigger_update()
         else:
@@ -274,12 +275,16 @@ class TrackVisualizer(object):
             current_index = self.current_frame - initial_frame
 
             object_class = static_track_information["class"]
+            if object_class in ["truck", "bus", "van"]:
+                object_class = "truck_bus"
             is_vehicle = object_class in ["car", "truck_bus", "motorcycle"]
             bounding_box = track["bboxVis"][current_index] / self.scale_down_factor
             center_points = track["centerVis"] / self.scale_down_factor
             center_point = center_points[current_index]
 
             color = self.colors[object_class] if object_class in self.colors else self.colors["default"]
+
+
             if track_id == self.ego_agent_id:
                 color = '#24b00e'
             elif track_id == self.target_agent_id:
@@ -309,7 +314,7 @@ class TrackVisualizer(object):
                 self.ax.add_patch(polygon)
                 plotted_objects.append(polygon)
 
-            if self.config["plotTrackingLines"]:
+            if not self.currently_recording and self.config["plotTrackingLines"]:
                 plotted_centroid = plt.Circle((center_points[current_index][0],
                                                center_points[current_index][1]),
                                               facecolor=color, **self.centroid_style)
@@ -364,12 +369,11 @@ class TrackVisualizer(object):
                 if (self.goal_recogniser is not None
                         and len(self.episode.agents[track_id].trajectory.path) < 25 * 120
                         and object_class[0] == 'c'
-                        and (not isinstance(self.goal_recogniser, OcclusionGrit) or ogrit_valid)):
+                        and (not isinstance(self.goal_recogniser, OcclusionGrit) or ogrit_valid)
+                        and not self.currently_recording or track_id == self.target_agent_id):
                     initial_frame = static_track_information["initialFrame"]
                     frames = self.episode.frames[initial_frame:self.current_frame+1]
                     frames = [f.agents for f in frames]
-
-                    target_occluded = False
 
                     if ogrit_valid:
                         if track_id not in self.initial_ego_target_frame:
@@ -379,17 +383,17 @@ class TrackVisualizer(object):
                                                             track_id, self.ego_agent_id, self.episode_frames)
                         self.occlusion_histories[track_id].append(target_occluded)
 
-                    if isinstance(self.goal_recogniser, OcclusionGrit):
-                        occlusion_histories = self.get_occlusion_history(track_id)
-                        initial_frame = self.initial_ego_target_frame[track_id]
-                        goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id,
-                                                    self.ego_agent_id, initial_frame, occlusion_histories)
-                    else:
-                        goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
+                        if isinstance(self.goal_recogniser, OcclusionGrit):
+                            occlusion_histories = self.get_occlusion_history(track_id)
+                            initial_frame = self.initial_ego_target_frame[track_id]
+                            goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id,
+                                                        self.ego_agent_id, initial_frame, occlusion_histories)
+                        else:
+                            goal_probabilities = self.goal_recogniser.goal_probabilities(frames, track_id)
 
-                    for goal_idx, prob in enumerate(goal_probabilities):
-                        if prob > 0 and not target_occluded:
-                            annotation_text += '\nG{}: {:.3f}'.format(goal_idx, prob)
+                        for goal_idx, prob in enumerate(goal_probabilities):
+                            if prob > 0 and not target_occluded:
+                                annotation_text += '\nG{}: {:.3f}'.format(goal_idx, prob)
 
                 # Differentiate between using an empty background image and using the virtual background
                 target_location = (
@@ -424,7 +428,7 @@ class TrackVisualizer(object):
         directory = get_img_dir() + f'/video_{self.ego_agent_id}_{self.target_agent_id}/'
 
         track_id = self.target_agent_id
-        if self.occlusion_histories[track_id][-1]:
+        if len(self.occlusion_histories[track_id]) == 0 or self.occlusion_histories[track_id][-1]:
             return
 
         # do goal inference to get correct higlighting on tree
@@ -437,14 +441,10 @@ class TrackVisualizer(object):
         trajectory = VelocityTrajectory.from_agent_states(state_history)
         typed_goals = self.goal_recogniser.feature_extractor.get_typed_goals(trajectory, self.scenario.config.goals,
                                                                              self.scenario.config.goal_threshold)
-        # select ego agent here
-        agent_data = self.episode_dataset.loc[(self.episode_dataset.agent_id == track_id)
-                                              & (self.ego_agent_id == self.episode_dataset.ego_agent_id)]
-        goal_idxes = agent_data.possible_goal.unique()
+
         for goal_idx, goal in enumerate(typed_goals):
             if goal is not None:
-                goal_data = agent_data.loc[agent_data.possible_goal == goal_idx]
-                goal_type = goal_data.goal_type.iloc[0]
+                goal_type = goal.goal_type
                 if isinstance(self.goal_recogniser, OcclusionGrit):
                     self.goal_recogniser.goal_likelihood(frames, goal, track_id, self.ego_agent_id,
                                                          self.initial_ego_target_frame[track_id],
@@ -551,10 +551,10 @@ class TrackVisualizer(object):
             plt.title(title)
 
         plt.show()
-        self.ego_agent_id = None
 
     def reset_ego_vehicle(self, event):
         self.ego_agent_id = None
+        self.target_agent_id = None
         self.occlusion_histories = defaultdict(list)  # dict key is agent id
         self.initial_ego_target_frame = {}
         print('Resetting ego vehicle')

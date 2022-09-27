@@ -141,6 +141,9 @@ if __name__ == '__main__':
         background_image_path = None
     config["background_image_path"] = background_image_path
 
+    if config["scenario"] == "neuweiler":
+        config["scale_down_factor"] = 10
+
     visualization_plot = TrackVisualizer(config, tracks, static_info, meta_info, goal_recogniser=goal_recogniser,
                                          scenario=scenario, episode=episode, target_agent_id=config["agent_id"],
                                          episode_dataset=episode_dataset, goal_idx=config["goal_idx"],
