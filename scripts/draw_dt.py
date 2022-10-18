@@ -12,9 +12,9 @@ for model_class in models:
     truncate = []
     goal_type = 'exit-roundabout'
 
-    # goal_tree = model.decision_trees[goal_type]
-    # model_name = model.get_model_name()
-    # model_name = 'ogrit_loocv'
-    #
-    # pydot_tree = goal_tree.pydot_tree(truncate_edges=truncate)
-    # pydot_tree.write_pdf(get_img_dir() + f'{model.get_model_name()}_{goal_type}.pdf')
+    for goal_type in model.decision_trees:
+        goal_tree = model.decision_trees[goal_type]
+        model_name = model.get_model_name()
+
+        pydot_tree = goal_tree.pydot_tree(truncate_edges=truncate)
+        pydot_tree.write_pdf(get_img_dir() + f'{model.get_model_name()}_{goal_type}.pdf')

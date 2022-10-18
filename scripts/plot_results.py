@@ -97,11 +97,9 @@ if plot_normalised_entropy:
 
 # plot true goal probability
 if plot_true_goal_prob:
-    plt.rcParams["figure.figsize"] = (8,8)
+    plt.rcParams["figure.figsize"] = (16, 3)
 
-    fig, axes = plt.subplots(2, 2)
-
-
+    fig, axes = plt.subplots(1, 4)
 
 
     def plot_lstm(scenario_name, label, marker):
@@ -132,14 +130,15 @@ if plot_true_goal_prob:
                          (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
 
 
-
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        ax = axes[scenario_idx % 2, scenario_idx // 2]
-        #ax = axes[scenario_idx]
+        #ax = axes[scenario_idx % 2, scenario_idx // 2]
+        ax = axes[scenario_idx]
         plt.sca(ax)
-        if scenario_idx % 2 == 1:
-            plt.xlabel('fraction of trajectory completed')
-        if scenario_idx // 2 == 0:
+        # if scenario_idx % 2 == 1:
+
+        plt.xlabel('fraction of trajectory completed')
+        # if scenario_idx // 2 == 0:
+        if scenario_idx == 0:
             plt.ylabel('Probability assigned to true goal')
 
         ogrit_marker = None
