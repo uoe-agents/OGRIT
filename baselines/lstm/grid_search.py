@@ -8,6 +8,7 @@ import torch
 import pandas as pd
 import sys
 from baselines.lstm.train import train, logger
+from ogrit.core.base import get_lstm_dir, set_working_dir
 
 grid_search_params = {
     "lstm_hidden_dim": np.logspace(4, 13, 5, base=2, dtype=int),
@@ -33,54 +34,64 @@ def product_dict(**kwargs):
     for instance in itertools.product(*vals):
         yield dict(zip(keys, instance))
 
-# todo: grid search to find the best hyper-parameters
-if __name__ == '__main__':
-    type = sys.argv[1]  # search/best
-    dataset = sys.argv[2]  # features/trajectory
-    scenario = sys.argv[3]  # heckstrasse/bendplatz/frankenberg/round
-    i = int(sys.argv[4])
 
-    path_string = "grid_search/{0}_{1}_{2}_{3}_{4}_{5}_{6:.2f}"
+def search(params):
+    if not os.path.exists(get_lstm_dir() + "grid_search"):
+        os.mkdir(get_lstm_dir() + "grid_search")
 
-    if type == "search":
-        if not os.path.exists("grid_search"):
-            os.mkdir("grid_search")
+    save_path = path_string.format(
+        scenario, dataset,
+        params['lstm_hidden_dim'],
+        params["fc_hidden_dim"],
+        params["lstm_layers"],
+        params['lr'],
+        params['dropout'])
+    params.update({"dataset": dataset, "shuffle": True, "batch_size": 10, "max_epoch": 100, "scenario": scenario,
+                   "save_path": save_path, "save_latest": False, "use_encoding": True})
+    params = argparse.Namespace(**params)
+    train(params)
 
-        grid_params = list(product_dict(**grid_search_params))
-        params = grid_params[i]
+
+def find_best():
+    results = []
+    for params in product_dict(**grid_search_params):
         save_path = path_string.format(
             scenario, dataset,
             params['lstm_hidden_dim'],
             params["fc_hidden_dim"],
             params["lstm_layers"],
             params['lr'],
-            params['dropout'])
-        params.update({"dataset": dataset, "shuffle": True, "batch_size": 10, "max_epoch": 100, "scenario": scenario,
-                       "save_path": save_path, "save_latest": False, "use_encoding": True})
-        params = argparse.Namespace(**params)
-        train(params)
+            params['dropout']) + f"_{scenario}_{dataset}"
+        try:
+            best = torch.load(save_path + "_best.pt")
+        except IOError as e:
+            logger.exception(str(e), exc_info=e)
+            continue
+        result = copy.copy(params)
+        result.update({"best_loss": best["losses"].min(), "best_acc": best["accs"].max(),
+                       "best_epoch": best["epoch"]},
+                      )
+        results.append(result)
+    results = pd.DataFrame(results)
+    results.to_csv(get_lstm_dir() + "grid_search/results.csv")
+
+    logger.info(f"The best parameter by loss:\n{results.loc[results.idxmin()['best_loss']]}")
+
+
+# grid search to find the best hyper-parameters
+if __name__ == '__main__':
+    set_working_dir()
+
+    type = sys.argv[1]  # either "search" or "best"
+    dataset = sys.argv[2]  # features/trajectory
+    scenario = sys.argv[3]  # heckstrasse/bendplatz/frankenberg/round
+
+    path_string = "/grid_search/{0}_{1}_{2}_{3}_{4}_{5}_{6:.2f}"
+    grid_params = list(product_dict(**grid_search_params))
+
+    if type == "search":
+        for i in range(0, len(grid_params), int(len(grid_params) / 10)):
+            search(grid_params[i])
 
     elif type == "best":
-        results = []
-        for params in product_dict(**grid_search_params):
-            save_path = path_string.format(
-                scenario, dataset,
-                params['lstm_hidden_dim'],
-                params["fc_hidden_dim"],
-                params["lstm_layers"],
-                params['lr'],
-                params['dropout']) + f"_{scenario}_{dataset}"
-            try:
-                best = torch.load(save_path + "_best.pt")
-            except IOError as e:
-                logger.exception(str(e), exc_info=e)
-                continue
-            result = copy.copy(params)
-            result.update({"best_loss": best["losses"].min(), "best_acc": best["accs"].max(),
-                           "best_epoch": best["epoch"]},
-                          )
-            results.append(result)
-        results = pd.DataFrame(results)
-        results.to_csv("grid_search/results.csv")
-
-        logger.info(f"The best parameter by loss:\n{results.loc[results.idxmin()['best_loss']]}")
+        find_best()
