@@ -149,3 +149,5 @@ results/
 /baselines/lstm/datasets/
 /baselines/igp2_baseline/evaluation_set/
 /baselines/igp2_baseline/evaluation_set/
+/baselines/lstm/runs/
+/baselines/lstm/checkpoint/

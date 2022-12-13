@@ -49,8 +49,6 @@ def main(config):
 
     output, (encoding, lengths) = model(trajectories, use_encoding=True, device="cpu")
 
-    step = 0.1  # todo: config.step
-
     goal_probs = torch.exp(encoding).detach().numpy()
 
     # For each trajectory, take the points at every "step" distance in the path.

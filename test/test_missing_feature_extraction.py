@@ -8,7 +8,7 @@ from shapely.ops import unary_union
 
 from ogrit.core.data_processing import get_episode_frames
 from ogrit.core.feature_extraction import FeatureExtractor
-from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
+from ogrit.occlusion_detection.visualisation_tools import get_box
 from ogrit.core.base import get_base_dir
 
 
@@ -51,14 +51,14 @@ def plot_occlusion(frame_id=153, episode_idx=1, *frame, plot_occlusions=True, al
     if all_vehicles:
         for aid, state in episode_frames[frame_id].items():
             plt.text(*state.position, aid)
-            plt.plot(*list(zip(*OcclusionDetector2D.get_box(state).boundary)), color="black")
+            plt.plot(*list(zip(*get_box(state).boundary)), color="black")
 
     if frame:
         for aid, state in frame[0].items():
             plt.text(*state.position, aid)
-            plt.plot(*list(zip(*OcclusionDetector2D.get_box(state).boundary)))
+            plt.plot(*list(zip(*get_box(state).boundary)))
 
-    plt.plot(*list(zip(*OcclusionDetector2D.get_box(ego).boundary)))
+    plt.plot(*list(zip(*get_box(ego).boundary)))
 
 
 def find_lane_at(point, scenario_name="bendplatz"):

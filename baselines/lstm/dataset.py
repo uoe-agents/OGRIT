@@ -4,20 +4,18 @@ import torch
 import pickle
 
 from torch.nn.utils.rnn import pad_sequence
-from shapely.geometry import LineString
 
 from igp2.data import ScenarioConfig, InDScenario
 
 from ogrit.core.base import get_scenarios_dir, get_occlusions_dir, get_data_dir
 from ogrit.core.feature_extraction import GoalDetector
-from ogrit.occlusion_detection.visualisation_tools import get_box
 from ogrit.core.data_processing import is_target_vehicle_occluded, get_episode_frames
 
 from baselines.lstm.dataset_base import GRITDataset
 
 
 class GRITTrajectoryDataset(GRITDataset):
-    # todo: signal to the LSTM that the vehicle is missing at that timestep
+    # Inputs to the LSTM to indicate whether the target is visible to the ego in the given timestep.
     NON_OCCLUDED = 1
     OCCLUDED = 0
 
@@ -27,7 +25,6 @@ class GRITTrajectoryDataset(GRITDataset):
         scenario_config = ScenarioConfig.load(get_scenarios_dir() + f"configs/{self.scenario_name}.json")
         self.scenario = InDScenario(scenario_config)
 
-        # todo: episodes is a list of
         self.episodes = self.scenario.load_episodes([self.split_type])
         self.episodes = self._get_episodes_idx(self.episodes, scenario_config)
 
@@ -74,7 +71,7 @@ class GRITTrajectoryDataset(GRITDataset):
         goal_detector = GoalDetector(self.scenario.config.goals)
         episode_frames = get_episode_frames(episode)
 
-        # todo: load the occlusion dataset for the episode
+        # Load the occlusion dataset for the current episode.
         with open(get_occlusions_dir() + f"{self.scenario_name}_e{episode_idx}.p", 'rb') as file:
             occlusions = pickle.load(file)
 
@@ -83,7 +80,7 @@ class GRITTrajectoryDataset(GRITDataset):
         for agent_id, agent in episode.agents.items():
             if agent.metadata.agent_type in ['car', 'truck_bus']:
 
-                # todo: take the goals that the agent reaches along its path
+                # Get the goals the agent could reach, and at what timestep in the trajectory each is reached.
                 agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)
 
                 if len(agent_goals) < 1:
@@ -95,7 +92,6 @@ class GRITTrajectoryDataset(GRITDataset):
                 # Frame id when the target starts its trajectory.
                 target_initial_frame_id = agent.metadata.initial_time
 
-                ###### TODO: add description
                 # Get the other non-parked vehicles alive when the agent is.
                 ego_vehicles_id = list(samples[samples["agent_id"] == agent_id]["ego_agent_id"].unique())
 
@@ -113,20 +109,21 @@ class GRITTrajectoryDataset(GRITDataset):
                     # Frame id when the target first became visible to the ego.
                     first_visible_frame_id = min(frame_ids["frame_id"])
 
-                    # Frame id when the target is last visible to the ego, in the SAMPLES. todo
+                    # Frame id when the target is last visible to the ego, as in the samples used by OGRIT.
                     last_visible_frame_id = max(frame_ids["frame_id"])
 
-                    # todo: add 1 since we're slicing the trajectory and frame ids start from 0
+                    # Only take the portion of the trajectory in which the target vehicle is visible to the ego.
+                    # Add 1 since we're slicing the trajectory and frame ids start from 0
                     trimmed_trajectory = target_trajectory.slice(first_visible_frame_id - target_initial_frame_id,
                                                                  (last_visible_frame_id+1) - target_initial_frame_id)
 
-                    # todo: we want a tensor with all the x,y and heading positions of the agent up until the
-                    #  current frame id
                     target_trajectory_with_occlusions = []
 
                     if len(trimmed_trajectory.timesteps) == 0:
                         continue
 
+                    # Create the input of the LSTM. For each timestep, give the x and y coordinates, the heading and
+                    # an indicator input of whether the
                     for t in range(len(trimmed_trajectory.timesteps)):
 
                         x, y = trimmed_trajectory.path[t]
