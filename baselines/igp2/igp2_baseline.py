@@ -1,5 +1,5 @@
 import copy
-import pandas as pd
+import os
 import pickle
 import dill
 import concurrent.futures
@@ -7,7 +7,6 @@ import argparse
 import sys
 import time
 
-import igp2 as ip
 from igp2 import setup_logging, AgentState
 from igp2.data.data_loaders import InDDataLoader
 from igp2.goal import PointGoal
@@ -21,19 +20,11 @@ from igp2.planlibrary.maneuver import Maneuver, SwitchLane
 from igp2.planlibrary.macro_action import ChangeLane
 
 from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir, get_igp2_results_dir
+from ogrit.occlusion_detection.visualisation_tools import get_box
 
-# todo: code from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
+# Code adapted from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
 def create_args():
-    # TODO: modify folders name in description
-    config_specification = argparse.ArgumentParser(description="""
-This experiment will perform goal prediction for all agents and frames specified 
-by a .csv file located in scripts/experiments/data/evaluation_set, following the
-naming convention "scenario"_e"episode_no".csv, where episode_no is defined as the 
-index of the recording ids defined in the json files. \n
-A result binary will be generated and stored in scripts/experiments/data/results \n
-Logs can be accessed in scripts/experiments/data/logs \n
-Make sure to create these folders ahead of running the script.
-     """, formatter_class=argparse.RawTextHelpFormatter)
+    config_specification = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
 
     config_specification.add_argument('--num_workers', default="0",
                                       help="Number of parralel processes. Set 0 for auto", type=int)
@@ -46,7 +37,7 @@ Make sure to create these folders ahead of running the script.
                                       help="0: runs the default reward scheme defined in the IGP2 paper. \
                                       1: runs alternate reward scheme defined in Cost.cost_difference_resampled().",
                                       type=int)
-    config_specification.add_argument('--dataset', default="valid",
+    config_specification.add_argument('--dataset', default="test",
                                       help="valid: runs on the validation dataset, test: runs on the test dataset",
                                       type=str)
     config_specification.add_argument('--scenario', default="heckstrasse", type=str)
@@ -65,19 +56,29 @@ def extract_goal_data(goals_data):
     return goals
 
 
-def read_and_process_data(scenario, episode_id): # todo: use this instead
+def read_and_process_data(scenario, episode_id):
     """Identifies which frames and agents to perform goal recognition for in episode,
     from a provided .csv file."""
 
     file_path = get_data_dir() + f'/{scenario}_e{episode_id}.csv'
     data = pd.read_csv(file_path).drop_duplicates(['frame_id', 'agent_id', 'ego_agent_id'])
-    # todo: remove duplicates
     return data
 
 
 def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recognition: GoalRecognition,
                            goal_probabilities: GoalsProbabilities):
-    """Computes the goal recognition results for specified agent at specified frames."""
+    """
+    Computes the goal recognition results for specified agent at specified frames.
+    Note: the frames are already adjusted for occlusions (i.e., only those in which the ego saw the target and
+          where we used A* to fill in the occluded frames).
+    """
+
+    samples_to_store = None
+    if os.path.exists("samples_to_store.csv"):
+        samples_to_store = pd.read_csv("samples_to_store.csv")
+    else:
+        samples_to_store = pd.DataFrame(columns=["recording_id", "frame_id", "aid", "ego_agent_id", "fraction_observed", "g0", "g1", "g2", "tg"])
+        samples_to_store.to_csv("samples_to_store.csv", header=True)
 
     goal_probabilities_c = copy.deepcopy(goal_probabilities)
     result_agent = None
@@ -85,27 +86,57 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
         if aid in frame.dead_ids:
             frame.dead_ids.remove(aid)
 
-    frame_ini = min(data['frame_id'])
+    initial_frame = min(data['frame_id'])
 
+    # For each sample in the OGRIT dataset, collect the goal probabilities.
     for _, row in data.iterrows():
-        try:
+        # Ftry:
             if result_agent is None:
                 result_agent = AgentResult(row['true_goal'])
             frame_id = row['frame_id']
+            ego_agent_id = row["ego_agent_id"]
 
-            agent_states = [frame.agents[aid] for frame in frames[0:frame_id - frame_ini + 1]]
+            # Use the states of the vehicle we have seen so far to predict its goal.
+            agent_states = [frame.agents[aid] for frame in frames[0:frame_id - initial_frame + 1]]
             trajectory = ip.StateTrajectory(framerate, frames=agent_states)
+
+            frame_idddd = frame_id - initial_frame
+            current_frame = frames[frame_id - initial_frame].agents
+
             t_start = time.perf_counter()
-            goal_recognition.update_goals_probabilities(goal_probabilities_c, trajectory, aid,
-                                                        frame_ini=frames[0].agents,
-                                                        frame=frames[frame_id - frame_ini].agents, maneuver=None)
+            goal_probabilities_c = goal_recognition.update_goals_probabilities(goal_probabilities_c, trajectory, aid,
+                                                                               frame_ini=frames[0].agents,
+                                                                               frame=current_frame, maneuver=None)
             t_end = time.perf_counter()
+
             result_agent.add_data((frame_id, copy.deepcopy(goal_probabilities_c), t_end - t_start, trajectory.path[-1],
                                    row['fraction_observed']))
-        except Exception as e:
-            logger.error(f"Fatal in recording_id: {recordingID} for aid: {aid} at frame {frame_id}.")
-            logger.error(f"Error message: {str(e)}")
 
+            goal_probs = np.round(list(goal_probabilities_c.goals_probabilities.values()), 2)
+
+            if 0.65 <= row['fraction_observed'] < 0.85:
+                goal_probs = np.round(list(goal_probabilities_c.goals_probabilities.values()), 2)
+                samples_empty = samples_to_store[((np.round(samples_to_store["recording_id"]))==recordingID) &
+                                                 (np.round(samples_to_store["frame_id"])==frame_id) &
+                                                 (np.round(samples_to_store["aid"]) == aid) &
+                                                 (np.round(samples_to_store["fraction_observed"],1) == round(row['fraction_observed'], 1)) &
+                                                  (np.round(samples_to_store["ego_agent_id"]) == ego_agent_id)]
+                if samples_empty.empty:
+                    samples_to_store = samples_to_store.append({"recording_id": recordingID,
+                                                                "frame_id": frame_id,
+                                                                "aid": aid,
+                                                                "ego_agent_id": ego_agent_id,
+                                                                "fraction_observed": round(row['fraction_observed'], 1),
+                                                                "g0": goal_probs[0],
+                                                                "g1": goal_probs[1],
+                                                                "g2": goal_probs[2],
+                                                                "tg": row["true_goal"]}, ignore_index=True)
+
+        #except Exception as e:
+        #    logger.error(f"Fatal in recording_id: {recordingID} for aid: {aid} at frame {frame_id}.")
+        #    logger.error(f"Error message: {str(e)}")
+
+    samples_to_store.to_csv("samples_to_store.csv", header=True, index=False)
     return aid, result_agent
 
 
@@ -115,19 +146,24 @@ def multi_proc_helper(arg_list):
                                   arg_list[6])
 
 
-def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = True, max_workers: int = None):
+def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = False, max_workers: int = None):
     """Run goal prediction in parralel for each agent, across all specified scenarios."""
     result_experiment = ExperimentResult()
 
     for scenario_name in SCENARIOS:
         scenario_map = ip.Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
+
+        #from igp2 import plot_map
+        #ip.plot_map(scenario_map)
+        #plt.show()
+
         data_loader = InDDataLoader(f"scenarios/configs/{scenario_name}.json", [DATASET])
         data_loader.load()
 
         # Scenario specific parameters
         SwitchLane.TARGET_SWITCH_LENGTH = data_loader.scenario.config.target_switch_length
         ChangeLane.CHECK_ONCOMING = data_loader.scenario.config.check_oncoming
-        ip.Trajectory.VELOCITY_STOP = 1.  # TODO make .json parameter
+        ip.Trajectory.VELOCITY_STOP = 1.
         Maneuver.NORM_WIDTH_ACCEPTABLE = 0.5
         Maneuver.LON_SWERVE_DISTANCE = 8
 
@@ -142,7 +178,6 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Tru
         else:
             goals_priors = None
 
-        # todo convert the goals from list to points
         goals = extract_goal_data(goals_data)
         goal_probabilities = GoalsProbabilities(goals, priors=goals_priors)
         astar = AStar(next_lane_offset=0.25)
@@ -160,9 +195,10 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Tru
             recordingID = episode.metadata.config['recordingId']
             framerate = episode.metadata.frame_rate
             logger.info(
-                f"Starting experiment in scenario: {scenario_name}, episode_id: {episode_ids[ind_episode]}, recording_id: {recordingID}")
-            smoother = ip.VelocitySmoother(vmin_m_s=ip.Trajectory.VELOCITY_STOP, vmax_m_s=episode.metadata.max_speed, n=10,
-                                        amax_m_s2=5, lambda_acc=10)
+                f"Starting experiment in scenario: {scenario_name}, episode_id: {episode_ids[ind_episode]},"
+                f" recording_id: {recordingID}")
+            smoother = ip.VelocitySmoother(vmin_m_s=ip.Trajectory.VELOCITY_STOP, vmax_m_s=episode.metadata.max_speed,
+                                           n=10, amax_m_s2=5, lambda_acc=10)
             goal_recognition = GoalRecognition(astar=astar, smoother=smoother, scenario_map=scenario_map, cost=cost,
                                                reward_as_difference=REWARD_AS_DIFFERENCE)
             result_episode = EpisodeResult(episode.metadata, episode_ids[ind_episode], cost_factors)
@@ -171,11 +207,15 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Tru
             grouped_data = test_data[ind_episode].groupby(['agent_id', 'ego_agent_id'])
             args = []
             for (aid, ego_id), group in grouped_data:
+
+                if aid != 40:
+                    continue
                 data = group.copy()
                 frame_ini = data.frame_id.values[0]
                 frame_last = data.frame_id.values[-1]
                 frames = episode.frames[frame_ini:frame_last + 1]
-                frames = _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition)
+                frames = _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recognition,
+                                               scenario_map)
                 arg = [frames, recordingID, framerate, aid, data, goal_recognition, goal_probabilities]
                 args.append(copy.deepcopy(arg))
 
@@ -197,68 +237,106 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Tru
     return result_experiment
 
 
-def _get_occlusion_frames(frames, occlusions, aid, ego_id, goal_recognition):
-    # todo: description. Given
+def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framerate, frame_visible_again,
+                                  nr_occluded_frames, scenario_map):
+    """
+    Use A* to generate a trajectory between the last seen position and the currently visible position.
+    Move the start and end position to the lane's midline as to ge
+    Args:
+        goal_recognition:    GoalRecognition object that keeps track of the probabilities assigned to each goal
+        aid:                 id of the vehicle for which we are predicting the occluded frames
+        last_seen_frame:     frame was last visible to the ego
+        framerate:           framerate of the simulation
+        frame_visible_again: frame visible to the ego after being occluded
+        nr_occluded_frames:  number of frames in which the target is occluded to the ego
+        scenario_map:        map of the scenario of the simulation
+    """
+    # Generate trajectory for those frames in which the target was occluded.
+    # Project the initial and final point to the midline.
+    last_state = last_seen_frame.agents[aid]
+    last_pos = [last_state.position[0], last_state.position[1]]
+    old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.2)
 
-    from ogrit.occlusion_detection.visualisation_tools import get_box  # todo
+    if old_lane is not None: # todo: test this edge case
+        x, y = (old_lane.midline.interpolate(old_lane.midline.project(Point(last_state.position)))).xy
+        last_state.position = [list(x)[0], list(y)[0]]
+
+    # TODO: make the initial point be the closes to the midline.
+    state_trajectory = ip.StateTrajectory(framerate, [last_state])
+
+    new_state = frame_visible_again.agents[aid]
+    new_lane = scenario_map.best_lane_at(new_state.position, heading=new_state.heading, max_distance=0.2)
+
+    if new_lane is not None: # todo: test this edge case
+        new_point_om = (new_lane.midline.interpolate(new_lane.midline.project(Point(new_state.position))))
+        new_position = [new_point_om.x, new_point_om.y]
+    else:
+        new_point_om = new_state.position
+        new_position = new_state.position
+
+    last_seen_frame = last_seen_frame.agents
+    last_seen_frame[aid] = last_state
+
+    try:
+        trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
+                                                             agent_id=aid,
+                                                             frame=last_seen_frame,
+                                                             goal=PointGoal(new_point_om, 2),
+                                                             state_trajectory=state_trajectory,
+                                                             n_resample=nr_occluded_frames)
+
+    except RuntimeError as e:
+        logger.debug(e)
+
+        known_path = np.array([last_state.position, new_position])
+
+        last_velocity = np.sqrt(last_state.velocity[0]**2 + last_state.velocity[1]**2)
+        new_velocity = np.sqrt(new_state.velocity[0]**2 + new_state.velocity[1]**2)
+
+        known_velocities = np.array([last_velocity, new_velocity])
+        trajectory = [ip.VelocityTrajectory(known_path, known_velocities)]
+
+    # The trajectory will start and end on the midline, thus interpolate from the actual position to the actual goal
+    return trajectory
+
+
+def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recognition, scenario_map):
+    """If the target is occluded w.r.t the ego, use A* to find a trajectory between the last position in which the
+    ego saw the target and the next frame in which the target is visible. Then, update the frames in this interval to
+    use the predicted, and not the actual, trajectory.
+
+    Args:
+        frames:           all the real frames in the trajectory
+        framerate:        framerate of the simulation
+        occlusions:       dictionary with the occlusions indexed as {frame_id: {ego_id: {road_id: {lane_id: occlusions}}}
+        aid:              id of the vehicle for which we are predicting the occluded frames
+        ego_id:           id of the vehicle trying to predict the aid's goal
+        goal_recognition: GoalRecognition object that keeps track of the probabilities assigned to each goal
+        scenario_map:     map of the scenario of the simulation
+    """
 
     idx_last_seen = 0
     occlusion_frames = []
     initial_frame_id = frames[0].time
     metadata = frames[0].agents[aid].metadata
 
-    # todo: frames that take into account occlusions
+    # Find the frames in which the aid is occluded w.r.t the ego vehicle and interpolate the trajectory in those cases.
     for i, frame in enumerate(frames):
         frame_id = frame.time
         ego_occlusions = occlusions[frame_id][ego_id]["occlusions"]
-        target_occluded = LineString(get_box(frame.agents[aid]).boundary).buffer(0.001).within(ego_occlusions) # todo: could make it function
+        target_occluded = LineString(get_box(frame.agents[aid]).boundary).buffer(0.001).within(ego_occlusions)
 
         nr_occluded_frames = i-idx_last_seen
 
         if target_occluded:
             continue
 
-        # If the target was visible in the previous frame, do nothing. Else, use a* to fill in the occluded part.
+        # If the target was visible in the previous frame, do nothing. Else, if it wasn't visible before but now it is,
+        # use A* to fill in the occluded path.
         if idx_last_seen != i-1 and idx_last_seen != 0:
-            state_trajectory = ip.StateTrajectory(25, [frames[idx_last_seen].agents[aid]]) # todo: make 25 a variable `framerate`
-            # Generate trajectory for those frames in which the target was occluded.
 
-            try:
-                trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
-                                                                     agent_id=aid,
-                                                                     frame=frames[idx_last_seen].agents,
-                                                                     goal=PointGoal(frame.agents[aid].position, 4),
-                                                                     state_trajectory=state_trajectory,
-                                                                     n_resample=nr_occluded_frames)
-            except RuntimeError as e:
-
-                if not ip.Map.parse_from_opendrive(f"scenarios/maps/bendplatz.xodr").best_road_at(frames[idx_last_seen].agents[aid].position):
-
-                    print(f"IGNOREEEEEEEEEEEEEE {aid} at {frames[idx_last_seen].agents[aid].position}")
-                    #### todo assume full visibility for this path which we cannot reconstruct
-                    for j, frame_idx in enumerate(range(idx_last_seen + 1, i), 1):
-                        old_frame = frames[frame_idx]
-                        occlusion_frames.append(old_frame)
-                    occlusion_frames.append(frame)
-                    idx_last_seen = i
-                    continue
-
-                else:
-                    print(f"ERRRRRRROOOOOOOOOOOOOOOOOR {aid} at {frames[idx_last_seen].agents[aid].position}")
-                    continue
-
-
-            """
-            smap = ip.Map.parse_from_opendrive(f"scenarios/maps/heckstrasse.xodr")
-            ip.plot_map(smap)
-            plt.plot(*frames[idx_last_seen].agents[aid].position, marker=".")
-            plt.plot(*frame.agents[aid].position, marker="x")
-            
-
-            for traj in trajectory:
-                plt.plot(*list(zip(*traj.path)), color="r")
-            plt.show()
-            """
+            trajectory = _generate_occluded_trajectory(goal_recognition, aid, frames[idx_last_seen], framerate, frame,
+                                                       nr_occluded_frames, scenario_map)
 
             trajectory = trajectory[0]
 
@@ -383,14 +461,14 @@ if __name__ == '__main__':
         for idx, cost_factors in enumerate(cost_factors_arr):
             logger.info(f"Starting experiment {idx} with cost factors {cost_factors}.")
             t_start = time.perf_counter()
-            result_experiment = run_experiment(cost_factors, use_priors=True, max_workers=max_workers)
+            result_experiment = run_experiment(cost_factors, max_workers=max_workers)
             results.append(copy.deepcopy(result_experiment))
             t_end = time.perf_counter()
             logger.info(f"Experiment {idx} completed in {t_end - t_start} seconds.")
     else:
         logger.info(f"Starting experiment")
         t_start = time.perf_counter()
-        result_experiment = run_experiment(cost_factors=None, use_priors=True, max_workers=max_workers)
+        result_experiment = run_experiment(cost_factors=None, max_workers=max_workers)
         results.append(copy.deepcopy(result_experiment))
         t_end = time.perf_counter()
         logger.info(f"Experiment completed in {t_end - t_start} seconds.")
