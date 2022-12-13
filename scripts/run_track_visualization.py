@@ -14,7 +14,7 @@ from ogrit.core.base import get_data_dir
 from loguru import logger
 from ogrit.core.tracks_import import read_from_csv
 from ogrit.core.track_visualizer import TrackVisualizer
-from ogrit.decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees, GeneralisedGrit
+from ogrit.decisiontree.dt_goal_recogniser import Grit, HandcraftedGoalTrees, GeneralisedGrit, OcclusionGrit
 from ogrit.goalrecognition.goal_recognition import PriorBaseline
 
 
@@ -68,7 +68,7 @@ def create_args():
     config_specification.add_argument('--showTextAnnotation', default=True,
                                       help="Optional: decide whether to plot the text annotation or not.",
                                       type=bool)
-    config_specification.add_argument('--showClassLabel', default=True,
+    config_specification.add_argument('--showClassLabel', default=False,
                                       help="Optional: decide whether to show the class in the text annotation.",
                                       type=bool)
     config_specification.add_argument('--showVelocityLabel', default=True,
@@ -101,10 +101,11 @@ if __name__ == '__main__':
     goal_recognisers = {'prior': PriorBaseline,
                         'trained_trees': Grit,
                         'generalised_grit': GeneralisedGrit,
-                        'handcrafted_trees': HandcraftedGoalTrees}
+                        'handcrafted_trees': HandcraftedGoalTrees,
+                        'occlusion_grit': OcclusionGrit}
 
     if config['goal_recogniser'] is not None:
-        goal_recogniser = goal_recognisers[config['goal_recogniser']].load(config['scenario'])
+        goal_recogniser = goal_recognisers[config['goal_recogniser']].load(config['scenario'], episode_idx=config["episode"])
     else:
         goal_recogniser = None
 
@@ -140,8 +141,11 @@ if __name__ == '__main__':
         background_image_path = None
     config["background_image_path"] = background_image_path
 
+    if config["scenario"] == "neuweiler":
+        config["scale_down_factor"] = 10
+
     visualization_plot = TrackVisualizer(config, tracks, static_info, meta_info, goal_recogniser=goal_recogniser,
-                                         scenario=scenario, episode=episode, agent_id=config["agent_id"],
+                                         scenario=scenario, episode=episode, target_agent_id=config["agent_id"],
                                          episode_dataset=episode_dataset, goal_idx=config["goal_idx"],
                                          goal_type=config["goal_type"])
     visualization_plot.show()

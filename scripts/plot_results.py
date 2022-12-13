@@ -1,35 +1,33 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 from ogrit.core.base import get_base_dir, get_all_scenarios
 import baselines.lstm.test as eval_lstm
 import itertools
 import argparse
 import os
 
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
+
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-# model_names = ['prior_baseline', 'grit', 'generalised_grit',
-#                'grit_uniform_prior', 'uniform_prior_baseline', 'occlusion_baseline']
 scenario_names = get_all_scenarios()
-#scenario_names = ['heckstrasse', 'bendplatz', 'frankenburg']#, 'neuweiler']
-
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm']#, 'igp2']
-#model_names = ['occlusion_grit', 'occlusion_grit_loocv', 'sogrit', 'uniform_prior_baseline']
-
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
-             'occlusion_grit_loocv': 'OGRIT (LOOCV)',
+             'occlusion_grit_loocv': 'OGRIT-LOOCV',
              'occlusion_baseline': 'truncated G-GRIT',
              'no_possibly_missing_features_ogrit': 'OGRIT baseline',
-             'uniform_prior_baseline': 'uniform prob. baseline',
+             'uniform_prior_baseline': 'OGRIT-no-DT',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
              'sogrit': 'S-OGRIT',
-             'ogrit_oracle': 'OGRIT (oracle)',
+             'ogrit_oracle': 'OGRIT-oracle',
              'trained_trees': 'GRIT',
              'truncated_grit': 'Truncated GRIT',
              'no_possibly_missing_features_grit': 'GRIT',
@@ -39,14 +37,14 @@ label_map = {'generalised_grit': 'Oracle',
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
              'frankenburg': 'Frankenburg',
-             'neuweiler': 'Neuweiler'}
+             'neuweiler': 'Neuweiler',
+             'neukoellnerstrasse': 'Neukoellner Strasse'}
 
 plot_accuracy = False
 plot_normalised_entropy = False
 plot_cross_entropy = False
 plot_true_goal_prob = True
 
-# results_dir = get_base_dir() + "/predictions/occlusion_subset/"
 results_dir = get_base_dir() + "/results/"
 #results_dir = get_base_dir() + f'/results/loocv/'
 
@@ -99,9 +97,9 @@ if plot_normalised_entropy:
 
 # plot true goal probability
 if plot_true_goal_prob:
-    plt.rcParams["figure.figsize"] = (8,8)
+    plt.rcParams["figure.figsize"] = (16, 3)
 
-    fig, axes = plt.subplots(2, 2)
+    fig, axes = plt.subplots(1, 4)
 
 
     def plot_lstm(scenario_name, label, marker):
@@ -133,13 +131,19 @@ if plot_true_goal_prob:
 
 
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        ax = axes[scenario_idx % 2, scenario_idx // 2]
-        #ax = axes[scenario_idx]
+        #ax = axes[scenario_idx % 2, scenario_idx // 2]
+        ax = axes[scenario_idx]
         plt.sca(ax)
-        if scenario_idx % 2 == 1:
-            plt.xlabel('fraction of trajectory completed')
-        if scenario_idx // 2 == 0:
+        # if scenario_idx % 2 == 1:
+
+        plt.xlabel('fraction of trajectory completed')
+        # if scenario_idx // 2 == 0:
+        if scenario_idx == 0:
             plt.ylabel('Probability assigned to true goal')
+
+        ogrit_marker = None
+        ogrit_color = None
+
 
         plt.title(title_map[scenario_name])
         marker = itertools.cycle(('^', '+', 'x', 'o', '*'))
@@ -157,10 +161,25 @@ if plot_true_goal_prob:
             true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
-            plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, label=label_map[model_name], marker=next(marker))
+            if model_name == 'ogrit_oracle':
+                current_marker = None
+                color = ogrit_color
+                line_style = '--'
+            else:
+                current_marker = next(marker)
+                color = None
+                line_style = '-'
+
+            p = plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, line_style,
+                         label=label_map[model_name], marker=current_marker, color=color)
+
+            if model_name == 'occlusion_grit':
+                ogrit_color = p[0].get_color()
+                ogrit_marker = current_marker
+
             plt.fill_between(true_goal_prob_sem.fraction_observed, (true_goal_prob + true_goal_prob_sem).true_goal_prob.to_numpy(),
-                             (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2)
-        plt.ylim([0, 1.1])
+                             (true_goal_prob - true_goal_prob_sem).true_goal_prob.to_numpy(), alpha=0.2, color=p[0].get_color())
+        plt.ylim([0.0, 1.0])
         if scenario_idx == 0:
             plt.legend()
     plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')

@@ -1,5 +1,6 @@
 import copy
 import os
+import pandas as pd
 import pickle
 import dill
 import concurrent.futures
@@ -90,7 +91,7 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
 
     # For each sample in the OGRIT dataset, collect the goal probabilities.
     for _, row in data.iterrows():
-        # Ftry:
+        try:
             if result_agent is None:
                 result_agent = AgentResult(row['true_goal'])
             frame_id = row['frame_id']
@@ -132,9 +133,9 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
                                                                 "g2": goal_probs[2],
                                                                 "tg": row["true_goal"]}, ignore_index=True)
 
-        #except Exception as e:
-        #    logger.error(f"Fatal in recording_id: {recordingID} for aid: {aid} at frame {frame_id}.")
-        #    logger.error(f"Error message: {str(e)}")
+        except Exception as e:
+            logger.error(f"Fatal in recording_id: {recordingID} for aid: {aid} at frame {frame_id}.")
+            logger.error(f"Error message: {str(e)}")
 
     samples_to_store.to_csv("samples_to_store.csv", header=True, index=False)
     return aid, result_agent
@@ -207,9 +208,6 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
             grouped_data = test_data[ind_episode].groupby(['agent_id', 'ego_agent_id'])
             args = []
             for (aid, ego_id), group in grouped_data:
-
-                if aid != 40:
-                    continue
                 data = group.copy()
                 frame_ini = data.frame_id.values[0]
                 frame_last = data.frame_id.values[-1]

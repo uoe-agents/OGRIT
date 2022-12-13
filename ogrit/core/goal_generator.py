@@ -20,7 +20,7 @@ class TypedGoal:
 class GoalGenerator:
 
     @classmethod
-    def generate_goals_from_lane(cls, lane: Lane, scenario_map: Map, visible_region: Circle = None) -> List[TypedGoal]:
+    def generate_goals_from_lane(cls, lane: Lane, scenario_map: Map, visible_region: Circle = None, goal_radius=3.5) -> List[TypedGoal]:
         typed_goals = []
         visited_lanes = {lane}
         open_set = [[lane]]
@@ -55,7 +55,6 @@ class GoalGenerator:
                         visited_lanes.add(neighbour)
                         open_set.append(lane_sequence + [neighbour])
             else:
-                goal_radius = lane.get_width_at(lane.length) / 2
                 goal = PointGoal(goal_location, goal_radius)
                 typed_goal = TypedGoal(goal_type, goal, lane_sequence)
                 typed_goals.append(typed_goal)
@@ -69,14 +68,15 @@ class GoalGenerator:
                                    and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
         return in_roundabout and not successor_in_roundabout
 
-    def generate(self, scenario_map: Map, trajectory: VelocityTrajectory, visible_region: Circle = None
-                 ) -> List[TypedGoal]:
+    def generate(self, scenario_map: Map, trajectory: VelocityTrajectory, visible_region: Circle = None,
+                 goal_radius=3.5) -> List[TypedGoal]:
         """ Generate the set of possible goals for an agent state
 
         Args:
             scenario_map: local road map
             trajectory: trajectory of the vehicle up to the current time
             visible_region: region of the region of the map that is visible
+            goal_radius: radius of each goal region
 
         Returns:
             List of generated goals
@@ -89,14 +89,14 @@ class GoalGenerator:
         possible_lanes = scenario_map.lanes_within_angle(position, heading, np.pi/4,
                                                          drivable_only=True, max_distance=3)
 
-        lane_goals = [self.generate_goals_from_lane(l, scenario_map, visible_region) for l in possible_lanes]
+        lane_goals = [self.generate_goals_from_lane(l, scenario_map, visible_region, goal_radius) for l in possible_lanes]
 
         # get list of typed goals for each goal locations
         goal_loc_goals = {}
         for goals in lane_goals:
             for goal in goals:
                 for goal_loc in goal_loc_goals:
-                    if np.allclose(goal_loc, goal.goal.center.coords[0], atol=1.):
+                    if np.allclose(goal_loc, goal.goal.center.coords[0], atol=3.5):
                         goal_loc_goals[goal_loc].append(goal)
                         break
                 else:

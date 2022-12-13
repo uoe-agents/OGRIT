@@ -14,7 +14,7 @@
                   0.11400169204737799,
                   0.349196277495771,
                   0.10236886632825604],
-  "goals_threshold": 1.5,
+  "goal_threshold": 1.5,
   "goal_radius": [3, 3, 3, 3],
   "opendrive_file": "scenarios/maps/neuweiler.xodr",
   "data_format": "ind",

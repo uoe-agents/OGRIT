@@ -84,7 +84,7 @@ class FeatureExtractor:
                 self.occlusions = pickle.load(file)
 
     def extract(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
-                initial_frame: Dict[int, AgentState] = None, target_occlusion_history: List[bool] = None) \
+                initial_frame: Dict[int, AgentState] = None, target_occlusion_history: List[bool] = None, fps=25) \
             -> Dict[str, Union[float, bool]]:
         """Extracts a dict of features describing the observation
 
@@ -95,6 +95,7 @@ class FeatureExtractor:
             ego_agent_id: id of the ego agent from whose pov the occlusions are taken. Used for indicator features
             initial_frame: first frame in which the target agent is visible to the ego. Used for indicator features
             target_occlusion_history: list indicating whether the target vehicle was occluded in previous frames
+            fps: f
 
         Returns: dict of features values
 
@@ -129,7 +130,6 @@ class FeatureExtractor:
         else:
             oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
 
-        fps = 25
         speed_change_1s = self.get_speed_change(agent_id, frames, frames_ago=fps)
         speed_change_2s = self.get_speed_change(agent_id, frames, frames_ago=2*fps)
         speed_change_3s = self.get_speed_change(agent_id, frames, frames_ago=3*fps)
@@ -670,10 +670,10 @@ class FeatureExtractor:
                                    and self.scenario_map.road_in_roundabout(lane.link.predecessor[0].parent_road))
         return self.is_roundabout_junction(lane) and not predecessor_in_roundabout
 
-    def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]]):
+    def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]], goal_radius=3.5):
         typed_goals = []
         goal_gen = GoalGenerator()
-        gen_goals = goal_gen.generate(self.scenario_map, trajectory)
+        gen_goals = goal_gen.generate(self.scenario_map, trajectory, goal_radius=goal_radius)
         for goal in goals:
             for gen_goal in gen_goals:
                 if gen_goal.goal.reached(Point(*goal)):
