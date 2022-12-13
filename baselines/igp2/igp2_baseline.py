@@ -74,13 +74,6 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
           where we used A* to fill in the occluded frames).
     """
 
-    samples_to_store = None
-    if os.path.exists("samples_to_store.csv"):
-        samples_to_store = pd.read_csv("samples_to_store.csv")
-    else:
-        samples_to_store = pd.DataFrame(columns=["recording_id", "frame_id", "aid", "ego_agent_id", "fraction_observed", "g0", "g1", "g2", "tg"])
-        samples_to_store.to_csv("samples_to_store.csv", header=True)
-
     goal_probabilities_c = copy.deepcopy(goal_probabilities)
     result_agent = None
     for frame in frames:
@@ -94,14 +87,12 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
         try:
             if result_agent is None:
                 result_agent = AgentResult(row['true_goal'])
-            frame_id = row['frame_id']
-            ego_agent_id = row["ego_agent_id"]
+            frame_id = int(row['frame_id'])
 
             # Use the states of the vehicle we have seen so far to predict its goal.
             agent_states = [frame.agents[aid] for frame in frames[0:frame_id - initial_frame + 1]]
             trajectory = ip.StateTrajectory(framerate, frames=agent_states)
 
-            frame_idddd = frame_id - initial_frame
             current_frame = frames[frame_id - initial_frame].agents
 
             t_start = time.perf_counter()
@@ -113,31 +104,10 @@ def goal_recognition_agent(frames, recordingID, framerate, aid, data, goal_recog
             result_agent.add_data((frame_id, copy.deepcopy(goal_probabilities_c), t_end - t_start, trajectory.path[-1],
                                    row['fraction_observed']))
 
-            goal_probs = np.round(list(goal_probabilities_c.goals_probabilities.values()), 2)
-
-            if 0.65 <= row['fraction_observed'] < 0.85:
-                goal_probs = np.round(list(goal_probabilities_c.goals_probabilities.values()), 2)
-                samples_empty = samples_to_store[((np.round(samples_to_store["recording_id"]))==recordingID) &
-                                                 (np.round(samples_to_store["frame_id"])==frame_id) &
-                                                 (np.round(samples_to_store["aid"]) == aid) &
-                                                 (np.round(samples_to_store["fraction_observed"],1) == round(row['fraction_observed'], 1)) &
-                                                  (np.round(samples_to_store["ego_agent_id"]) == ego_agent_id)]
-                if samples_empty.empty:
-                    samples_to_store = samples_to_store.append({"recording_id": recordingID,
-                                                                "frame_id": frame_id,
-                                                                "aid": aid,
-                                                                "ego_agent_id": ego_agent_id,
-                                                                "fraction_observed": round(row['fraction_observed'], 1),
-                                                                "g0": goal_probs[0],
-                                                                "g1": goal_probs[1],
-                                                                "g2": goal_probs[2],
-                                                                "tg": row["true_goal"]}, ignore_index=True)
-
         except Exception as e:
             logger.error(f"Fatal in recording_id: {recordingID} for aid: {aid} at frame {frame_id}.")
             logger.error(f"Error message: {str(e)}")
 
-    samples_to_store.to_csv("samples_to_store.csv", header=True, index=False)
     return aid, result_agent
 
 
