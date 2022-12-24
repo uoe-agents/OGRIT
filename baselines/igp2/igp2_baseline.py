@@ -179,6 +179,7 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
             args = []
             for (aid, ego_id), group in grouped_data:
                 data = group.copy()
+
                 frame_ini = data.frame_id.values[0]
                 frame_last = data.frame_id.values[-1]
                 frames = episode.frames[frame_ini:frame_last + 1]
@@ -294,14 +295,15 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
         ego_occlusions = occlusions[frame_id][ego_id]["occlusions"]
         target_occluded = LineString(get_box(frame.agents[aid]).boundary).buffer(0.001).within(ego_occlusions)
 
-        nr_occluded_frames = i-idx_last_seen
+        # i-idx_last_seen is 1 if there are no occlusions since the last frame
+        nr_occluded_frames = i-idx_last_seen-1
 
         if target_occluded:
             continue
 
         # If the target was visible in the previous frame, do nothing. Else, if it wasn't visible before but now it is,
         # use A* to fill in the occluded path.
-        if idx_last_seen != i-1 and idx_last_seen != 0:
+        if nr_occluded_frames > 0 and idx_last_seen != 0:
 
             trajectory = _generate_occluded_trajectory(goal_recognition, aid, frames[idx_last_seen], framerate, frame,
                                                        nr_occluded_frames, scenario_map)
