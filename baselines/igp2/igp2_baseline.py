@@ -301,12 +301,13 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
         if target_occluded:
             continue
 
-        # If the target was visible in the previous frame, do nothing. Else, if it wasn't visible before but now it is,
+        # If the target was visible in the previous frame, do nothing. Else, if it wasn't visible before, but now it is,
         # use A* to fill in the occluded path.
         if nr_occluded_frames > 0 and idx_last_seen != 0:
 
+            # The trajectory will have length nr_occluded_frames+1 since the first frame will be the last th ego saw.
             trajectory = _generate_occluded_trajectory(goal_recognition, aid, frames[idx_last_seen], framerate, frame,
-                                                       nr_occluded_frames, scenario_map)
+                                                       nr_occluded_frames+1, scenario_map)
 
             trajectory = trajectory[0]
 
@@ -336,7 +337,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 new_acc = cs_acceleration(ts)
                 new_heading = cs_heading(ts)
 
-            for j, frame_idx in enumerate(range(idx_last_seen+1, i)):
+            # j starts at 1 since the first step in the trajectory is the last seen frame
+            for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame = frames[frame_idx]
                 old_frame_agents = old_frame.all_agents
