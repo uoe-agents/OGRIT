@@ -329,7 +329,7 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
             new_acc = cs_acceleration(ts)
             new_heading = cs_heading(ts)
 
-            for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
+            for j, frame_idx in enumerate(range(idx_last_seen+1, i)):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame = frames[frame_idx]
                 old_frame_agents = old_frame.all_agents
@@ -344,6 +344,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 occlusion_frames.append(new_frame)
 
         idx_last_seen = i
+
+        # Add the frame in which the target is visible again.
         occlusion_frames.append(frame)
     return occlusion_frames
 
