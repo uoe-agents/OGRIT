@@ -310,7 +310,7 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
 
             trajectory = trajectory[0]
 
-            if nr_occluded_frames == 1: # todo refactor
+            if nr_occluded_frames == 1:
                 new_path = [trajectory.path[0]]
                 new_vel =[trajectory.velocity[0]]
                 new_acc = [trajectory.acceleration[0]]
