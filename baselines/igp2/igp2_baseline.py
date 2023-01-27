@@ -12,7 +12,7 @@ from igp2 import setup_logging, AgentState
 from igp2.data.data_loaders import InDDataLoader
 from igp2.goal import PointGoal
 from scipy.interpolate import CubicSpline
-from shapely.geometry import Point, LineString
+from shapely.geometry import LineString
 from igp2.recognition.goalrecognition import *
 from igp2.recognition.astar import AStar
 from igp2.cost import Cost
@@ -124,10 +124,6 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
     for scenario_name in SCENARIOS:
         scenario_map = ip.Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
 
-        #from igp2 import plot_map
-        #ip.plot_map(scenario_map)
-        #plt.show()
-
         data_loader = InDDataLoader(f"scenarios/configs/{scenario_name}.json", [DATASET])
         data_loader.load()
 
@@ -206,8 +202,7 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
     return result_experiment
 
 
-def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framerate, frame_visible_again,
-                                  nr_occluded_frames, scenario_map):
+def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framerate, frame_visible_again, scenario_map):
     """
     Use A* to generate a trajectory between the last seen position and the currently visible position.
     Move the start and end position to the lane's midline as to ge
@@ -217,7 +212,6 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
         last_seen_frame:     frame was last visible to the ego
         framerate:           framerate of the simulation
         frame_visible_again: frame visible to the ego after being occluded
-        nr_occluded_frames:  number of frames in which the target is occluded to the ego
         scenario_map:        map of the scenario of the simulation
     """
     # Generate trajectory for those frames in which the target was occluded.
@@ -226,17 +220,17 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     last_pos = [last_state.position[0], last_state.position[1]]
     old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.2)
 
-    if old_lane is not None: # todo: test this edge case
-        x, y = (old_lane.midline.interpolate(old_lane.midline.project(Point(last_state.position)))).xy
-        last_state.position = [list(x)[0], list(y)[0]]
-
-    # TODO: make the initial point be the closes to the midline.
     state_trajectory = ip.StateTrajectory(framerate, [last_state])
 
     new_state = frame_visible_again.agents[aid]
     new_lane = scenario_map.best_lane_at(new_state.position, heading=new_state.heading, max_distance=0.2)
 
-    if new_lane is not None: # todo: test this edge case
+    # Place the last seen and new seen positions to be on the midline to facilitate IGP2 finding a path.
+    if old_lane is not None:
+        x, y = (old_lane.midline.interpolate(old_lane.midline.project(Point(last_state.position)))).xy
+        last_state.position = [list(x)[0], list(y)[0]]
+
+    if new_lane is not None:
         new_point_om = (new_lane.midline.interpolate(new_lane.midline.project(Point(new_state.position))))
         new_position = [new_point_om.x, new_point_om.y]
     else:
@@ -251,8 +245,7 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
                                                              agent_id=aid,
                                                              frame=last_seen_frame,
                                                              goal=PointGoal(new_point_om, 2),
-                                                             state_trajectory=state_trajectory,
-                                                             n_resample=nr_occluded_frames)
+                                                             state_trajectory=state_trajectory)
 
     except RuntimeError as e:
         logger.debug(e)
@@ -307,25 +300,26 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
 
             # The trajectory will have length nr_occluded_frames+1 since the first frame will be the last th ego saw.
             trajectory = _generate_occluded_trajectory(goal_recognition, aid, frames[idx_last_seen], framerate, frame,
-                                                       nr_occluded_frames+1, scenario_map)
+                                                       scenario_map)
 
             trajectory = trajectory[0]
 
-            if nr_occluded_frames == 1:
-                new_path = [trajectory.path[0]]
-                new_vel =[trajectory.velocity[0]]
-                new_acc = [trajectory.acceleration[0]]
-                new_heading = [trajectory.heading[0]]
+             # todo: check what happens to the trajectory when there is only one step missing not 1 step if only one missing nr_occluded_frames == 1:
+
+            # Case in which the target vehicle doesn't move while being occluded w.r.t the ego.
+            if sum(trajectory.timesteps) == 0:
+                new_path = [list(trajectory.path[0])] * nr_occluded_frames
+                new_vel = [0] * nr_occluded_frames
+                new_acc = [0] * nr_occluded_frames
+                new_heading = [frame.agents[aid].heading] * nr_occluded_frames
             else:
                 initial_heading = trajectory.heading[0]
                 final_heading = trajectory.heading[-1]
                 initial_direction = np.array([np.cos(initial_heading), np.sin(initial_heading)])
                 final_direction = np.array([np.cos(final_heading), np.sin(final_heading)])
-
                 cs_path = CubicSpline(trajectory.times, trajectory.path, bc_type=((1, initial_direction),
                                                                                   (1, final_direction)))
 
-                print(trajectory.velocity)
                 cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
                 cs_acceleration = CubicSpline(trajectory.times, trajectory.acceleration)
                 cs_heading = CubicSpline(trajectory.times, trajectory.heading)
@@ -337,8 +331,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 new_acc = cs_acceleration(ts)
                 new_heading = cs_heading(ts)
 
-            # j starts at 1 since the first step in the trajectory is the last seen frame
-            for j, frame_idx in enumerate(range(idx_last_seen+1, i), 1):
+            # j starts at 1 since the first step in the trajectory is the last frame seen.
+            for j, frame_idx in enumerate(range(idx_last_seen+1, i)):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame = frames[frame_idx]
                 old_frame_agents = old_frame.all_agents
