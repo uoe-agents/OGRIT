@@ -12,7 +12,7 @@ from igp2 import setup_logging, AgentState
 from igp2.data.data_loaders import InDDataLoader
 from igp2.goal import PointGoal
 from scipy.interpolate import CubicSpline
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 from igp2.recognition.goalrecognition import *
 from igp2.recognition.astar import AStar
 from igp2.cost import Cost
@@ -355,10 +355,16 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
 def dump_results(objects, name: str):
     """Saves results binary"""
     filename = name + '.pkl'
-    filename = get_igp2_results_dir() + f"/{filename}"
+    file_path = get_igp2_results_dir() + f"/{filename}"
 
-    with open(filename, 'wb') as f:
-        dill.dump(objects, f)
+    # from https://stackoverflow.com/questions/31468117/python-3-can-pickle-handle-byte-objects-larger-than-4gb
+    max_bytes = 2 ** 31 - 1
+
+    ## write
+    bytes_out = pickle.dumps(objects, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(file_path, 'wb') as f_out:
+        for idx in range(0, len(bytes_out), max_bytes):
+            f_out.write(bytes_out[idx:idx + max_bytes])
 
 
 # Replace ProcessPoolExecutor with this for debugging without parallel execution
