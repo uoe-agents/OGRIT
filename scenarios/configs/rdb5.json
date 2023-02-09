@@ -1,0 +1,38 @@
+{
+  "map_center_utm": [617381.021, 5806798.145],
+  "goal_threshold": 1.5,
+  "opendrive_file": "scenarios/maps/rdb5.xodr",
+  "data_format": "opendd",
+  "data_root": "scenarios/data/opendd",
+  "background_image": "200_background.png",
+  "background_px_to_meter": -1,
+  "scale_down_factor": 12,
+  "target_switch_length": 20,
+  "check_lanes": false,
+  "check_oncoming": true,
+  "agent_types": ["car", "truck_bus"],
+  "episodes": [
+    {"recording_id":  "200"}
+  ],
+  "cost_factors":{
+    "time": 0.0,
+    "velocity": 0.0,
+    "acceleration": 0.0,
+    "jerk": 0.0,
+    "heading": 1000,
+    "angular_velocity": 0.0,
+    "angular_acceleration": 0.0,
+    "curvature": 0.0,
+    "safety": 0.0
+  },
+  "world_params": {
+    "x_scale_pixel_width": 0.0194944312,
+    "y_skew_pixel_width":-0.0190786922,
+    "x_skew_pixel_height":-0.0194350337,
+    "y_scale_pixel_height":-0.0195975755,
+    "x_coordinate": 617364.9618454372,
+    "y_coordinate": 5806856.253282707
+  },
+  "buildings": [
+  ]
+}

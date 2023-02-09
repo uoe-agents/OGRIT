@@ -2,6 +2,8 @@
 # provided in the InD dataset so that OGRIT can understand them
 import numpy as np
 import pandas as pd
+from ogrit.core.base import get_scenarios_dir
+from igp2.data.scenario import ScenarioConfig
 
 
 def compute_track_lifetime(df):
@@ -33,9 +35,14 @@ recordingID = 200  # TODO: change
 
 
 if __name__ == "__main__":
-    original_trajectories = pd.read_csv("/Users/Massimiliano/OGRIT/scenarios/data/opendd/rdb5_trajectories.csv")
-    x_origin = 617364.9618454372
-    y_origin = 5806856.2532827072
+    scenario_name = "rdb5"
+    scenario_dir = get_scenarios_dir()
+    data_path = scenario_dir + "/data/opendd/"
+    original_trajectories = pd.read_csv(data_path + scenario_name + "_trajectories.csv")
+    scenario_config = ScenarioConfig.load(scenario_dir + f"/configs/{scenario_name}.json")
+
+    x_origin = scenario_config.map_center_utm[0]
+    y_origin = scenario_config.map_center_utm[1]
 
     """ tracks file """
     new_trajectories = pd.DataFrame(columns=["recordingId", "trackId", "frame", "trackLifetime", "xCenter", 'yCenter',
@@ -61,7 +68,7 @@ if __name__ == "__main__":
     new_trajectories["xAcceleration"]= np.array(original_trajectories["ACC"])*np.cos(original_trajectories["UTM_ANGLE"])
     new_trajectories["yAcceleration"]= np.array(original_trajectories["ACC"])*np.sin(original_trajectories["UTM_ANGLE"])
 
-    new_trajectories.to_csv("/Users/Massimiliano/OGRIT/scenarios/data/opendd/200_tracks.csv", index=False)
+    new_trajectories.to_csv(data_path + "/200_tracks.csv", index=False)
 
     """ Recording meta file """
     # From the World File, the last two numbers represent the UTM-x and -y coordinates of the top left corner
@@ -80,11 +87,11 @@ if __name__ == "__main__":
     recording_meta["numVRUs"] = np.nan
     recording_meta["latLocation"] = np.nan
     recording_meta["lonLocation"] = np.nan
-    recording_meta["xUtmOrigin"] = [x_origin] # TODO: update dynamically - from OpenDD/rdb5/geo-referenced_images_rdb5/rdb5.pgw
-    recording_meta["yUtmOrigin"] = [y_origin]  # TODO: update dynamically - from OpenDD/rdb5/geo-referenced_images_rdb5/rdb5.pgw
+    recording_meta["xUtmOrigin"] = [x_origin]
+    recording_meta["yUtmOrigin"] = [y_origin]
     recording_meta["orthoPxToMeter"] = np.nan
 
-    recording_meta.to_csv("/Users/Massimiliano/OGRIT/scenarios/data/opendd/200_recordingMeta.csv", index=False)
+    recording_meta.to_csv(data_path + "200_recordingMeta.csv", index=False)
 
     """ Tracks meta file """
     tracks_meta = pd.DataFrame(columns=["recordingId", "trackId", "initialFrame", "finalFrame", "numFrames",
@@ -107,6 +114,6 @@ if __name__ == "__main__":
     tracks_meta["class"] = [class_equivalent[vehicle] for vehicle in original_trajectories["CLASS"]]
 
     tracks_meta.drop_duplicates(subset=["trackId"], inplace=True)
-    tracks_meta.to_csv("/Users/Massimiliano/OGRIT/scenarios/data/opendd/200_tracksMeta.csv", index=False)
+    tracks_meta.to_csv(data_path + "200_tracksMeta.csv", index=False)
 
 
