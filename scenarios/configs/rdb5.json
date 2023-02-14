@@ -1,6 +1,16 @@
 {
   "map_center_utm": [617381.021, 5806798.145],
+  "goals": [[-20.18, -11.43],
+            [8.16, -28.59],
+            [25.54, 2.18],
+            [-2.83, 17.86]],
+  "goal_types": [["exit-roundabout"],
+                 ["exit-roundabout"],
+                 ["exit-roundabout"],
+                 ["exit-roundabout"]],
   "goal_threshold": 1.5,
+  "goal_radius": [3, 3, 3, 3],
+
   "opendrive_file": "scenarios/maps/rdb5.xodr",
   "data_format": "opendd",
   "data_root": "scenarios/data/opendd",
