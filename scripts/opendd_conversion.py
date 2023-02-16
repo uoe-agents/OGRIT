@@ -42,22 +42,22 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
     initial_agent_id = min(trajectories["OBJID"])
     new_trajectories["recordingId"] = [recordingID for _ in range(len(trajectories["OBJID"]))]
     new_trajectories["trackId"] = np.array(trajectories["OBJID"]) - initial_agent_id
-    new_trajectories["frame"] = round(trajectories["TIMESTAMP"] / 0.033366)
+    new_trajectories["frame"] = [round(step/ 0.033366) for step in np.array(trajectories["TIMESTAMP"]) ]
 
     new_trajectories["trackLifetime"] = compute_track_lifetime(new_trajectories)
     new_trajectories["xCenter"] = np.array(trajectories["UTM_X"]) - origin[0]
     new_trajectories["yCenter"] = np.array(trajectories["UTM_Y"]) - origin[1]
 
-    new_trajectories["heading"] = np.rad2deg(trajectories["UTM_ANGLE"])
-    new_trajectories["width"] = trajectories["WIDTH"]
-    new_trajectories["length"] = trajectories["LENGTH"]
+    new_trajectories["heading"] = np.rad2deg(np.array(trajectories["UTM_ANGLE"]))
+    new_trajectories["width"] = np.array(trajectories["WIDTH"])
+    new_trajectories["length"] = np.array(trajectories["LENGTH"])
 
-    new_trajectories["xVelocity"] = np.array(trajectories["V"]) * np.cos(trajectories["UTM_ANGLE"])
-    new_trajectories["yVelocity"] = np.array(trajectories["V"]) * np.sin(trajectories["UTM_ANGLE"])
+    new_trajectories["xVelocity"] = np.array(trajectories["V"]) * np.cos(np.array(trajectories["UTM_ANGLE"]))
+    new_trajectories["yVelocity"] = np.array(trajectories["V"]) * np.sin(np.array(trajectories["UTM_ANGLE"]))
     new_trajectories["xAcceleration"] = np.array(trajectories["ACC"]) * np.cos(
-        trajectories["UTM_ANGLE"])
+        np.array(trajectories["UTM_ANGLE"]))
     new_trajectories["yAcceleration"] = np.array(trajectories["ACC"]) * np.sin(
-        trajectories["UTM_ANGLE"])
+        np.array(trajectories["UTM_ANGLE"]))
 
     new_trajectories.to_csv(data_path + "/" +recordingID + "_tracks.csv", index=False)
 
@@ -103,7 +103,7 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
     tracks_meta["length"] = trajectories["LENGTH"]
 
     class_equivalent = {"Car": "car", "Bus": "bus", "Medium Vehicle": "truck_bus", "Heavy Vehicle": "truck_bus"}
-    tracks_meta["class"] = [class_equivalent[vehicle] for vehicle in trajectories["CLASS"]]
+    tracks_meta["class"] = [class_equivalent[vehicle] for vehicle in trajectories["CLASS"] ]
 
     tracks_meta.drop_duplicates(subset=["trackId"], inplace=True)
     tracks_meta.to_csv(data_path + recordingID + "_tracksMeta.csv", index=False)
@@ -113,19 +113,20 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
     # each 1000 vehicles are stored in one episode
     vehicles_each_episode = 1000
     IDs = original_trajectories["OBJID"]
-    initial_agent_id = min(IDs)
-    vehicle_num = max(IDs) - initial_agent_id + 1
+    start_agent_id = min(IDs)
+    vehicle_num = max(IDs) - start_agent_id + 1
     recordingID = 0
     start_inx = 0
     for inx, id in enumerate(IDs):
         if vehicle_num >= vehicles_each_episode:
-            if id - initial_agent_id == 1000:
+            if id - start_agent_id + 1 == 1000:
                 episode2csv(recordingID, original_trajectories[start_inx:inx], origin)
-                start_inx = inx
+                start_inx = inx + 1
+                start_agent_id = id + 1
                 vehicle_num = vehicle_num - vehicles_each_episode
                 recordingID +=1
         else:
-            episode2csv(recordingID, original_trajectories[initial_agent_id:id], origin)
+            episode2csv(recordingID, original_trajectories[start_inx:-1], origin)
             break
 
 
