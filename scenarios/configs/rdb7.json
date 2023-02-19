@@ -1,0 +1,48 @@
+{
+  "map_center_utm": [673956.833, 5410629.680],
+  "goals": [[0.943, -29.905],
+            [3.774, 28.396],
+            [36.415, -13.113],
+            [-28.679, 11.604]],
+  "goal_types": [["exit-roundabout"],
+                 ["exit-roundabout"],
+                 ["exit-roundabout"],
+                 ["exit-roundabout"]],
+  "goal_threshold": 1.5,
+  "goal_radius": [3, 3, 3, 3],
+
+  "opendrive_file": "scenarios/maps/rdb7.xodr",
+  "data_format": "opendd",
+  "data_root": "scenarios/data/opendd",
+  "background_image": "200_background.png",
+  "background_px_to_meter": -1,
+  "scale_down_factor": 12,
+  "target_switch_length": 20,
+  "check_lanes": false,
+  "check_oncoming": true,
+  "agent_types": ["car", "truck_bus"],
+  "episodes": [
+    {"recording_id":  "200"}
+  ],
+  "cost_factors":{
+    "time": 0.0,
+    "velocity": 0.0,
+    "acceleration": 0.0,
+    "jerk": 0.0,
+    "heading": 1000,
+    "angular_velocity": 0.0,
+    "angular_acceleration": 0.0,
+    "curvature": 0.0,
+    "safety": 0.0
+  },
+  "world_params": {
+    "x_scale_pixel_width": 0.0270024724,
+    "y_skew_pixel_width": -0.0137895194,
+    "x_skew_pixel_height": -0.0135832051,
+    "y_scale_pixel_height": -0.0268190473,
+    "x_coordinate": 673917.2658689431,
+    "y_coordinate": 5410685.4302345822
+  },
+  "buildings": [
+  ]
+}

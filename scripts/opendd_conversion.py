@@ -41,7 +41,7 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
     # The track_id / agent_id must be zero based.
     initial_agent_id = min(trajectories["OBJID"])
     new_trajectories["recordingId"] = [recordingID for _ in range(len(trajectories["OBJID"]))]
-    new_trajectories["trackId"] = np.array(trajectories["OBJID"]) - initial_agent_id
+    new_trajectories["trackId"] = np.array(trajectories["OBJID"]) #- initial_agent_id
     new_trajectories["frame"] = [round(step/ 0.033366) for step in np.array(trajectories["TIMESTAMP"]) ]
 
     new_trajectories["trackLifetime"] = compute_track_lifetime(new_trajectories)
@@ -117,23 +117,28 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
     vehicle_num = max(IDs) - start_agent_id + 1
     recordingID = 0
     start_inx = 0
+    id_last = IDs[0]
+    num = 1
     for inx, id in enumerate(IDs):
-        if vehicle_num >= vehicles_each_episode:
-            if id - start_agent_id + 1 == 1000:
-                episode2csv(recordingID, original_trajectories[start_inx:inx], origin)
-                start_inx = inx + 1
-                start_agent_id = id + 1
-                vehicle_num = vehicle_num - vehicles_each_episode
-                recordingID +=1
-        else:
-            episode2csv(recordingID, original_trajectories[start_inx:-1], origin)
-            break
+        if id != id_last:
+            num += 1
+            id_last = id
+        if num == vehicles_each_episode + 1:
+            episode2csv(recordingID, original_trajectories[start_inx:inx], origin)
+            start_inx = inx
+            num = 1
+            vehicle_num = vehicle_num - vehicles_each_episode
+            recordingID += 1
+
+            if vehicle_num < vehicles_each_episode:
+                episode2csv(recordingID, original_trajectories[start_inx:], origin)
+                break
 
 
 if __name__ == "__main__":
-    scenario_name = "rdb5"
+    scenario_name = "rdb1"
     scenario_dir = get_scenarios_dir()
-    data_path = scenario_dir + "/data/opendd/"
+    data_path = scenario_dir + "/data/opendd/" + scenario_name + "/"
     original_trajectories = pd.read_csv(data_path + scenario_name + "_trajectories.csv")
     scenario_config = ScenarioConfig.load(scenario_dir + f"/configs/{scenario_name}.json")
 
