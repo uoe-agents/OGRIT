@@ -37,6 +37,19 @@ class GoalGenerator:
                     # check if it is a roundabout exit
                     successor_in_roundabout = (len(lane.link.successor) == 1
                         and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
+
+                    # check if successor is in roundabout
+                    successor_in_roundabout = False
+                    if lane.link.successor is not None:
+                        for successor in lane.link.successor:
+                            successor_road = successor.parent_road
+                            if (scenario_map.road_in_roundabout(successor_road)
+                                or (successor_road.junction is not None
+                                    and successor_road.junction.junction_group is not None
+                                    and successor_road.junction.junction_group.type == 'roundabout')):
+                                successor_in_roundabout = True
+                                break
+
                     if not successor_in_roundabout:
                         goal_type = 'exit-roundabout'
                 else:
