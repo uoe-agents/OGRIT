@@ -1,9 +1,9 @@
 {
-  "map_center_utm": [617381.021, 5806798.145],
-  "goals": [[-20.18, -11.43],
-            [8.16, -28.59],
-            [25.54, 2.18],
-            [-2.83, 17.86]],
+  "map_center_utm": [618136.801, 5806279.151],
+  "goals": [[-11.698, -34.811],
+            [12.075, -2.924],
+            [-28.113, 16.887],
+            [-41.132, -10.283]],
   "goal_types": [["exit-roundabout"],
                  ["exit-roundabout"],
                  ["exit-roundabout"],
@@ -11,10 +11,10 @@
   "goal_threshold": 1.5,
   "goal_radius": [3, 3, 3, 3],
 
-  "opendrive_file": "scenarios/maps/rdb5.xodr",
+  "opendrive_file": "scenarios/maps/rdb3.xodr",
   "data_format": "opendd",
   "data_root": "scenarios/data/opendd",
-  "background_image": "200_background.png",
+  "background_image": "rdb3_background.png",
   "background_px_to_meter": -1,
   "scale_down_factor": 12,
   "target_switch_length": 20,
@@ -36,12 +36,12 @@
     "safety": 0.0
   },
   "world_params": {
-    "x_scale_pixel_width": 0.0194944312,
-    "y_skew_pixel_width":-0.0190786922,
-    "x_skew_pixel_height":-0.0194350337,
-    "y_scale_pixel_height":-0.0195975755,
-    "x_coordinate": 617364.9618454372,
-    "y_coordinate": 5806856.253282707
+    "x_scale_pixel_width": -0.0239033439,
+    "y_skew_pixel_width": -0.0139004979,
+    "x_skew_pixel_height": -0.0136841271,
+    "y_scale_pixel_height": 0.0253889870,
+    "x_coordinate": 618213.4157499471,
+    "y_coordinate": 5806283.5666665444
   },
   "buildings": [
   ]
