@@ -373,6 +373,61 @@ def test_neukoellnerstrasse_sw_right_lane_path():
                    scenario_map.get_lane(9, -1, 0)]
     assert goal.lane_path in [lane_path_1, lane_path_2]
 
+
+def test_neukoellnerstrasse_sw_right_lane_path():
+    xodr = "../scenarios/maps/neukoellnerstrasse.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(30)
+    speed = 5
+    time = 0
+    position = np.array((103.7, -85.9))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    for goal in goals:
+        if goal.goal_type == 'exit-left':
+            break
+    else:
+        raise ValueError('no exit-left goal')
+
+    lane_path_1 = [scenario_map.get_lane(4, 2, 0),
+                   scenario_map.get_lane(5, -2, 0),
+                   scenario_map.get_lane(5, -1, 0),
+                   scenario_map.get_lane(9, -1, 0)]
+
+    lane_path_2 = [scenario_map.get_lane(4, 2, 0),
+                   scenario_map.get_lane(4, 1, 0),
+                   scenario_map.get_lane(5, -1, 0),
+                   scenario_map.get_lane(9, -1, 0)]
+    assert goal.lane_path in [lane_path_1, lane_path_2]
+
+
+def test_rdb5_south():
+    xodr = "../scenarios/maps/rdb5.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(100)
+    speed = 5
+    time = 0
+    position = np.array((16.7, -29.8))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+    
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 4
+    assert goal_in_list(goals, 'exit-roundabout', (22.5, -0.6))
+    assert goal_in_list(goals, 'exit-roundabout', (-1.5, 14.9))
+    assert goal_in_list(goals, 'exit-roundabout', (-18.1, -10.1))
+    assert goal_in_list(goals, 'exit-roundabout', (6.8, -26.9))
+
 # def test_town01_mainroad():
 #     xodr = "../scenarios/maps/town01.xodr"
 #     scenario_map = Map.parse_from_opendrive(xodr)
