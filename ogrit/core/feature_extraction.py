@@ -177,7 +177,7 @@ class FeatureExtractor:
             initial_state = initial_frame[agent_id]
 
             exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
-                if self.scenario_name == "neuweiler" else False
+                if goal_type == "exit-roundabout" else False
 
             target_1s_occluded = self.target_previously_occluded(frames, fps, target_occlusion_history)
             target_2s_occluded = self.target_previously_occluded(frames, 2*fps, target_occlusion_history)
@@ -620,8 +620,8 @@ class FeatureExtractor:
         # then the feature is missing. The 2.5 meters offset is in case the vehicle is partially occluded.
         return min_occlusion_distance + 2.5 < min_dist
 
-    def exit_number(self, initial_state: AgentState, future_lane_path: List[Lane]):
-        # get the exit number in a roundabout
+    def exit_number_round(self, initial_state: AgentState, future_lane_path: List[Lane]):
+        # get the exit number in a roundabout from the rounD dataset
         if (future_lane_path[-1].parent_road.junction is None
                 or future_lane_path[-1].parent_road.junction.junction_group is None
                 or future_lane_path[-1].parent_road.junction.junction_group.type != 'roundabout'):
@@ -647,6 +647,43 @@ class FeatureExtractor:
 
         return exit_number
 
+    def exit_number(self, initial_state: AgentState, future_lane_path: List[Lane]):
+        goal_lane = future_lane_path[-1]
+        goal_point = goal_lane.midline.coords[-1]
+        if (goal_lane.parent_road.junction is None
+                or goal_lane.parent_road.junction.junction_group is None
+                or goal_lane.parent_road.junction.junction_group.type != 'roundabout'):
+            return 0
+
+        position = initial_state.position
+        heading = initial_state.heading
+        possible_lanes = self.scenario_map.lanes_within_angle(position, heading, np.pi / 4,
+                                                              drivable_only=True, max_distance=3)
+        initial_lane = possible_lanes[GoalGenerator.get_best_lane(possible_lanes, position, heading)]
+
+        lane_path = self.path_to_lane(initial_lane, future_lane_path[-1])
+
+        # iterate through lane path and find whether the roundabout entrance has been passed
+        entrance_passed = False
+        if lane_path is not None:
+            for lane in lane_path:
+                if self.is_roundabout_entrance(lane):
+                    entrance_passed = True
+                    break
+        if not entrance_passed:
+            return 0
+
+        goal_generator = GoalGenerator()
+        goals = goal_generator.generate_from_state(self.scenario_map, initial_state.position, initial_state.heading)
+        goals.sort(key=lambda x: len(x.lane_path))
+
+        exit_number = 0
+        for goal_idx, goal in enumerate(goals):
+            if goal.goal_type == 'exit-roundabout' and goal.goal.reached(goal_point):
+                exit_number = goal_idx + 1
+                break
+        return exit_number
+
     def is_exit_number_missing(self, initial_state: AgentState, goal: TypedGoal):
         """
         The exit number feature is missing if we cannot get the exit number. This happens when:
@@ -667,8 +704,21 @@ class FeatureExtractor:
 
     def is_roundabout_entrance(self, lane: Lane) -> bool:
         predecessor_in_roundabout = (lane.link.predecessor is not None and len(lane.link.predecessor) == 1
-                                   and self.scenario_map.road_in_roundabout(lane.link.predecessor[0].parent_road))
+                                   and self.lane_in_roundabout(lane.link.predecessor[0]))
         return self.is_roundabout_junction(lane) and not predecessor_in_roundabout
+
+    def lane_in_roundabout(self, lane: Lane):
+        if self.scenario_map.road_in_roundabout(lane.parent_road):
+            return True
+        # for openDD maps
+        predecessor_roundabout = (lane.link.predecessor is not None
+                                  and len(lane.link.predecessor) == 1
+                                  and self.is_roundabout_junction(lane.link.predecessor[0]))
+
+        succecessor_roundabout = (lane.link.successor is not None
+                                  and len(lane.link.successor) == 1
+                                  and self.is_roundabout_junction(lane.link.successor[0]))
+        return predecessor_roundabout and succecessor_roundabout
 
     def get_typed_goals(self, trajectory: VelocityTrajectory, goals: List[Tuple[int, int]], goal_radius=3.5):
         typed_goals = []

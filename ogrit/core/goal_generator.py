@@ -81,24 +81,8 @@ class GoalGenerator:
                                    and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
         return in_roundabout and not successor_in_roundabout
 
-    def generate(self, scenario_map: Map, trajectory: VelocityTrajectory, visible_region: Circle = None,
-                 goal_radius=3.5) -> List[TypedGoal]:
-        """ Generate the set of possible goals for an agent state
-
-        Args:
-            scenario_map: local road map
-            trajectory: trajectory of the vehicle up to the current time
-            visible_region: region of the region of the map that is visible
-            goal_radius: radius of each goal region
-
-        Returns:
-            List of generated goals
-        """
-        # get list of possible lanes
-        # build tree of reachable lanes
-        # if junction exit, view radius, or lane end is reached, create goal
-        position = trajectory.path[-1]
-        heading = trajectory.heading[-1]
+    def generate_from_state(self, scenario_map, position, heading, visible_region: Circle = None,
+                            goal_radius=3.5) -> List[TypedGoal]:
         possible_lanes = scenario_map.lanes_within_angle(position, heading, np.pi/4,
                                                          drivable_only=True, max_distance=3)
 
@@ -123,6 +107,26 @@ class GoalGenerator:
             typed_goals.append(goals[best_lane_idx])
 
         return typed_goals
+
+    def generate(self, scenario_map: Map, trajectory: VelocityTrajectory, visible_region: Circle = None,
+                 goal_radius=3.5) -> List[TypedGoal]:
+        """ Generate the set of possible goals for an agent state
+
+        Args:
+            scenario_map: local road map
+            trajectory: trajectory of the vehicle up to the current time
+            visible_region: region of the region of the map that is visible
+            goal_radius: radius of each goal region
+
+        Returns:
+            List of generated goals
+        """
+        # get list of possible lanes
+        # build tree of reachable lanes
+        # if junction exit, view radius, or lane end is reached, create goal
+        position = trajectory.path[-1]
+        heading = trajectory.heading[-1]
+        return self.generate_from_state(scenario_map, position, heading, visible_region, goal_radius)
 
     @staticmethod
     def get_best_lane(lanes: List[Lane], position: np.ndarray, heading: float) -> int:
