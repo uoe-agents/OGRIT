@@ -14,7 +14,7 @@
   "opendrive_file": "scenarios/maps/rdb6.xodr",
   "data_format": "opendd",
   "data_root": "scenarios/data/opendd",
-  "background_image": "200_background.png",
+  "background_image": "rdb6_background.png",
   "background_px_to_meter": -1,
   "scale_down_factor": 12,
   "target_switch_length": 20,

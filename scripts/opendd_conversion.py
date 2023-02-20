@@ -41,7 +41,7 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
     # The track_id / agent_id must be zero based.
     initial_agent_id = min(trajectories["OBJID"])
     new_trajectories["recordingId"] = [recordingID for _ in range(len(trajectories["OBJID"]))]
-    new_trajectories["trackId"] = np.array(trajectories["OBJID"]) #- initial_agent_id
+    new_trajectories["trackId"] = np.array(trajectories["OBJID"]) - initial_agent_id
     new_trajectories["frame"] = [round(step/ 0.033366) for step in np.array(trajectories["TIMESTAMP"]) ]
 
     new_trajectories["trackLifetime"] = compute_track_lifetime(new_trajectories)
@@ -113,8 +113,7 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
     # each 1000 vehicles are stored in one episode
     vehicles_each_episode = 1000
     IDs = original_trajectories["OBJID"]
-    start_agent_id = min(IDs)
-    vehicle_num = max(IDs) - start_agent_id + 1
+    vehicle_num = len(original_trajectories["OBJID"].unique())
     recordingID = 0
     start_inx = 0
     id_last = IDs[0]
@@ -136,7 +135,7 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
 
 
 if __name__ == "__main__":
-    scenario_name = "rdb1"
+    scenario_name = "rdb6"
     scenario_dir = get_scenarios_dir()
     data_path = scenario_dir + "/data/opendd/" + scenario_name + "/"
     original_trajectories = pd.read_csv(data_path + scenario_name + "_trajectories.csv")
