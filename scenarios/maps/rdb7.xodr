@@ -5916,4 +5916,8 @@
             <vectorJunction junctionId="{0c51f24c-9e0a-40ed-8110-fba476d7fa22}"/>
         </userData>
     </junction>
+    <junctionGroup name="roundabout" id="0" type="roundabout">
+        <junctionReference junction="49" />
+        <junctionReference junction="137" />
+    </junctionGroup>
 </OpenDRIVE>

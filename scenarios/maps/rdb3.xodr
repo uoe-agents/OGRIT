@@ -31749,4 +31749,7 @@
             <vectorJunction junctionId="{71b80feb-d226-4a64-ae1a-3c61f0caec2f}"/>
         </userData>
     </junction>
+    <junctionGroup name="roundabout" id="0" type="roundabout">
+        <junctionReference junction="63" />
+    </junctionGroup>
 </OpenDRIVE>

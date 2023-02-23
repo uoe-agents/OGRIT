@@ -5,14 +5,14 @@ import matplotlib.pyplot as plt
 from igp2 import Map, plot_map
 from igp2.data.scenario import ScenarioConfig, InDScenario
 
-scenario_name = 'neuweiler'
+scenario_name = 'rdb7'
 episode_idx = 0
 config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
 scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
 scenario = InDScenario(config)
 episode = scenario.load_episode(episode_idx)
 
-plot_map(scenario_map, scenario_config=config, plot_background=True)
+plot_map(scenario_map, scenario_config=config, plot_background=False)
 
 for agent in episode.agents.values():
     if agent.metadata.agent_type == 'car':
@@ -24,9 +24,9 @@ for agent in episode.agents.values():
 # lanes = scenario_map.lanes_at((24.0, -46.9), max_distance=0.01)
 # print(lanes)
 # lane = lanes[0]
-lane = scenario_map.get_lane(18, -1, 0)
-x, y = lane.boundary.exterior.xy
-plt.plot(x, y)
+# lane = scenario_map.get_lane(18, -1, 0)
+# x, y = lane.boundary.exterior.xy
+# plt.plot(x, y)
 
 for x, y in config.goals:
     plt.plot(x, y, 'ro')
