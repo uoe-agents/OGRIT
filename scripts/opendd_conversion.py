@@ -38,10 +38,9 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
                                              "heading", "width", "length", "xVelocity", 'yVelocity',
                                              "xAcceleration", "yAcceleration", "lonAcceleration", "latAcceleration"])
 
-    # The track_id / agent_id must be zero based.
-    initial_agent_id = min(trajectories["OBJID"])
+    # The track_id / agent_id / frame must be zero based.
     new_trajectories["recordingId"] = [recordingID for _ in range(len(trajectories["OBJID"]))]
-    new_trajectories["trackId"] = np.array(trajectories["OBJID"]) - initial_agent_id
+    new_trajectories["trackId"] = np.array(trajectories["OBJID"])
     new_trajectories["frame"] = [round(step/ 0.033366) for step in np.array(trajectories["TIMESTAMP"]) ]
 
     new_trajectories["trackLifetime"] = compute_track_lifetime(new_trajectories)
@@ -108,13 +107,32 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
     tracks_meta.drop_duplicates(subset=["trackId"], inplace=True)
     tracks_meta.to_csv(data_path + recordingID + "_tracksMeta.csv", index=False)
 
+
+def resetframeandid(truncated_original_trajectories: pd.DataFrame) -> pd.DataFrame:
+    new_dataframe = pd.DataFrame(columns=truncated_original_trajectories.columns)
+    truncated_traj = truncated_original_trajectories.groupby('OBJID')
+    objid_minframes = {}
+    for name, group in truncated_traj:
+        objid_minframes[name] = min(group['TIMESTAMP'])
+    sorted_minframes = dict(sorted(objid_minframes.items(),key=lambda item: item[1]))
+    initial_id = 0
+    min_frame = list(sorted_minframes.values())[0]
+    for key in sorted_minframes.keys():
+        temp = truncated_traj.get_group(key).copy()
+        temp['OBJID'] = initial_id
+        temp['TIMESTAMP'] = temp['TIMESTAMP'] - min_frame
+        new_dataframe = new_dataframe.append(temp, ignore_index=True)
+        initial_id += 1
+
+    return new_dataframe
+
 # split one scenario into episode
 def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
     # each 1000 vehicles are stored in one episode
     vehicles_each_episode = 1000
     IDs = original_trajectories["OBJID"]
     vehicle_num = len(original_trajectories["OBJID"].unique())
-    recordingID = 0
+    recordingID = 40
     start_inx = 0
     id_last = IDs[0]
     num = 1
@@ -123,19 +141,21 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
             num += 1
             id_last = id
         if num == vehicles_each_episode + 1:
-            episode2csv(recordingID, original_trajectories[start_inx:inx], origin)
+            new_dataframe = resetframeandid(original_trajectories[start_inx:inx])
+            episode2csv(recordingID, new_dataframe, origin)
             start_inx = inx
             num = 1
             vehicle_num = vehicle_num - vehicles_each_episode
             recordingID += 1
 
             if vehicle_num < vehicles_each_episode:
-                episode2csv(recordingID, original_trajectories[start_inx:], origin)
+                new_dataframe = resetframeandid(original_trajectories[start_inx:])
+                episode2csv(recordingID, new_dataframe, origin)
                 break
 
 
 if __name__ == "__main__":
-    scenario_name = "rdb6"
+    scenario_name = "rdb3"
     scenario_dir = get_scenarios_dir()
     data_path = scenario_dir + "/data/opendd/" + scenario_name + "/"
     original_trajectories = pd.read_csv(data_path + scenario_name + "_trajectories.csv")
