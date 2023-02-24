@@ -22,8 +22,25 @@
   "check_oncoming": true,
   "agent_types": ["car", "truck_bus"],
   "episodes": [
-    {"recording_id":  "200"}
+    {"recording_id":  "56"},
+    {"recording_id":  "57"},
+    {"recording_id":  "58"},
+    {"recording_id":  "59"},
+    {"recording_id":  "60"}
   ],
+    "dataset_split": {
+    "train": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "valid": [
+    ],
+    "test": [
+    ]
+  },
   "cost_factors":{
     "time": 0.0,
     "velocity": 0.0,

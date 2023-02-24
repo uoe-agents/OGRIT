@@ -1,9 +1,9 @@
 {
   "map_center_utm": [618082.795, 5805733.190],
-  "goals": [[17.519, -37.267],
-            [-6.454, 27.432],
-            [29.967, 17.750],
-            [-24.281, -17.135]],
+  "goals": [[8.26, -21.5],
+            [23.14, 11.6],
+            [-3.44, 23.3],
+            [-17.70, -10.4]],
   "goal_types": [["exit-roundabout"],
                  ["exit-roundabout"],
                  ["exit-roundabout"],
@@ -22,8 +22,33 @@
   "check_oncoming": true,
   "agent_types": ["car", "truck_bus"],
   "episodes": [
-    {"recording_id":  "200"}
+    {"recording_id":  "31"},
+    {"recording_id":  "32"},
+    {"recording_id":  "33"},
+    {"recording_id":  "34"},
+    {"recording_id":  "35"},
+    {"recording_id":  "36"},
+    {"recording_id":  "37"},
+    {"recording_id":  "38"},
+    {"recording_id":  "39"}
   ],
+    "dataset_split": {
+    "train": [
+    ],
+    "valid": [
+    ],
+    "test": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ]
+  },
   "cost_factors":{
     "time": 0.0,
     "velocity": 0.0,
