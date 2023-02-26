@@ -471,6 +471,50 @@ def test_rdb2_north():
     assert goal_in_list(goals, 'exit-roundabout', (-3.44, 23.3))
     assert goal_in_list(goals, 'exit-roundabout', (-17.70, -10.4))
 
+
+def test_rdb3_north():
+    xodr = "../scenarios/maps/rdb2.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(-75)
+    speed = 5
+    time = 0
+    position = np.array((-14.5, 26.9))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 4
+    assert goal_in_list(goals, 'exit-roundabout', (8.26, -21.5))
+    assert goal_in_list(goals, 'exit-roundabout', (23.14, 11.6))
+    assert goal_in_list(goals, 'exit-roundabout', (-3.44, 23.3))
+    assert goal_in_list(goals, 'exit-roundabout', (-17.70, -10.4))
+
+
+def test_rdb1_west_far_from_goal():
+    xodr = "../scenarios/maps/rdb1.xodr"
+    scenario_map = Map.parse_from_opendrive(xodr)
+    heading = np.deg2rad(45)
+    speed = 5
+    time = 0
+    position = np.array((-28.3, -35.3))
+    velocity = speed * np.array((np.cos(heading), np.sin(heading)))
+    acceleration = np.array((0, 0))
+
+    state = AgentState(time, position, velocity, acceleration, heading)
+    trajectory = VelocityTrajectory.from_agent_state(state)
+    goal_generator = GoalGenerator()
+    goals = goal_generator.generate(scenario_map, trajectory)
+
+    assert len(goals) == 3
+    assert goal_in_list(goals, 'exit-roundabout', (23.92, -4.1))
+    assert goal_in_list(goals, 'exit-roundabout', (-2.49, 18.0))
+    assert goal_in_list(goals, 'exit-roundabout', (-12.74, -14.7))
+
+
 # def test_town01_mainroad():
 #     xodr = "../scenarios/maps/town01.xodr"
 #     scenario_map = Map.parse_from_opendrive(xodr)

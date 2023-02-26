@@ -29,11 +29,9 @@ class GoalGenerator:
         while len(open_set) > 0:
             lane_sequence = open_set.pop(0)
             lane = lane_sequence[-1]
-            junction = lane.parent_road.junction
-
             goal_location = lane.midline.coords[-1]
             goal_type = None
-            if junction is not None:
+            if cls.is_branching_junction(lane):
                 if cls.is_lane_roundabout_junction(lane):
                     if cls.is_roundabout_exit(lane):
                         goal_type = 'exit-roundabout'
@@ -105,9 +103,39 @@ class GoalGenerator:
         return None
 
     @staticmethod
-    def is_branching_junction():
-        pass
-        #TODO add to goal generator, only generate goals for branching junctions
+    def is_branching_junction(lane: Lane):
+        if lane.parent_road.junction is None:
+            return False
+        if len(lane.parent_road.junction.roads) > 2:
+            return True
+
+        # search for branching successor
+        successor = lane
+        while True:
+            if successor.link.predecessor is not None and len(successor.link.predecessor) > 1:
+                return True
+            if successor.parent_road != lane.parent_road:
+                break
+            if (successor.link.successor is not None
+                    and len(successor.link.successor) > 0):
+                successor = successor.link.successor[0]
+            else:
+                break
+
+        # search for branching predecessor
+        predecessor = lane
+        while True:
+            if predecessor.link.successor is not None and len(predecessor.link.successor) > 1:
+                return True
+            if predecessor.parent_road != lane.parent_road:
+                break
+            if (predecessor.link.predecessor is not None
+                    and len(predecessor.link.predecessor) > 0):
+                predecessor = predecessor.link.predecessor[0]
+            else:
+                break
+
+        return False
 
     def generate_from_state(self, scenario_map, position, heading, visible_region: Circle = None,
                             goal_radius=3.5) -> List[TypedGoal]:
@@ -207,18 +235,21 @@ class GoalGenerator:
         # return True
 
         junction = lane.parent_road.junction
+        if lane.link.successor is None:
+            return False
         target_successor = lane.link.successor[0]
 
         for connection in junction.connections:
             for lane_link in connection.lane_links:
                 other_lane = lane_link.to_lane
                 other_direction = cls.get_lane_direction(other_lane)
-                other_successor = other_lane.link.successor[0]
-                if (target_successor == other_successor
-                        and (other_direction == 'straight' or direction == 'straight')
-                        and cls.has_priority(other_lane.parent_road,
-                                             lane.parent_road)):
-                    return True
+                if other_lane.link.successor is not None:
+                    other_successor = other_lane.link.successor[0]
+                    if (target_successor == other_successor
+                            and (other_direction == 'straight' or direction == 'straight')
+                            and cls.has_priority(other_lane.parent_road,
+                                                 lane.parent_road)):
+                        return True
         return False
 
     @staticmethod
