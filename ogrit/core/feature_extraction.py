@@ -72,14 +72,14 @@ class FeatureExtractor:
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 
-    def __init__(self, scenario_map: Map, *args):
+    def __init__(self, scenario_map: Map, scenario_name=None, episode_idx=None):
         self.scenario_map = scenario_map
 
         # If we want to consider occlusions, we need to provide the scenario map and episode index as parameter,
         # in this order.
-        if len(args) > 1:
-            self.scenario_name = args[0]
-            self.episode_idx = args[1]
+        if scenario_name is not None and episode_idx is not None:
+            self.scenario_name = scenario_name
+            self.episode_idx = episode_idx
             with open(get_occlusions_dir() + f"{self.scenario_name}_e{self.episode_idx}.p", 'rb') as file:
                 self.occlusions = pickle.load(file)
 
