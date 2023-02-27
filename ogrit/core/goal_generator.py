@@ -1,5 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import List
 import numpy as np
 from igp2.opendrive.elements.geometry import normalise_angle
@@ -28,35 +29,16 @@ class GoalGenerator:
         while len(open_set) > 0:
             lane_sequence = open_set.pop(0)
             lane = lane_sequence[-1]
-            junction = lane.parent_road.junction
-
             goal_location = lane.midline.coords[-1]
             goal_type = None
-            if junction is not None:
-                if junction.junction_group is not None and junction.junction_group.type == 'roundabout':
-                    # check if it is a roundabout exit
-                    successor_in_roundabout = (len(lane.link.successor) == 1
-                        and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
-
-                    # check if successor is in roundabout
-                    successor_in_roundabout = False
-                    if lane.link.successor is not None:
-                        for successor in lane.link.successor:
-                            successor_road = successor.parent_road
-                            if (scenario_map.road_in_roundabout(successor_road)
-                                or (successor_road.junction is not None
-                                    and successor_road.junction.junction_group is not None
-                                    and successor_road.junction.junction_group.type == 'roundabout')):
-                                successor_in_roundabout = True
-                                break
-
-                    if not successor_in_roundabout:
+            if cls.is_branching_junction(lane):
+                if cls.is_lane_roundabout_junction(lane):
+                    if cls.is_roundabout_exit(lane):
                         goal_type = 'exit-roundabout'
                 else:
                     goal_type = cls.get_juction_goal_type(lane)
             elif lane.link.successor is None:
                 goal_type = 'straight-on'
-                # TODO adjacent lanes should share same goal
             elif (visible_region is not None
                   and not visible_region.contains(np.reshape(goal_location, (2, 1))).all()):
                 goal_type = 'straight-on'
@@ -74,12 +56,86 @@ class GoalGenerator:
 
         return typed_goals
 
+    @classmethod
+    def is_roundabout_exit(cls, lane: Lane) -> bool:
+        if cls.is_lane_roundabout_junction(lane):
+            for successor in lane.link.successor:
+                if not cls.lane_in_roundabout(successor):
+                    cls.lane_in_roundabout(successor)
+                    return True
+        return False
+
     @staticmethod
-    def is_roundabout_exit(lane: Lane, scenario_map: Map) -> bool:
-        in_roundabout = scenario_map.road_in_roundabout(lane.parent_road)
-        successor_in_roundabout = (len(lane.link.successor) == 1
-                                   and scenario_map.road_in_roundabout(lane.link.successor[0].parent_road))
-        return in_roundabout and not successor_in_roundabout
+    def is_lane_roundabout_junction(lane: Lane):
+        return (lane.parent_road.junction is not None
+                and lane.parent_road.junction.junction_group is not None
+                and lane.parent_road.junction.junction_group.type == 'roundabout')
+
+    @classmethod
+    @lru_cache(maxsize=128)
+    def lane_in_roundabout(cls, lane: Lane, search_depth=5) -> bool:
+        # checks if lane is in a roundabout, including exits/entrances
+        if cls.is_lane_roundabout_junction(lane):
+            return True
+
+        successor_id = cls.successor_roundabout_junction_group_id(lane, search_depth)
+        predecessor_id = cls.predecessor_roundabout_junction_group_id(lane, search_depth)
+        return successor_id is not None and predecessor_id is not None and successor_id == predecessor_id
+
+    @classmethod
+    def successor_roundabout_junction_group_id(cls, lane: Lane, search_depth=5):
+        if search_depth > 0 and lane.link.successor is not None and len(lane.link.successor) > 0:
+            for successor in lane.link.successor:
+                if cls.is_lane_roundabout_junction(successor):
+                    return successor.parent_road.junction.junction_group.id
+                else:
+                    return cls.successor_roundabout_junction_group_id(successor, search_depth-1)
+        return None
+
+    @classmethod
+    def predecessor_roundabout_junction_group_id(cls, lane: Lane, search_depth=5):
+        if search_depth > 0 and lane.link.predecessor is not None and len(lane.link.predecessor) > 0:
+            for predecessor in lane.link.predecessor:
+                if cls.is_lane_roundabout_junction(predecessor):
+                    return predecessor.parent_road.junction.junction_group.id
+                else:
+                    return cls.predecessor_roundabout_junction_group_id(predecessor, search_depth-1)
+        return None
+
+    @staticmethod
+    def is_branching_junction(lane: Lane):
+        if lane.parent_road.junction is None:
+            return False
+        if len(lane.parent_road.junction.roads) > 2:
+            return True
+
+        # search for branching successor
+        successor = lane
+        while True:
+            if successor.link.predecessor is not None and len(successor.link.predecessor) > 1:
+                return True
+            if successor.parent_road != lane.parent_road:
+                break
+            if (successor.link.successor is not None
+                    and len(successor.link.successor) > 0):
+                successor = successor.link.successor[0]
+            else:
+                break
+
+        # search for branching predecessor
+        predecessor = lane
+        while True:
+            if predecessor.link.successor is not None and len(predecessor.link.successor) > 1:
+                return True
+            if predecessor.parent_road != lane.parent_road:
+                break
+            if (predecessor.link.predecessor is not None
+                    and len(predecessor.link.predecessor) > 0):
+                predecessor = predecessor.link.predecessor[0]
+            else:
+                break
+
+        return False
 
     def generate_from_state(self, scenario_map, position, heading, visible_region: Circle = None,
                             goal_radius=3.5) -> List[TypedGoal]:
@@ -179,18 +235,21 @@ class GoalGenerator:
         # return True
 
         junction = lane.parent_road.junction
+        if lane.link.successor is None:
+            return False
         target_successor = lane.link.successor[0]
 
         for connection in junction.connections:
             for lane_link in connection.lane_links:
                 other_lane = lane_link.to_lane
                 other_direction = cls.get_lane_direction(other_lane)
-                other_successor = other_lane.link.successor[0]
-                if (target_successor == other_successor
-                        and (other_direction == 'straight' or direction == 'straight')
-                        and cls.has_priority(other_lane.parent_road,
-                                             lane.parent_road)):
-                    return True
+                if other_lane.link.successor is not None:
+                    other_successor = other_lane.link.successor[0]
+                    if (target_successor == other_successor
+                            and (other_direction == 'straight' or direction == 'straight')
+                            and cls.has_priority(other_lane.parent_road,
+                                                 lane.parent_road)):
+                        return True
         return False
 
     @staticmethod
