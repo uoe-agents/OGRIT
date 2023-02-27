@@ -3,12 +3,14 @@ import json
 import time
 
 import pandas as pd
+import numpy as np
 import torch
-from ogrit.core.base import get_lstm_dir
+from ogrit.core.base import get_lstm_dir, get_results_dir
 from torch.utils.data import DataLoader
 
 from baselines.lstm.model import LSTMModel
 from baselines.lstm.train import load_save_dataset, logger
+
 
 
 def main(config):
@@ -18,6 +20,7 @@ def main(config):
         config = argparse.Namespace(**json.load(open(config.config)))
     logger.info(config)
 
+    scenario_name = config.scenario
     test_dataset = load_save_dataset(config, "test")
     test_loader = DataLoader(test_dataset, shuffle=True, batch_size=len(test_dataset))
     test_data = [_ for _ in test_loader][0]
@@ -77,6 +80,14 @@ def main(config):
 
     dur = time.time() - start
     goal_probs_df = pd.DataFrame(goal_probs_df)
+
+    # save true goal probability
+    fraction_observed_grouped = goal_probs_df.groupby('fraction_observed')
+    true_goal_prob = fraction_observed_grouped.mean()
+    true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
+
+    true_goal_prob_sem.to_csv(get_results_dir() + f'/{scenario_name}_lstm_true_goal_prob_sem.csv')
+    true_goal_prob.to_csv(get_results_dir() + f'/{scenario_name}_lstm_true_goal_prob.csv')
 
     return goal_probs_df, dur
 
