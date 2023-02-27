@@ -7,6 +7,7 @@ from ogrit.core.base import get_all_scenarios
 def main():
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenarios', type=str, help='Name of scenarios to validate, comma separated', default=None)
+    parser.add_argument('--subset', type=str, help='Subset of data to train on', default='train')
     args = parser.parse_args()
 
     if args.scenarios is None:
