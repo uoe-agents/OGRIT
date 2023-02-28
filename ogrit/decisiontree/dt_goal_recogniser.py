@@ -449,3 +449,9 @@ class NoPossiblyMissingFeaturesOGrit(OcclusionGrit):
         return super().train(scenario_names, alpha, criterion, min_samples_leaf,
                              max_leaf_nodes, max_depth, ccp_alpha, dataset, features=cls.FEATURES,
                              balance_scenarios=balance_scenarios)
+
+
+class Rdb5OGrit(OcclusionGrit):
+    @staticmethod
+    def get_model_name():
+        return 'occlusion_grit_rdb5'

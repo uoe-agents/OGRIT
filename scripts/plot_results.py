@@ -15,7 +15,7 @@ plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 scenario_names = get_all_scenarios()
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2', 'occlusion_grit_rdb5', 'uniform_prior_baseline']
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -32,13 +32,15 @@ label_map = {'generalised_grit': 'Oracle',
              'truncated_grit': 'Truncated GRIT',
              'no_possibly_missing_features_grit': 'GRIT',
              'grit_no_missing_uniform': 'GRIT',
-             'igp2': 'IGP2'}
+             'igp2': 'IGP2',
+             'occlusion_grit_rdb5': 'OGRIT rdb5'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
              'frankenburg': 'Frankenburg',
              'neuweiler': 'Neuweiler',
-             'neukoellnerstrasse': 'Neukoellner Strasse'}
+             'neukoellnerstrasse': 'Neukoellner Strasse',
+             'rdb5': 'Rdb5'}
 
 plot_accuracy = False
 plot_normalised_entropy = False
@@ -158,6 +160,9 @@ if plot_true_goal_prob:
             if model_name == 'occlusion_grit_loocv' and scenario_name == 'neuweiler':
                 continue
 
+            if model_name == 'occlusion_grit_rdb5' and scenario_name != 'neuweiler':
+                continue
+
             true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
@@ -182,6 +187,7 @@ if plot_true_goal_prob:
         plt.ylim([0.0, 1.0])
         if scenario_idx == 0:
             plt.legend()
+        plt.legend()
     plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')
 
 # plot cross entropy
