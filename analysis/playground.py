@@ -5,20 +5,20 @@ import matplotlib.pyplot as plt
 from igp2 import Map, plot_map
 from igp2.data.scenario import ScenarioConfig, InDScenario
 
-scenario_name = 'neukoellnerstrasse'
-episode_idx = 0
+scenario_name = 'rdb5'
+episode_idx = 3
 config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
 scenario_map = Map.parse_from_opendrive(f"scenarios/maps/{scenario_name}.xodr")
 scenario = InDScenario(config)
 
 plot_map(scenario_map, scenario_config=config, plot_background=False)
 
-# episode = scenario.load_episode(episode_idx)
-# for agent in episode.agents.values():
-#     if agent.metadata.agent_type == 'car':
-#         path = agent.trajectory.path
-#         plt.plot(path[:, 0], path[:, 1], linewidth=0.5)
-#         print(agent.agent_id)
+episode = scenario.load_episode(episode_idx)
+for agent in episode.agents.values():
+    if agent.metadata.agent_type == 'car':
+        path = agent.trajectory.path
+        plt.plot(path[:, 0], path[:, 1], linewidth=0.5)
+        print(agent.agent_id)
 
 # lanes = scenario_map.lanes_at((24.0, -46.9), max_distance=0.01)
 # print(lanes)
