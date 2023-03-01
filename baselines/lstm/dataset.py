@@ -85,9 +85,17 @@ class GRITTrajectoryDataset(GRITDataset):
 
                 if len(agent_goals) < 1:
                     continue
-
+                    
+                # if the agent is far away from entering the roundabout (threshold 50 m), cutoff the trajectories
+                start_inx = 0
+                for point_idx, agent_point in enumerate(agent.trajectory.path):
+                    dist = np.linalg.norm(agent_point)
+                    if dist <= 50:
+                        start_inx = point_idx
+                        break
+                        
                 # Get the target trajectory up until it reaches its possible goal.
-                target_trajectory = agent.trajectory.slice(0, goal_frame_idxes[-1]+1)
+                target_trajectory = agent.trajectory.slice(start_inx, goal_frame_idxes[-1]+1)
 
                 # Frame id when the target starts its trajectory.
                 target_initial_frame_id = agent.metadata.initial_time
