@@ -18,7 +18,7 @@ class LSTMWriter:
 
         self.scheduler = scheduler
 
-    def write(self, epoch, train_loss, val_loss, val_acc):
+    def write(self, epoch, train_loss, val_loss, val_acc, val_f1):
         self.writer.add_scalar('Loss/train', train_loss, epoch)
         self.writer.add_scalar('Loss/val', val_loss, epoch)
         self.writer.add_scalar('Accuracy/val', val_acc, epoch)
