@@ -253,7 +253,7 @@ class FeaturesLSTM:
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
 
-        return os.path.join(model_dir, f"{'_'.join(self.training_scenarios_names)}_{self.dataset}.pt")
+        return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.dataset}.pt")
 
     def save_model(self, epoch, losses, accs):
 
@@ -266,8 +266,8 @@ class FeaturesLSTM:
 
         torch.save({
             'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': model_state_dict,
+            'model_state_dict': model_state_dict,
+            'optimizer_state_dict': self.optimizer.state_dict(),
             'losses': losses,
             'accs': accs
         }, self.model_path)
