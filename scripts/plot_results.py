@@ -4,7 +4,6 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-
 from ogrit.core.base import get_base_dir
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -14,8 +13,11 @@ plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 # scenario_names = get_all_scenarios()
-scenario_names = ["heckstrasse", "heckstrasse"]
-lstm_train_scenario = "heckstrasse"  # which model(s) we used to train the scenario(s) we are evaluating
+scenario_names = ["heckstrasse", "bendplatz", "frankenburg"]
+lstm_train_scenario = {"heckstrasse": "heckstrasse",
+                       "bendplatz": "bendplatz",
+                       "frankenburg": "frankenburg"}
+# which model(s) we used to train the scenario(s) we are evaluating
 model_names = ['lstm']
 
 label_map = {'generalised_grit': 'Oracle',
@@ -132,9 +134,9 @@ if plot_true_goal_prob:
 
             if model_name == "lstm":
                 true_goal_prob_sem = pd.read_csv(
-                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario}_true_goal_prob_sem.csv')
+                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob_sem.csv')
                 true_goal_prob = pd.read_csv(
-                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario}_true_goal_prob.csv')
+                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
             else:
                 true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
                 true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')

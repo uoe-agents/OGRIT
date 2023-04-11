@@ -15,6 +15,17 @@ It saves the probability assigned by the model on the true goal in the /OGRIT/re
 Consider plotting the results with the /OGRIT/scripts/plot_results.py script.
 """
 
+
+def train_lstm(configs):
+    lstm = FeaturesLSTM(configs, mode="train")
+    lstm.train()
+
+
+def test_lstm(configs):
+    lstm = FeaturesLSTM(configs, mode="test")
+    lstm.test()
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Train and/or evaluate an LSTM baseline with these parameters')
@@ -43,21 +54,10 @@ if __name__ == "__main__":
     configs = parser.parse_args()
     configs = vars(configs)
 
-
-    def train_lstm():
-        lstm = FeaturesLSTM(configs, mode="train")
-        lstm.train()
-
-
-    def test_lstm():
-        lstm = FeaturesLSTM(configs, mode="test")
-        lstm.test()
-
-
     if configs["evaluate_only"]:
-        test_lstm()
+        test_lstm(configs)
     else:
         assert configs["train_scenarios"] is not None, "You must specify the training scenario(s)"
 
-        train_lstm()
-        test_lstm()
+        train_lstm(configs)
+        test_lstm(configs)

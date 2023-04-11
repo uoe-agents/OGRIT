@@ -4,13 +4,12 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
-
 from baselines.lstm.datasets.dataset import OGRITFeatureDataset
 from baselines.lstm.lstm_logger import Logger
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
 from ogrit.core.base import get_lstm_dir, get_results_dir
+from torch.utils.data import DataLoader
 
 """
 The LSTM takes in a list of features at each timestep, the same as those that OGRIT gets to evaluate the 
@@ -119,9 +118,6 @@ class FeaturesLSTM:
             # Update the learning rate according to the validation loss
             self.scheduler.step(val_loss_avg)
 
-            self.logger.info(f"Validation Loss: {val_loss_avg}; Accuracy: {val_acc} "
-                             f"LR: {self.optimizer.param_groups[0]['lr']}")
-
             self.writer.write(epoch_nr, train_loss_avg, val_loss_avg, val_acc, 0)  # TODO: last one should be val_f1
             self.writer.flush()
 
@@ -166,8 +162,8 @@ class FeaturesLSTM:
             total += target.size(0)
             correct += (predicted == target).sum().item()
 
-            self.logger.info(
-                f"Epoch: {epoch_nr}; Step: {len(self.train_loader) * epoch_nr + i_batch}; Loss: {loss.item()}")
+            # self.logger.info(
+            #     f"Epoch: {epoch_nr}; Step: {len(self.train_loader) * epoch_nr + i_batch}; Loss: {loss.item()}")
 
         return running_loss / len(self.train_loader), correct / total
 
@@ -229,7 +225,7 @@ class FeaturesLSTM:
             goal_probs = torch.exp(predictions).detach().numpy()
 
             # Get the probability assigned by the LSTM to the true goal.
-            true_goal_prob = goal_probs[np.arange(self.batch_size), targets]
+            true_goal_prob = goal_probs[np.arange(len(targets)), targets]
 
             goal_probs_df["true_goal_prob"].extend(true_goal_prob)
             goal_probs_df["fraction_observed"].extend(np.round(fraction_observed, 1))
