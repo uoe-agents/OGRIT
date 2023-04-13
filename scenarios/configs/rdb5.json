@@ -19,7 +19,7 @@
   "scale_down_factor": 12,
   "target_switch_length": 20,
   "check_lanes": false,
-  "check_oncoming": true,
+  "check_oncoming": false,
   "agent_types": ["car", "truck_bus"],
   "episodes": [
     {"recording_id":  "56"},
@@ -30,16 +30,12 @@
   ],
     "dataset_split": {
     "train": [
-      0,
-      1,
-      2,
-      3,
-      4
+      0
     ],
     "valid": [
     ],
     "test": [
-      3
+      0
     ]
   },
   "cost_factors":{
