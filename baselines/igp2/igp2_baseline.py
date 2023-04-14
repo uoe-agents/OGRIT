@@ -23,6 +23,8 @@ from igp2.planlibrary.macro_action import ChangeLane
 from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir, get_igp2_results_dir
 from ogrit.occlusion_detection.visualisation_tools import get_box
 
+#sys.setrecursionlimit(10000)
+
 # Code adapted from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
 def create_args():
     config_specification = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -152,7 +154,7 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
         ind_episode = 0
 
         with open(get_occlusions_dir() + f"{scenario_name}_e{episode_ids[ind_episode]}.p", 'rb') as file:
-                occlusions = pickle.load(file)
+            occlusions = pickle.load(file)
 
         for episode in data_loader:
             # episode specific parameters
@@ -182,7 +184,15 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
                 frames = _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recognition,
                                                scenario_map)
                 arg = [frames, recordingID, framerate, aid, data, goal_recognition, goal_probabilities]
-                args.append(copy.deepcopy(arg))
+                args.append(arg)
+
+            # for testing ####
+            # for arg in args:
+            #     if arg[3] == 2:
+            #         results = goal_recognition_agent(*arg)
+            #         result_episode.add_data(results)
+
+            # end testing ####
 
             # Perform multiprocessing
             results_agents = []
@@ -220,6 +230,10 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     last_pos = [last_state.position[0], last_state.position[1]]
     old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.2)
 
+    last_state_original = copy.deepcopy(last_state)
+    point = Point(last_pos)
+    possible_roads = scenario_map.roads_at(point)
+
     state_trajectory = ip.StateTrajectory(framerate, [last_state])
 
     new_state = frame_visible_again.agents[aid]
@@ -240,20 +254,39 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     last_seen_frame = last_seen_frame.agents
     last_seen_frame[aid] = last_state
 
+    # goal cannot be reached directly because too short road
+    # goal is on the same road as the last frame
+    road_seq = []
+    for road in possible_roads:
+        if road == new_lane.parent_road:
+            road_seq.append(road)
+    # goal is on adjacent lane
+    for suc in old_lane.link.successor:
+        # goal is on the adjacent road
+        if suc.parent_road == new_lane.parent_road:
+            road_seq = [old_lane.parent_road, new_lane.parent_road]
+
     try:
-        trajectory, _ = goal_recognition.generate_trajectory(n_trajectories=1,
-                                                             agent_id=aid,
-                                                             frame=last_seen_frame,
-                                                             goal=PointGoal(new_point_om, 2),
-                                                             state_trajectory=state_trajectory)
+        trajectory, mas = goal_recognition.generate_trajectory(n_trajectories=1,
+                                                               agent_id=aid,
+                                                               frame=last_seen_frame,
+                                                               goal=PointGoal(new_point_om, 2),
+                                                               state_trajectory=state_trajectory)
+        # macros actions are more than necessary, incorrect trajectory generated because last and new frame are too
+        # close, 2* is the worst case
+        if road_seq and len(mas[0]) >= 2 * len(road_seq):
+            raise RuntimeError('incorrect generated trajectory, new frame is too close')
 
     except RuntimeError as e:
         logger.debug(e)
 
-        known_path = np.array([last_state.position, new_position])
+        # interpolate the original last frame and new frame
+        known_path = np.array([last_state_original.position, frame_visible_again.agents[aid].position])
+        # not from the middle of a lane
+        #known_path = np.array([last_state.position, new_position])
 
-        last_velocity = np.sqrt(last_state.velocity[0]**2 + last_state.velocity[1]**2)
-        new_velocity = np.sqrt(new_state.velocity[0]**2 + new_state.velocity[1]**2)
+        last_velocity = np.sqrt(last_state.velocity[0] ** 2 + last_state.velocity[1] ** 2)
+        new_velocity = np.sqrt(new_state.velocity[0] ** 2 + new_state.velocity[1] ** 2)
 
         known_velocities = np.array([last_velocity, new_velocity])
         trajectory = [ip.VelocityTrajectory(known_path, known_velocities)]
@@ -289,7 +322,7 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
         target_occluded = LineString(get_box(frame.agents[aid]).boundary).buffer(0.001).within(ego_occlusions)
 
         # i-idx_last_seen is 1 if there are no occlusions since the last frame
-        nr_occluded_frames = i-idx_last_seen-1
+        nr_occluded_frames = i - idx_last_seen - 1
 
         if target_occluded:
             continue
@@ -299,12 +332,13 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
         if nr_occluded_frames > 0 and idx_last_seen != 0:
 
             # The trajectory will have length nr_occluded_frames+1 since the first frame will be the last th ego saw.
-            trajectory = _generate_occluded_trajectory(goal_recognition, aid, frames[idx_last_seen], framerate, frame,
+            last_seen_frame = copy.deepcopy(frames[idx_last_seen])
+            trajectory = _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framerate, frame,
                                                        scenario_map)
 
             trajectory = trajectory[0]
 
-             # todo: check what happens to the trajectory when there is only one step missing not 1 step if only one missing nr_occluded_frames == 1:
+            # todo: check what happens to the trajectory when there is only one step missing not 1 step if only one missing nr_occluded_frames == 1:
 
             # Case in which the target vehicle doesn't move while being occluded w.r.t the ego.
             if sum(trajectory.timesteps) == 0:
@@ -323,8 +357,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
                 cs_acceleration = CubicSpline(trajectory.times, trajectory.acceleration)
                 cs_heading = CubicSpline(trajectory.times, trajectory.heading)
-
-                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
+                # cur off first and last values to avoid repeating values
+                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames+2)
 
                 new_path = cs_path(ts)
                 new_vel = cs_velocity(ts)
@@ -332,7 +366,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 new_heading = cs_heading(ts)
 
             # j starts at 1 since the first step in the trajectory is the last frame seen.
-            for j, frame_idx in enumerate(range(idx_last_seen+1, i)):
+            j = 1
+            for frame_idx in range(idx_last_seen + 1, i):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame = frames[frame_idx]
                 old_frame_agents = old_frame.all_agents
@@ -345,12 +380,13 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                     new_frame.add_agent_state(agent_id, agent)
 
                 occlusion_frames.append(new_frame)
-
+                j += 1
         idx_last_seen = i
 
         # Add the frame in which the target is visible again.
         occlusion_frames.append(frame)
     return occlusion_frames
+
 
 def dump_results(objects, name: str):
     """Saves results binary"""
@@ -443,14 +479,14 @@ if __name__ == '__main__':
             logger.info(f"Starting experiment {idx} with cost factors {cost_factors}.")
             t_start = time.perf_counter()
             result_experiment = run_experiment(cost_factors, max_workers=max_workers)
-            results.append(copy.deepcopy(result_experiment))
+            results.append(result_experiment)
             t_end = time.perf_counter()
             logger.info(f"Experiment {idx} completed in {t_end - t_start} seconds.")
     else:
         logger.info(f"Starting experiment")
         t_start = time.perf_counter()
         result_experiment = run_experiment(cost_factors=None, max_workers=max_workers)
-        results.append(copy.deepcopy(result_experiment))
+        results.append(result_experiment)
         t_end = time.perf_counter()
         logger.info(f"Experiment completed in {t_end - t_start} seconds.")
 
