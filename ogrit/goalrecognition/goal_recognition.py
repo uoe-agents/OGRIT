@@ -57,7 +57,7 @@ class GoalRecogniser:
 
         for index, row in unique_samples.iterrows():
             indices = ((dataset.episode == row.episode)
-                       & (dataset.target_agent_id == row.target_agent_id)
+                       & (dataset.agent_id == row.agent_id)
                        & (dataset.ego_agent_id == row.ego_agent_id)
                        & (dataset.frame_id == row.frame_id))
             goals = dataset.loc[indices][['possible_goal', 'goal_type', 'model_likelihood']]

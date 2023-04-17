@@ -1,12 +1,12 @@
 from ogrit.core.base import get_img_dir, get_data_dir
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit, OcclusionBaseline, OgritOracle, \
-    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesGrit
+    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesGrit, Rdb5OGrit
 
-models = [OcclusionGrit]
+models = [Rdb5OGrit]
 for model_class in models:
-    test_scenario = 'heckstrasse'
+    test_scenario = 'rdb5'
     models_dir = get_data_dir() #+ f'/loocv/{test_scenario}/'
-    model = model_class.load(test_scenario, episode_idx=0)
+    model = model_class.load(test_scenario)#, episode_idx=0)
     model.save_images()
     # truncate = ['RT', 'RFTT', 'RFFF']
     truncate = []

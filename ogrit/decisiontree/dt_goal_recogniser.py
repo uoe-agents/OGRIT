@@ -258,9 +258,10 @@ class OcclusionGrit(GeneralisedGrit):
 
     @classmethod
     def train(cls, scenario_names: List[str], alpha=1, criterion='entropy', min_samples_leaf=1, max_leaf_nodes=None,
-              max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False, oracle=False):
+              max_depth=None, ccp_alpha=0., dataset=None, features=None, balance_scenarios=False, oracle=False,
+              subset='train'):
         if dataset is None:
-            dataset = get_multi_scenario_dataset(scenario_names)
+            dataset = get_multi_scenario_dataset(scenario_names, subset)
         if balance_scenarios:
             dataset = cls.add_scenario_balanced_weights(dataset)
         decision_trees = {}
@@ -448,3 +449,9 @@ class NoPossiblyMissingFeaturesOGrit(OcclusionGrit):
         return super().train(scenario_names, alpha, criterion, min_samples_leaf,
                              max_leaf_nodes, max_depth, ccp_alpha, dataset, features=cls.FEATURES,
                              balance_scenarios=balance_scenarios)
+
+
+class Rdb5OGrit(OcclusionGrit):
+    @staticmethod
+    def get_model_name():
+        return 'occlusion_grit_rdb5'

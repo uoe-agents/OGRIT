@@ -46,7 +46,7 @@ def plot_map(scenario_map, scenario_config=None, frame: Dict[int, AgentState] = 
 
     if scenario_config is not None:
         ip.plot_map(scenario_map, markings=False, midline=False, scenario_config=scenario_config,
-                    plot_background=True, ignore_roads=True, plot_goals=True, plot_buildings=True)
+                    plot_background=True, ignore_roads=True, plot_goals=False, plot_buildings=True)
     else:
         ip.plot_map(scenario_map, markings=False, midline=False)
 

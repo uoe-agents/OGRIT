@@ -143,6 +143,8 @@ if __name__ == '__main__':
 
     if config["scenario"] == "neuweiler":
         config["scale_down_factor"] = 10
+    if "rdb" in config["scenario"]:
+        config["scale_down_factor"] = 1
 
     visualization_plot = TrackVisualizer(config, tracks, static_info, meta_info, goal_recogniser=goal_recogniser,
                                          scenario=scenario, episode=episode, target_agent_id=config["agent_id"],

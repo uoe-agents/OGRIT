@@ -315,3 +315,22 @@ def test_not_in_correct_lane_neukoellnerstrasse():
                  scenario_map.get_lane(5, -1, 0),
                  scenario_map.get_lane(9, -1, 0)]
     assert not feature_extractor.in_correct_lane(lane_path)
+
+
+def test_exit_number_rdb5():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/rdb5.xodr")
+    feature_extractor = FeatureExtractor(scenario_map)
+    state = AgentState(time=0,
+                       position=np.array((16.1, -29.6)),
+                       velocity=np.array((0., 0.)),
+                       acceleration=np.array((0, 0)),
+                       heading=np.pi * 5/8
+                       )
+    lane_path = [scenario_map.get_lane(3, -1, 0),
+                 scenario_map.get_lane(8, -1, 0),
+                 scenario_map.get_lane(178, -1, 0),
+                 scenario_map.get_lane(178, -4, 1),
+                 scenario_map.get_lane(178, -1, 2)]
+
+    exit_number = feature_extractor.exit_number(state, lane_path)
+    assert exit_number == 2

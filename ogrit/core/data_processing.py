@@ -135,8 +135,8 @@ def get_trajectory_reachable_goals(trajectory, feature_extractor, scenario):
 
 
 def get_first_last_frame_ids(episode, vehicle_id):
-    initial_frame_id = episode.agents[vehicle_id].metadata.initial_time
-    final_frame_id = episode.agents[vehicle_id].metadata.final_time
+    initial_frame_id = int(episode.agents[vehicle_id].metadata.initial_time)
+    final_frame_id = int(episode.agents[vehicle_id].metadata.final_time)
     return initial_frame_id, final_frame_id
 
 

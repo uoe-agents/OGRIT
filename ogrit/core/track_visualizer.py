@@ -8,6 +8,7 @@ from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 import skimage.io
+from PIL import Image
 from descartes import PolygonPatch
 from shapely import affinity
 from shapely.geometry import Polygon, MultiPolygon, Point
@@ -58,7 +59,7 @@ class TrackVisualizer(object):
         self.tracks = tracks
         self.static_info = static_info
         self.meta_info = meta_info
-        self.maximum_frames = np.max([self.static_info[track["trackId"]]["finalFrame"] for track in self.tracks])
+        self.maximum_frames = int(np.max([self.static_info[track["trackId"]]["finalFrame"] for track in self.tracks]))
 
         # Save ids for each frame
         self.ids_for_frame = {}
@@ -94,7 +95,13 @@ class TrackVisualizer(object):
             self.background_image = skimage.io.imread(background_image_path)
             self.image_height = self.background_image.shape[0]
             self.image_width = self.background_image.shape[1]
-            self.ax.imshow(self.background_image)
+            if self.scenario.config.background_px_to_meter < 0:
+                self.background_image = Image.open(background_image_path)
+                img, extent = self.transform_image(self.background_image)
+                extent = [x/self.meta_info["orthoPxToMeter"] for x in extent]
+                self.ax.imshow(img, extent=extent)
+            else:
+                self.ax.imshow(self.background_image)
         else:
             self.background_image = np.zeros((1700, 1700, 3), dtype=np.float64)
             self.image_height = 1700
@@ -262,6 +269,26 @@ class TrackVisualizer(object):
             plotted_objects.append(building_plot)
         return plotted_objects
 
+    def transform_image(self, background):
+        scenario_config = self.scenario.config
+        params = scenario_config.world_params
+        A = params["x_scale_pixel_width"]
+        D = params["y_skew_pixel_width"]
+        B = params["x_skew_pixel_height"]
+        E = params["y_scale_pixel_height"]
+        C = params["x_coordinate"]
+        F = params["y_coordinate"]
+        pixel_center_x = (E * scenario_config.map_center_utm[0] - B * scenario_config.map_center_utm[
+            1] + B * F - E * C) / (A * E - D * B)
+        pixel_center_y = (-D * scenario_config.map_center_utm[0] + A * scenario_config.map_center_utm[
+            1] + D * C - A * F) / (A * E - D * B)
+        rotate_angle = np.arctan(D / A) / np.pi * 180
+        extent = (-pixel_center_x * np.sqrt(A ** 2 + D ** 2), pixel_center_x * np.sqrt(A ** 2 + D ** 2),
+                  -pixel_center_y * np.sqrt(B ** 2 + E ** 2), pixel_center_y * np.sqrt(B ** 2 + E ** 2))
+        img = background.rotate(rotate_angle, expand=False, center=(pixel_center_x, pixel_center_y))
+        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        return img, extent
+
     def update_figure(self):
         # Plot the bounding boxes, their text annotations and direction arrow
         plotted_objects = []
@@ -271,7 +298,7 @@ class TrackVisualizer(object):
 
             track_id = track["trackId"]
             static_track_information = self.static_info[track_id]
-            initial_frame = static_track_information["initialFrame"]
+            initial_frame = int(static_track_information["initialFrame"])
             current_index = self.current_frame - initial_frame
 
             object_class = static_track_information["class"]
@@ -283,7 +310,6 @@ class TrackVisualizer(object):
             center_point = center_points[current_index]
 
             color = self.colors[object_class] if object_class in self.colors else self.colors["default"]
-
 
             if track_id == self.ego_agent_id:
                 color = '#24b00e'
@@ -371,7 +397,7 @@ class TrackVisualizer(object):
                         and object_class[0] == 'c'
                         and (not isinstance(self.goal_recogniser, OcclusionGrit) or ogrit_valid)
                         and not self.currently_recording or track_id == self.target_agent_id):
-                    initial_frame = static_track_information["initialFrame"]
+                    initial_frame = int(static_track_information["initialFrame"])
                     frames = self.episode.frames[initial_frame:self.current_frame+1]
                     frames = [f.agents for f in frames]
 
@@ -488,7 +514,7 @@ class TrackVisualizer(object):
 
         # do goal inference to get correct higlighting on tree
         static_track_information = self.static_info[track_id]
-        initial_frame = static_track_information["initialFrame"]
+        initial_frame = int(static_track_information["initialFrame"])
         frames = self.episode.frames[initial_frame:self.current_frame + 1]
         frames = [f.agents for f in frames]
 
