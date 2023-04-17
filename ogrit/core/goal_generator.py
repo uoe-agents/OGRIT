@@ -158,11 +158,42 @@ class GoalGenerator:
         # select best typed goal for each goal location
         typed_goals = []
         for goal_loc, goals in goal_loc_goals.items():
-            lanes = [g.lane_path[0] for g in goals]
+            lane_seqs = [g.lane_path for g in goals]
+            lanes = self.is_cycle_exits(lane_seqs)
             best_lane_idx = self.get_best_lane(lanes, position, heading)
             typed_goals.append(goals[best_lane_idx])
 
         return typed_goals
+
+    @staticmethod
+    def is_cycle_exits(lane_seqs: List[List[Lane]]) -> List[Lane]:
+        """ delete the path if the path is closed. if path is empty, use original path
+        Args:
+            lane_seqs: list of possible paths to reach goals
+        Returns:
+            List of possible current lanes
+        """
+        # check if a cycle exists based on the lane sequence
+        lanes = []
+        for idx, lane_seq in enumerate(lane_seqs):
+            roads = [lane.parent_road for lane in lane_seq]
+            cycle_exist = False
+
+            new_roads = [r for r in reversed(roads)]
+            for road in roads:
+                new_roads.remove(road)
+                for ins_road in new_roads:
+                    if road.link.predecessor is not None and road.link.predecessor.element.id == ins_road.id:
+                        cycle_exist = True
+                        break
+                if cycle_exist:
+                    break
+            if not cycle_exist:
+                lanes.append(lane_seq[0])
+        # in case of a vehicle has to truly drive the entire cycle
+        if len(lanes) == 0:
+            lanes = [lane_s[0] for lane_s in lane_seqs]
+        return lanes
 
     def generate(self, scenario_map: Map, trajectory: VelocityTrajectory, visible_region: Circle = None,
                  goal_radius=3.5) -> List[TypedGoal]:
@@ -203,6 +234,12 @@ class GoalGenerator:
         for lane in lanes:
             road = lane.parent_road
             _, original_angle = road.plan_view.calc(road.midline.project(point))
+            # road_start_point = np.array([road.midline.xy[0][0], road.midline.xy[1][0]])
+            # road_end_point = np.array([road.midline.xy[0][-1], road.midline.xy[1][-1]])
+            # _, road_start_angle = road.plan_view.calc(road.midline.project(Point(road_start_point)))
+            # _, road_end_angle = road.plan_view.calc(road.midline.project(Point(road_end_point)))
+            # # considering the exit angle for more robust due to road geometry
+            # ave_angle = (road_start_angle + road_end_angle) / 2
             if lane.id > 0:
                 angle = normalise_angle(original_angle + np.pi)
             else:
