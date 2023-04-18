@@ -15,7 +15,7 @@ plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 scenario_names = get_all_scenarios()
-model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2', 'occlusion_grit_rdb5', 'uniform_prior_baseline']
+model_names = ['occlusion_grit', 'ogrit_oracle', 'grit_no_missing_uniform', 'lstm', 'igp2']
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -99,9 +99,9 @@ if plot_normalised_entropy:
 
 # plot true goal probability
 if plot_true_goal_prob:
-    plt.rcParams["figure.figsize"] = (16, 3)
+    plt.rcParams["figure.figsize"] = (10, 10)
 
-    fig, axes = plt.subplots(1, 4)
+    fig, axes = plt.subplots(2, 2)
 
 
     def plot_lstm(scenario_name, label, marker):
@@ -133,14 +133,14 @@ if plot_true_goal_prob:
 
 
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        #ax = axes[scenario_idx % 2, scenario_idx // 2]
-        ax = axes[scenario_idx]
+        ax = axes[scenario_idx % 2, scenario_idx // 2]
+        #ax = axes[scenario_idx]
         plt.sca(ax)
-        # if scenario_idx % 2 == 1:
+        if scenario_idx % 2 == 1:
 
-        plt.xlabel('fraction of trajectory completed')
-        # if scenario_idx // 2 == 0:
-        if scenario_idx == 0:
+            plt.xlabel('fraction of trajectory completed')
+        if scenario_idx // 2 == 0:
+        #if scenario_idx == 0:
             plt.ylabel('Probability assigned to true goal')
 
         ogrit_marker = None
@@ -187,7 +187,6 @@ if plot_true_goal_prob:
         plt.ylim([0.0, 1.0])
         if scenario_idx == 0:
             plt.legend()
-        plt.legend()
     plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')
 
 # plot cross entropy

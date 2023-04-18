@@ -10,6 +10,7 @@
                  ["exit-roundabout"],
                  ["exit-roundabout"],
                  ["exit-roundabout"]],
+  "slip_roads": [true, true, true, true],
   "goals_priors":[0.434433164128595,
                   0.11400169204737799,
                   0.349196277495771,

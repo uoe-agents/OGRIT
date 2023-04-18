@@ -6,9 +6,9 @@
   "goal_types": [["exit-roundabout"],
                  ["exit-roundabout"],
                  ["exit-roundabout"]],
+  "slip_roads": [false, false, false],
   "goal_threshold": 1.5,
   "goal_radius": [3, 3, 3],
-
   "opendrive_file": "scenarios/maps/rdb1.xodr",
   "data_format": "opendd",
   "data_root": "scenarios/data/opendd",
