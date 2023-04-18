@@ -8,7 +8,7 @@ import math
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map, Road
 
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
-from shapely.ops import unary_union, split
+from shapely.ops import unary_union, split, snap
 
 from ogrit.core.goal_generator import TypedGoal, GoalGenerator
 from ogrit.core.base import get_occlusions_dir
@@ -422,7 +422,9 @@ class FeatureExtractor:
         """
 
         if midline.length > 2*self.MAX_OCCLUSION_DISTANCE:
-            midline = split(midline, midline.interpolate(2*self.MAX_OCCLUSION_DISTANCE).buffer(0.0000000000001))[0]
+            # if a closed path is unavoidable, using split only does not work
+            interpolation_point = midline.interpolate(2*self.MAX_OCCLUSION_DISTANCE)
+            midline = split(snap(midline, interpolation_point, 0.0000000000001), interpolation_point)[0]
 
         point_on_midline = midline.interpolate(midline.project(point)).buffer(0.0000000000001)
 
