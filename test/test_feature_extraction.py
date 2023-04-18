@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 from igp2 import AgentState, VelocityTrajectory
-from igp2.goal import PointGoal
+from igp2.goal import PointGoal, Goal
 from igp2.opendrive.map import Map
 
 from ogrit.core.feature_extraction import FeatureExtractor
@@ -334,3 +334,41 @@ def test_exit_number_rdb5():
 
     exit_number = feature_extractor.exit_number(state, lane_path)
     assert exit_number == 2
+
+
+def test_slip_road_true():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/rdb6.xodr")
+    feature_extractor = FeatureExtractor(scenario_map, 'rdb6')
+    slip_road = feature_extractor.slip_road(1, TypedGoal('roundabout-exit',
+                                    PointGoal(np.array((15.7, -11.5)), 1.5), []))
+    assert slip_road
+
+
+def test_slip_road_false():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/rdb6.xodr")
+    feature_extractor = FeatureExtractor(scenario_map, 'rdb6')
+    slip_road = feature_extractor.slip_road(3, TypedGoal('roundabout-exit',
+                                    PointGoal(np.array((15.7, -11.5)), 1.5), []))
+    assert not slip_road
+
+
+def test_slip_road_false_2():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/rdb6.xodr")
+    feature_extractor = FeatureExtractor(scenario_map, 'rdb6')
+    slip_road = feature_extractor.slip_road(0, TypedGoal('roundabout-exit',
+                                    PointGoal(np.array((-19.9, 17.2)), 1.5), []))
+    assert not slip_road
+
+
+def test_uturn_true():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neuweiler.xodr")
+    feature_extractor = FeatureExtractor(scenario_map, 'neuweiler')
+    is_uturn = feature_extractor.is_roundabout_uturn(4)
+    assert is_uturn
+
+
+def test_uturn_false():
+    scenario_map = Map.parse_from_opendrive(f"../scenarios/maps/neuweiler.xodr")
+    feature_extractor = FeatureExtractor(scenario_map, 'neuweiler')
+    is_uturn = feature_extractor.is_roundabout_uturn(2)
+    assert not is_uturn

@@ -8,6 +8,7 @@
                  ["exit-roundabout"],
                  ["exit-roundabout"],
                  ["exit-roundabout"]],
+  "slip_roads": [true, false, false, false],
   "goal_threshold": 1.5,
   "goal_radius": [3, 3, 3, 3],
   "opendrive_file": "scenarios/maps/rdb6.xodr",

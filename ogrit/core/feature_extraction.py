@@ -6,12 +6,13 @@ import pickle
 import math
 
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map, Road
+from igp2.data import ScenarioConfig
 
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split, snap
 
 from ogrit.core.goal_generator import TypedGoal, GoalGenerator
-from ogrit.core.base import get_occlusions_dir
+from ogrit.core.base import get_occlusions_dir, get_base_dir, get_scenarios_dir
 
 
 def heading_diff(a: float, b: float) -> float:
@@ -51,6 +52,8 @@ class FeatureExtractor:
                      # 'dist_travelled_1s': 'scalar',
                      # 'dist_travelled_2s': 'scalar',
                      # 'dist_travelled_3s': 'scalar'
+                     'roundabout_slip_road': 'binary',
+                     'roundabout_uturn': 'binary',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -82,6 +85,11 @@ class FeatureExtractor:
             self.episode_idx = episode_idx
             with open(get_occlusions_dir() + f"{self.scenario_name}_e{self.episode_idx}.p", 'rb') as file:
                 self.occlusions = pickle.load(file)
+
+        if scenario_name is not None:
+            self.config = ScenarioConfig.load(f"{get_scenarios_dir()}/configs/{scenario_name}.json")
+        else:
+            self.config = None
 
     def extract(self, agent_id: int, frames: List[Dict[int, AgentState]], goal: TypedGoal, ego_agent_id: int = None,
                 initial_frame: Dict[int, AgentState] = None, target_occlusion_history: List[bool] = None, fps=25) \
@@ -142,6 +150,9 @@ class FeatureExtractor:
         dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2*fps)
         dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3*fps)
 
+        roundabout_uturn = self.is_roundabout_uturn(exit_number)
+        roundabout_slip_road = self.slip_road(exit_number, goal)
+
         features = {'path_to_goal_length': path_to_goal_length,
                     'in_correct_lane': in_correct_lane,
                     'speed': speed,
@@ -162,7 +173,9 @@ class FeatureExtractor:
                     'heading_change_3s': heading_change_3s,
                     'dist_travelled_1s': dist_travelled_1s,
                     'dist_travelled_2s': dist_travelled_2s,
-                    'dist_travelled_3s': dist_travelled_3s}
+                    'dist_travelled_3s': dist_travelled_3s,
+                    'roundabout_uturn': roundabout_uturn,
+                    'roundabout_slip_road': roundabout_slip_road}
 
         # We pass the ego_agent_id only if we want to extract the indicator features.
         if ego_agent_id is not None:
@@ -764,6 +777,16 @@ class FeatureExtractor:
 
         return None
 
+    def is_roundabout_uturn(self, exit_number: int) -> bool:
+        return exit_number != 0 and self.config is not None and exit_number == len(self.config.goals)
+
+    def slip_road(self, exit_number: int, goal: TypedGoal) -> bool:
+        if exit_number == 1 and self.config is not None and self.config.slip_roads is not None:
+            for goal_idx, goal_loc in enumerate(self.config.goals):
+                if goal.goal.reached(np.array(goal_loc)):
+                    return self.config.slip_roads[goal_idx]
+        return False
+
 
 class GoalDetector:
     """ Detects the goals of agents based on their trajectories"""
@@ -798,3 +821,5 @@ class GoalDetector:
                         if dist < self.dist_threshold and loc not in agent_goals[track_idx]:
                             agent_goals[track_idx].append(loc)
         return agent_goals
+
+
