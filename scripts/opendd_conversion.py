@@ -69,6 +69,7 @@ def episode2csv(recordingID: int, trajectories: pd.DataFrame, origin:list[float]
     recording_meta["recordingId"] = [recordingID]
     recording_meta["locationId"] = np.nan
     recording_meta["frameRate"] = [30]
+    recording_meta["speedLimit"] = 50 / 3.6
     recording_meta["weekday"] = np.nan
     recording_meta["startTime"] = [np.min(trajectories["TIMESTAMP"])]
     recording_meta["duration"] = [
@@ -132,7 +133,7 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
     vehicles_each_episode = 1000
     IDs = original_trajectories["OBJID"]
     vehicle_num = len(original_trajectories["OBJID"].unique())
-    recordingID = 40
+    recordingID = 56
     start_inx = 0
     id_last = IDs[0]
     num = 1
@@ -155,7 +156,8 @@ def datatframe2episode(original_trajectories: pd.DataFrame, origin:list[float]):
 
 
 if __name__ == "__main__":
-    scenario_name = "rdb3"
+    # please change scenario name as well as the start recordingID above
+    scenario_name = "rdb5"
     scenario_dir = get_scenarios_dir()
     data_path = scenario_dir + "/data/opendd/" + scenario_name + "/"
     original_trajectories = pd.read_csv(data_path + scenario_name + "_trajectories.csv")

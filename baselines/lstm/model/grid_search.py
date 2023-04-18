@@ -7,10 +7,10 @@ import copy
 import torch
 import pandas as pd
 import sys
-from baselines.lstm.train import train, logger
+from baselines.lstm.model.model import train, logger
 from ogrit.core.base import get_lstm_dir, set_working_dir
 
-grid_search_params = {
+dgrid_search_params = {
     "lstm_hidden_dim": np.logspace(4, 13, 5, base=2, dtype=int),
     "fc_hidden_dim": np.linspace(100, 1000, 5, dtype=int),
     "lstm_layers": [1, 3, 5],
