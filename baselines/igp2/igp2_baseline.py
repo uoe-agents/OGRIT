@@ -228,7 +228,7 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     # Project the initial and final point to the midline.
     last_state = last_seen_frame.agents[aid]
     last_pos = [last_state.position[0], last_state.position[1]]
-    old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.2)
+    old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.3)
 
     last_state_original = copy.deepcopy(last_state)
     point = Point(last_pos)
@@ -237,7 +237,7 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     state_trajectory = ip.StateTrajectory(framerate, [last_state])
 
     new_state = frame_visible_again.agents[aid]
-    new_lane = scenario_map.best_lane_at(new_state.position, heading=new_state.heading, max_distance=0.2)
+    new_lane = scenario_map.best_lane_at(new_state.position, heading=new_state.heading, max_distance=0.3)
 
     # Place the last seen and new seen positions to be on the midline to facilitate IGP2 finding a path.
     if old_lane is not None:
