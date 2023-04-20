@@ -230,7 +230,7 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     last_pos = [last_state.position[0], last_state.position[1]]
     old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.3)
 
-    last_state_original = copy.deepcopy(last_state)
+    # last_state_original = copy.deepcopy(last_state)
     point = Point(last_pos)
     possible_roads = scenario_map.roads_at(point)
 
@@ -281,9 +281,9 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
         logger.debug(e)
 
         # interpolate the original last frame and new frame
-        known_path = np.array([last_state_original.position, frame_visible_again.agents[aid].position])
-        # not from the middle of a lane
-        #known_path = np.array([last_state.position, new_position])
+        # known_path = np.array([last_state_original.position, frame_visible_again.agents[aid].position])
+        # from the middle of a lane
+        known_path = np.array([last_state.position, new_position])
 
         last_velocity = np.sqrt(last_state.velocity[0] ** 2 + last_state.velocity[1] ** 2)
         new_velocity = np.sqrt(new_state.velocity[0] ** 2 + new_state.velocity[1] ** 2)
@@ -357,8 +357,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
                 cs_acceleration = CubicSpline(trajectory.times, trajectory.acceleration)
                 cs_heading = CubicSpline(trajectory.times, trajectory.heading)
-                # cur off first and last values to avoid repeating values
-                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames+2)
+                # cut off first and last values to avoid repeating values
+                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
 
                 new_path = cs_path(ts)
                 new_vel = cs_velocity(ts)
@@ -366,8 +366,7 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 new_heading = cs_heading(ts)
 
             # j starts at 1 since the first step in the trajectory is the last frame seen.
-            j = 1
-            for frame_idx in range(idx_last_seen + 1, i):
+            for j, frame_idx in enumerate(range(idx_last_seen + 1, i)):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame = frames[frame_idx]
                 old_frame_agents = old_frame.all_agents
@@ -380,7 +379,6 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                     new_frame.add_agent_state(agent_id, agent)
 
                 occlusion_frames.append(new_frame)
-                j += 1
         idx_last_seen = i
 
         # Add the frame in which the target is visible again.
