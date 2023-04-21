@@ -258,13 +258,14 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     # goal is on the same road as the last frame
     road_seq = []
     for road in possible_roads:
-        if road == new_lane.parent_road:
+        if new_lane is not None and road == new_lane.parent_road:
             road_seq.append(road)
     # goal is on adjacent lane
-    for suc in old_lane.link.successor:
-        # goal is on the adjacent road
-        if suc.parent_road == new_lane.parent_road:
-            road_seq = [old_lane.parent_road, new_lane.parent_road]
+    if old_lane is not None:
+        for suc in old_lane.link.successor:
+            # goal is on the adjacent road
+            if new_lane is not None and suc.parent_road == new_lane.parent_road:
+                road_seq = [old_lane.parent_road, new_lane.parent_road]
 
     try:
         trajectory, mas = goal_recognition.generate_trajectory(n_trajectories=1,
