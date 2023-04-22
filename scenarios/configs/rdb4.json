@@ -8,6 +8,7 @@
                  ["exit-roundabout"],
                  ["exit-roundabout"],
                  ["exit-roundabout"]],
+  "slip_roads": [false, false, false, false],
   "goal_threshold": 1.5,
   "goal_radius": [3, 3, 3, 3],
 
@@ -20,7 +21,7 @@
   "target_switch_length": 20,
   "check_lanes": false,
   "check_oncoming": false,
-  "agent_types": ["car", "truck_bus"],
+  "agent_types": ["car", "bus","truck_bus"],
   "episodes": [
     {"recording_id":  "49"},
     {"recording_id":  "50"},
