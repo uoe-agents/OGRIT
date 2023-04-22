@@ -23,7 +23,7 @@ from igp2.planlibrary.macro_action import ChangeLane
 from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir, get_igp2_results_dir
 from ogrit.occlusion_detection.visualisation_tools import get_box
 
-#sys.setrecursionlimit(10000)
+sys.setrecursionlimit(10000)
 
 # Code adapted from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
 def create_args():
@@ -184,7 +184,7 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
                 frames = _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recognition,
                                                scenario_map)
                 arg = [frames, recordingID, framerate, aid, data, goal_recognition, goal_probabilities]
-                args.append(arg)
+                args.append(copy.deepcopy(arg))
 
             # for testing ####
             # for arg in args:
@@ -478,14 +478,14 @@ if __name__ == '__main__':
             logger.info(f"Starting experiment {idx} with cost factors {cost_factors}.")
             t_start = time.perf_counter()
             result_experiment = run_experiment(cost_factors, max_workers=max_workers)
-            results.append(result_experiment)
+            results.append(copy.deepcopy(result_experiment))
             t_end = time.perf_counter()
             logger.info(f"Experiment {idx} completed in {t_end - t_start} seconds.")
     else:
         logger.info(f"Starting experiment")
         t_start = time.perf_counter()
         result_experiment = run_experiment(cost_factors=None, max_workers=max_workers)
-        results.append(result_experiment)
+        results.append(copy.deepcopy(result_experiment))
         t_end = time.perf_counter()
         logger.info(f"Experiment completed in {t_end - t_start} seconds.")
 
