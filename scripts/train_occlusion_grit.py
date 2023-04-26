@@ -8,6 +8,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenarios', type=str, help='Name of scenarios to validate, comma separated', default=None)
     parser.add_argument('--subset', type=str, help='Subset of data to train on', default='train')
+    parser.add_argument('--model_suffix', type=str, help='Suffix to add to model name', default='')
     args = parser.parse_args()
 
     if args.scenarios is None:
@@ -18,7 +19,7 @@ def main():
     model = OcclusionGrit.train(scenario_names,
                                 criterion='entropy', min_samples_leaf=10, max_depth=7,
                                 alpha=1, ccp_alpha=0.0001, balance_scenarios=True)
-    model.save()
+    model.save(name_suffix=args.suffix)
 
 
 if __name__ == '__main__':

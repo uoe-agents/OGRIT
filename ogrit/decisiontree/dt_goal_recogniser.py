@@ -181,12 +181,12 @@ class GeneralisedGrit(GoalRecogniser):
         priors = np.ones(len(decision_trees)) / len(decision_trees)
         return cls(priors, decision_trees)
 
-    def save(self, data_dir=None):
+    def save(self, data_dir=None, name_suffix=''):
         if data_dir is None:
             data_dir = get_data_dir()
-        with open(data_dir + f'{self.get_model_name()}.p', 'wb') as f:
+        with open(data_dir + f'{self.get_model_name()}{name_suffix}.p', 'wb') as f:
             pickle.dump(self.decision_trees, f)
-        with open(data_dir + f'{self.get_model_name()}_priors.p', 'wb') as f:
+        with open(data_dir + f'{self.get_model_name()}{name_suffix}_priors.p', 'wb') as f:
             pickle.dump(self.goal_priors, f)
 
     def save_images(self, truncated_edges=None):
