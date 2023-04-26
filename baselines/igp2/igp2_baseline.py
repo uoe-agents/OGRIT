@@ -23,7 +23,7 @@ from igp2.planlibrary.macro_action import ChangeLane
 from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir, get_igp2_results_dir
 from ogrit.occlusion_detection.visualisation_tools import get_box
 
-#sys.setrecursionlimit(10000)
+sys.setrecursionlimit(10000)
 
 # Code adapted from https://github.com/uoe-agents/IGP2/blob/main/scripts/experiments/experiment_multi_process.py
 def create_args():
@@ -184,7 +184,7 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
                 frames = _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recognition,
                                                scenario_map)
                 arg = [frames, recordingID, framerate, aid, data, goal_recognition, goal_probabilities]
-                args.append(arg)
+                args.append(copy.deepcopy(arg))
 
             # for testing ####
             # for arg in args:
@@ -228,16 +228,16 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     # Project the initial and final point to the midline.
     last_state = last_seen_frame.agents[aid]
     last_pos = [last_state.position[0], last_state.position[1]]
-    old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.2)
+    old_lane = scenario_map.best_lane_at(last_pos, heading=last_state.heading, max_distance=0.3)
 
-    last_state_original = copy.deepcopy(last_state)
+    # last_state_original = copy.deepcopy(last_state)
     point = Point(last_pos)
     possible_roads = scenario_map.roads_at(point)
 
     state_trajectory = ip.StateTrajectory(framerate, [last_state])
 
     new_state = frame_visible_again.agents[aid]
-    new_lane = scenario_map.best_lane_at(new_state.position, heading=new_state.heading, max_distance=0.2)
+    new_lane = scenario_map.best_lane_at(new_state.position, heading=new_state.heading, max_distance=0.3)
 
     # Place the last seen and new seen positions to be on the midline to facilitate IGP2 finding a path.
     if old_lane is not None:
@@ -258,13 +258,14 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
     # goal is on the same road as the last frame
     road_seq = []
     for road in possible_roads:
-        if road == new_lane.parent_road:
+        if new_lane is not None and road == new_lane.parent_road:
             road_seq.append(road)
     # goal is on adjacent lane
-    for suc in old_lane.link.successor:
-        # goal is on the adjacent road
-        if suc.parent_road == new_lane.parent_road:
-            road_seq = [old_lane.parent_road, new_lane.parent_road]
+    if old_lane is not None:
+        for suc in old_lane.link.successor:
+            # goal is on the adjacent road
+            if new_lane is not None and suc.parent_road == new_lane.parent_road:
+                road_seq = [old_lane.parent_road, new_lane.parent_road]
 
     try:
         trajectory, mas = goal_recognition.generate_trajectory(n_trajectories=1,
@@ -281,9 +282,9 @@ def _generate_occluded_trajectory(goal_recognition, aid, last_seen_frame, framer
         logger.debug(e)
 
         # interpolate the original last frame and new frame
-        known_path = np.array([last_state_original.position, frame_visible_again.agents[aid].position])
-        # not from the middle of a lane
-        #known_path = np.array([last_state.position, new_position])
+        # known_path = np.array([last_state_original.position, frame_visible_again.agents[aid].position])
+        # from the middle of a lane
+        known_path = np.array([last_state.position, new_position])
 
         last_velocity = np.sqrt(last_state.velocity[0] ** 2 + last_state.velocity[1] ** 2)
         new_velocity = np.sqrt(new_state.velocity[0] ** 2 + new_state.velocity[1] ** 2)
@@ -357,8 +358,8 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 cs_velocity = CubicSpline(trajectory.times, trajectory.velocity)
                 cs_acceleration = CubicSpline(trajectory.times, trajectory.acceleration)
                 cs_heading = CubicSpline(trajectory.times, trajectory.heading)
-                # cur off first and last values to avoid repeating values
-                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames+2)
+                # cut off first and last values to avoid repeating values
+                ts = np.linspace(0, trajectory.times[-1], nr_occluded_frames)
 
                 new_path = cs_path(ts)
                 new_vel = cs_velocity(ts)
@@ -366,8 +367,7 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                 new_heading = cs_heading(ts)
 
             # j starts at 1 since the first step in the trajectory is the last frame seen.
-            j = 1
-            for frame_idx in range(idx_last_seen + 1, i):
+            for j, frame_idx in enumerate(range(idx_last_seen + 1, i)):
                 new_frame_id = initial_frame_id + frame_idx
                 old_frame = frames[frame_idx]
                 old_frame_agents = old_frame.all_agents
@@ -380,7 +380,6 @@ def _get_occlusion_frames(frames, framerate, occlusions, aid, ego_id, goal_recog
                     new_frame.add_agent_state(agent_id, agent)
 
                 occlusion_frames.append(new_frame)
-                j += 1
         idx_last_seen = i
 
         # Add the frame in which the target is visible again.
@@ -479,14 +478,14 @@ if __name__ == '__main__':
             logger.info(f"Starting experiment {idx} with cost factors {cost_factors}.")
             t_start = time.perf_counter()
             result_experiment = run_experiment(cost_factors, max_workers=max_workers)
-            results.append(result_experiment)
+            results.append(copy.deepcopy(result_experiment))
             t_end = time.perf_counter()
             logger.info(f"Experiment {idx} completed in {t_end - t_start} seconds.")
     else:
         logger.info(f"Starting experiment")
         t_start = time.perf_counter()
         result_experiment = run_experiment(cost_factors=None, max_workers=max_workers)
-        results.append(result_experiment)
+        results.append(copy.deepcopy(result_experiment))
         t_end = time.perf_counter()
         logger.info(f"Experiment completed in {t_end - t_start} seconds.")
 

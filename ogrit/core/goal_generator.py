@@ -159,14 +159,14 @@ class GoalGenerator:
         typed_goals = []
         for goal_loc, goals in goal_loc_goals.items():
             lane_seqs = [g.lane_path for g in goals]
-            lanes = self.is_cycle_exits(lane_seqs)
+            lanes = self.is_cycle_exist(lane_seqs)
             best_lane_idx = self.get_best_lane(lanes, position, heading)
             typed_goals.append(goals[best_lane_idx])
 
         return typed_goals
 
     @staticmethod
-    def is_cycle_exits(lane_seqs: List[List[Lane]]) -> List[Lane]:
+    def is_cycle_exist(lane_seqs: List[List[Lane]]) -> List[Lane]:
         """ delete the path if the path is closed. if path is empty, use original path
         Args:
             lane_seqs: list of possible paths to reach goals
