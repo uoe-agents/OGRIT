@@ -32,4 +32,4 @@ for episode_idx in range(22):
 
     samples['roundabout_slip_road'] = roundabout_slip_road
     samples['roundabout_uturn'] = roundabout_uturn
-    pd.to_csv(file_path, index=False)
+    samples.to_csv(file_path, index=False)
