@@ -8,7 +8,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenarios', type=str, help='Name of scenarios to validate, comma separated', default=None)
     parser.add_argument('--subset', type=str, help='Subset of data to train on', default='train')
-    parser.add_argument('--model_suffix', type=str, help='Suffix to add to model name', default='')
+    parser.add_argument('--suffix', type=str, help='Suffix to add to model name', default='')
     args = parser.parse_args()
 
     if args.scenarios is None:
