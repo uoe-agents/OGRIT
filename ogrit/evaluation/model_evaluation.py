@@ -24,18 +24,19 @@ def drop_low_sample_agents(dataset, min_samples=2):
 
 def get_model_class_with_suffix(model_name, model_classes):
     if model_name in model_classes:
-        return model_classes[model_name]
+        return model_classes[model_name], None
 
     model_names = sorted(list(model_classes.keys()), key=len)
     for sub_name in model_names:
         if model_name.startswith(sub_name):
-            return model_classes[sub_name]
+            suffix = model_names[len(sub_name):]
+            return model_classes[sub_name], suffix
 
     raise ValueError(f'Invalid model name {model_name}')
 
 
 def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', results_dir=None, data_dir=None,
-                    predictions_dir=None, models_dir=None, suffix=''):
+                    predictions_dir=None, models_dir=None):
 
     if results_dir is None:
         results_dir = get_base_dir() + '/results/'
@@ -141,7 +142,6 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
         for model_name in model_names:
 
             unique_samples = predictions[scenario_name][model_name]
-            model_name += suffix
             unique_samples['fraction_observed'] = unique_samples['fraction_observed'].round(1)
             # save accuracy
             fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')
