@@ -42,7 +42,7 @@ class FeatureExtractor:
                      'oncoming_vehicle_dist': 'scalar',
                      'oncoming_vehicle_speed': 'scalar',
                      'road_heading': 'scalar',
-                     'exit_number': 'integer',
+                     # 'exit_number': 'integer',
                      # 'speed_change_1s': 'scalar',
                      # 'speed_change_2s': 'scalar',
                      # 'speed_change_3s': 'scalar',

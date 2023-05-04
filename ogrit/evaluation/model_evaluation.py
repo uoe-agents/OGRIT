@@ -22,6 +22,18 @@ def drop_low_sample_agents(dataset, min_samples=2):
     return new_dataset
 
 
+def get_model_class_with_suffix(model_name, model_classes):
+    if model_name in model_classes:
+        return model_classes[model_name]
+
+    model_names = sorted(list(model_classes.keys()), key=len)
+    for sub_name in model_names:
+        if model_name.startswith(sub_name):
+            return model_classes[sub_name]
+
+    raise ValueError(f'Invalid model name {model_name}')
+
+
 def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', results_dir=None, data_dir=None,
                     predictions_dir=None, models_dir=None, suffix=''):
 
@@ -76,8 +88,11 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
 
         for model_name in model_names:
             print(model_name)
-            model_class = model_classes[model_name]
-            model = model_class.load(scenario_name, models_dir)
+            model_class, suffix = get_model_class_with_suffix(model_name, model_classes)
+            if suffix is None:
+                model = model_class.load(scenario_name, models_dir)
+            else:
+                model = model_class.load(scenario_name, models_dir, suffix=suffix)
             unique_samples = model.batch_goal_probabilities(dataset)
             unique_samples['model_correct'] = (unique_samples['model_prediction']
                                                == unique_samples['true_goal'])
