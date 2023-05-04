@@ -29,7 +29,7 @@ def get_model_class_with_suffix(model_name, model_classes):
     model_names = sorted(list(model_classes.keys()), key=len)
     for sub_name in model_names:
         if model_name.startswith(sub_name):
-            suffix = model_names[len(sub_name):]
+            suffix = model_name[len(sub_name):]
             return model_classes[sub_name], suffix
 
     raise ValueError(f'Invalid model name {model_name}')
