@@ -203,12 +203,16 @@ class GeneralisedGrit(GoalRecogniser):
         return tree_likelihood
 
     @classmethod
-    def load(cls, scenario_name, data_dir=None, episode_idx=None):
+    def load(cls, scenario_name, data_dir=None, episode_idx=None, suffix=None):
+        model_name = cls.get_model_name()
+        if suffix is not None:
+            model_name += suffix
+
         if data_dir is None:
             data_dir = get_data_dir()
-        with open(data_dir + f'{cls.get_model_name()}.p', 'rb') as f:
+        with open(data_dir + f'{model_name}.p', 'rb') as f:
             decision_trees = pickle.load(f)
-        with open(data_dir + f'{cls.get_model_name()}_priors.p', 'rb') as f:
+        with open(data_dir + f'{model_name}_priors.p', 'rb') as f:
             priors = pickle.load(f)
 
         scenario_config = ScenarioConfig.load(get_base_dir() + f"/scenarios/configs/{scenario_name}.json")

@@ -1,3 +1,4 @@
+import argparse
 import itertools
 import os
 
@@ -5,6 +6,10 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 from ogrit.core.base import get_base_dir
+
+parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
+parser.add_argument('--models', type=str, help='List of models, comma separated', default='occlusion_grit')
+args = parser.parse_args()
 
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -17,8 +22,10 @@ scenario_names = ["heckstrasse", "bendplatz", "frankenburg"]
 lstm_train_scenario = {"heckstrasse": "heckstrasse",
                        "bendplatz": "bendplatz",
                        "frankenburg": "frankenburg"}
+
 # which model(s) we used to train the scenario(s) we are evaluating
-model_names = ['lstm']
+model_names = args.models.split(',')
+
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
              'occlusion_grit_loocv': 'OGRIT-LOOCV',
