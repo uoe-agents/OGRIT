@@ -82,7 +82,6 @@ class FeaturesLSTM:
 
         self.logger.info(f"Model created: {str(self.model)}")
 
-        self.dataset = "features"
         self.model_path = self.get_model_path()
 
         if mode == "train":
@@ -249,9 +248,9 @@ class FeaturesLSTM:
         true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
 
         true_goal_prob_sem.to_csv(
-            get_results_dir() + f'/{self.test_scenarios_names}_lstm_on_{self.training_scenarios_names}_true_goal_prob_sem.csv')
+            get_results_dir() + f'/{self.test_scenarios_names}_lstm_{self.input_type}_on_{self.training_scenarios_names}_true_goal_prob_sem.csv')
         true_goal_prob.to_csv(
-            get_results_dir() + f'/{self.test_scenarios_names}_lstm_on_{self.training_scenarios_names}_true_goal_prob.csv')
+            get_results_dir() + f'/{self.test_scenarios_names}_lstm_{self.input_type}_on_{self.training_scenarios_names}_true_goal_prob.csv')
 
     def get_model_path(self):
 
@@ -260,7 +259,7 @@ class FeaturesLSTM:
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
 
-        return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.dataset}.pt")
+        return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.input_type}.pt")
 
     def save_model(self, epoch, losses, accs):
 
