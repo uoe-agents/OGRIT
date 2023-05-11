@@ -1,18 +1,16 @@
+import math
+import pickle
+from functools import lru_cache
 from typing import List, Dict, Union, Tuple
 
-from functools import lru_cache
 import numpy as np
-import pickle
-import math
-
 from igp2 import AgentState, Lane, VelocityTrajectory, StateTrajectory, Map, Road
 from igp2.data import ScenarioConfig
-
 from shapely.geometry import Point, LineString, Polygon, MultiPolygon
 from shapely.ops import unary_union, split, snap
 
+from ogrit.core.base import get_occlusions_dir, get_scenarios_dir
 from ogrit.core.goal_generator import TypedGoal, GoalGenerator
-from ogrit.core.base import get_occlusions_dir, get_base_dir, get_scenarios_dir
 
 
 def heading_diff(a: float, b: float) -> float:
@@ -20,7 +18,6 @@ def heading_diff(a: float, b: float) -> float:
 
 
 class FeatureExtractor:
-
     MAX_ONCOMING_VEHICLE_DIST = 100
 
     # Minimum area the occlusion must have to contain a vehicle (assuming a 4m*3m vehicle)
@@ -139,16 +136,16 @@ class FeatureExtractor:
             oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
 
         speed_change_1s = self.get_speed_change(agent_id, frames, frames_ago=fps)
-        speed_change_2s = self.get_speed_change(agent_id, frames, frames_ago=2*fps)
-        speed_change_3s = self.get_speed_change(agent_id, frames, frames_ago=3*fps)
+        speed_change_2s = self.get_speed_change(agent_id, frames, frames_ago=2 * fps)
+        speed_change_3s = self.get_speed_change(agent_id, frames, frames_ago=3 * fps)
 
         heading_change_1s = self.get_heading_change(agent_id, frames, frames_ago=fps)
-        heading_change_2s = self.get_heading_change(agent_id, frames, frames_ago=2*fps)
-        heading_change_3s = self.get_heading_change(agent_id, frames, frames_ago=3*fps)
+        heading_change_2s = self.get_heading_change(agent_id, frames, frames_ago=2 * fps)
+        heading_change_3s = self.get_heading_change(agent_id, frames, frames_ago=3 * fps)
 
         dist_travelled_1s = self.get_dist_travelled(agent_id, frames, frames_ago=fps)
-        dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2*fps)
-        dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3*fps)
+        dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2 * fps)
+        dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3 * fps)
 
         roundabout_uturn = self.is_roundabout_uturn(exit_number)
         roundabout_slip_road = self.slip_road(exit_number, goal)
@@ -175,11 +172,15 @@ class FeatureExtractor:
                     'dist_travelled_2s': dist_travelled_2s,
                     'dist_travelled_3s': dist_travelled_3s,
                     'roundabout_uturn': roundabout_uturn,
-                    'roundabout_slip_road': roundabout_slip_road}
+                    'roundabout_slip_road': roundabout_slip_road,
+
+                    # Note: x, y, heading below are used for the LSTM baseline and not by OGRIT
+                    'x': current_state.position[0],
+                    'y': current_state.position[1],
+                    'heading': current_state.heading}
 
         # We pass the ego_agent_id only if we want to extract the indicator features.
         if ego_agent_id is not None:
-
             occlusions = self.occlusions[current_state.time][ego_agent_id]["occlusions"]
             vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
                                                                          current_frame, occlusions)
@@ -193,15 +194,15 @@ class FeatureExtractor:
                 if goal_type == "exit-roundabout" else False
 
             target_1s_occluded = self.target_previously_occluded(frames, fps, target_occlusion_history)
-            target_2s_occluded = self.target_previously_occluded(frames, 2*fps, target_occlusion_history)
-            target_3s_occluded = self.target_previously_occluded(frames, 3*fps, target_occlusion_history)
+            target_2s_occluded = self.target_previously_occluded(frames, 2 * fps, target_occlusion_history)
+            target_3s_occluded = self.target_previously_occluded(frames, 3 * fps, target_occlusion_history)
 
             indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
                                   'oncoming_vehicle_missing': oncoming_vehicle_occluded,
                                   'exit_number_missing': exit_number_occluded,
                                   'target_1s_occluded': target_1s_occluded,
                                   'target_2s_occluded': target_2s_occluded,
-                                  'target_3s_occluded': target_3s_occluded,}
+                                  'target_3s_occluded': target_3s_occluded, }
 
             features.update(indicator_features)
         return features
@@ -220,8 +221,8 @@ class FeatureExtractor:
                                    target_occlusion_history: List[bool], fps=25) -> bool:
         assert frames_ago % fps == 0
         return (frames_ago + 1 > len(frames)
-                or len(target_occlusion_history) < frames_ago//fps + 1
-                or target_occlusion_history[-(frames_ago//fps + 1)]
+                or len(target_occlusion_history) < frames_ago // fps + 1
+                or target_occlusion_history[-(frames_ago // fps + 1)]
                 or target_occlusion_history[-1])
 
     @staticmethod
@@ -279,7 +280,7 @@ class FeatureExtractor:
     @staticmethod
     def in_correct_lane(lane_path: List[Lane]):
         for idx in range(0, len(lane_path) - 1):
-            if lane_path[idx].lane_section == lane_path[idx+1].lane_section:
+            if lane_path[idx].lane_section == lane_path[idx + 1].lane_section:
                 return False
         return True
 
@@ -434,9 +435,9 @@ class FeatureExtractor:
         Split the midline at a specific point. The midline should be shorter than two times the MAX_OCCLUSION_DISTANCE
         """
 
-        if midline.length > 2*self.MAX_OCCLUSION_DISTANCE:
+        if midline.length > 2 * self.MAX_OCCLUSION_DISTANCE:
             # if a closed path is unavoidable, using split only does not work
-            interpolation_point = midline.interpolate(2*self.MAX_OCCLUSION_DISTANCE)
+            interpolation_point = midline.interpolate(2 * self.MAX_OCCLUSION_DISTANCE)
             midline = split(snap(midline, interpolation_point, 0.0000000000001), interpolation_point)[0]
 
         point_on_midline = midline.interpolate(midline.project(point)).buffer(0.0000000000001)
@@ -719,7 +720,7 @@ class FeatureExtractor:
 
     def is_roundabout_entrance(self, lane: Lane) -> bool:
         predecessor_in_roundabout = (lane.link.predecessor is not None and len(lane.link.predecessor) == 1
-                                   and self.lane_in_roundabout(lane.link.predecessor[0]))
+                                     and self.lane_in_roundabout(lane.link.predecessor[0]))
         return self.is_roundabout_junction(lane) and not predecessor_in_roundabout
 
     def lane_in_roundabout(self, lane: Lane):
@@ -821,5 +822,3 @@ class GoalDetector:
                         if dist < self.dist_threshold and loc not in agent_goals[track_idx]:
                             agent_goals[track_idx].append(loc)
         return agent_goals
-
-
