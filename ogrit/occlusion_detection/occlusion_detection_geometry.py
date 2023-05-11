@@ -1,22 +1,19 @@
+import json
 import math
 import pickle
-import json
+from itertools import combinations
 from typing import List
 
 import numpy as np
-from itertools import combinations
-
-from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
-from ogrit.core.data_processing import get_episode_frames
-from ogrit.core.base import get_scenarios_dir, get_occlusions_dir
-import ogrit.occlusion_detection.visualisation_tools as util
-
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
-
-
 from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
 from shapely.ops import unary_union
+
+import ogrit.occlusion_detection.visualisation_tools as util
+from ogrit.core.base import get_scenarios_dir, get_occlusions_dir
+from ogrit.core.data_processing import get_episode_frames
+from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
 
 # After how many meters can't the vehicle see anything
 OCCLUSION_RADIUS = 100
@@ -24,7 +21,20 @@ OCCLUSION_RADIUS = 100
 
 class OcclusionDetector2D:
 
-    def __init__(self, scenario_name: str, episode_idx: int, debug: bool = False, road_occlusions: bool = False):
+    def __init__(self, scenario_name: str, episode_idx: int, debug: bool = False,
+                 compute_occlusions_roads: bool = False, compute_occlusions_lanes: bool = False):
+
+        """
+
+        Args:
+            scenario_name: name of the scenario for which we want the occlusions
+            episode_idx: episode of the scenario for which we want the occlusions
+            debug: whether we want to see the occlusions frame-by-frame
+            compute_occlusions_roads: whether we want to store the occlusions for each road specifically (other than all
+                                        the occlusions in the frame)
+            compute_occlusions_lanes: whether we want to store the occlusions for each lane specifically (other than all
+                                        the occlusions in the frame)
+        """
         self.scenario_name = scenario_name
         self.episode_idx = episode_idx
         self.scenario_map = Map.parse_from_opendrive(get_scenarios_dir() + f"/maps/{self.scenario_name}.xodr")
@@ -33,11 +43,13 @@ class OcclusionDetector2D:
         self.episode = self.scenario.load_episode(episode_idx)
         self.buildings = self.scenario_config.buildings
         self.save_format = "p"  # By default, save the occlusions in a pickle file.
-        self.road_occlusions = road_occlusions
 
         # Whether we want to plot the occlusions w.r.t. each vehicle.
         self.debug = debug
         self.occlusion_lines = []
+
+        self.compute_occlusions_roads = compute_occlusions_roads
+        self.compute_occlusions_lanes = compute_occlusions_lanes
 
     def extract_occlusions(self, save_format="p"):
         """
@@ -54,7 +66,9 @@ class OcclusionDetector2D:
         all_occlusion_data = {}
 
         for frame_id, frame in enumerate(episode_frames):
-            print(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
+
+            if frame_id % 1000 == 0:
+                print(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
 
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
         self._save_occlusions(all_occlusion_data)
@@ -156,19 +170,23 @@ class OcclusionDetector2D:
         # Store all the occlusions w.r.t the ego.
         occlusions_by_roads["occlusions"] = self._get_format(occluded_areas)
 
-        # Find what areas in each lane is occluded.
-        for road in self.scenario_map.roads.values():
-            all_road_occlusions = road.boundary.buffer(0).intersection(occluded_areas)
-            road_occlusions = {"occlusions": self._get_format(all_road_occlusions)} if self.road_occlusions else {}
+        if self.compute_occlusions_roads or self.compute_occlusions_lanes:
+            # Find what areas in each lane is occluded.
+            for road in self.scenario_map.roads.values():
+                all_road_occlusions = road.boundary.buffer(0).intersection(occluded_areas)
+                road_occlusions = {
+                    "occlusions": self._get_format(all_road_occlusions)} if self.compute_occlusions_roads else {}
 
-            for lane_section in road.lanes.lane_sections:
-                for lane in lane_section.all_lanes:
-                    if lane.id == 0 or lane.type != "driving":
-                        continue
+                # Compute the occlusions for each lane
+                if self.compute_occlusions_lanes:
+                    for lane_section in road.lanes.lane_sections:
+                        for lane in lane_section.all_lanes:
+                            if lane.id == 0 or lane.type != "driving":
+                                continue
 
-                    intersection = lane.boundary.buffer(0).intersection(occluded_areas)
-                    road_occlusions[lane.id] = self._get_format(intersection)
-            occlusions_by_roads[road.id] = road_occlusions
+                            intersection = lane.boundary.buffer(0).intersection(occluded_areas)
+                            road_occlusions[lane.id] = self._get_format(intersection)
+                occlusions_by_roads[road.id] = road_occlusions
 
         return occlusions_by_roads
 
@@ -213,8 +231,8 @@ class OcclusionDetector2D:
             v1 = l1.points[1]
             v2 = l2.points[1]
 
-            v3 = l1.get_extended_point(2*OCCLUSION_RADIUS - l1.length, v1)
-            v4 = l2.get_extended_point(2*OCCLUSION_RADIUS - l2.length, v2)
+            v3 = l1.get_extended_point(2 * OCCLUSION_RADIUS - l1.length, v1)
+            v4 = l2.get_extended_point(2 * OCCLUSION_RADIUS - l2.length, v2)
 
             if self.debug and self.save_format == "p":
                 self.occlusion_lines.append([(v1, v3), (v2, v4)])
@@ -244,5 +262,3 @@ class OcclusionDetector2D:
                 max_alpha = angle
                 l1, l2 = line1, line2
         return l1, l2
-
-
