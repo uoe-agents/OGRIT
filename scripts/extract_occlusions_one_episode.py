@@ -30,7 +30,7 @@ def main():
 
     occlusion_detector = OcclusionDetector2D(args.scenario, args.episode_idx, debug=args.debug,
                                              compute_occlusions_roads=args.compute_occlusions_roads,
-                                             compute_occlusions_lanes=args.ccompute_occlusions_lanes)
+                                             compute_occlusions_lanes=args.compute_occlusions_lanes)
 
     start = datetime.now()
     occlusion_detector.extract_occlusions(save_format=args.save_format)
