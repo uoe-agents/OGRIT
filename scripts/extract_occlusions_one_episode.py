@@ -28,7 +28,7 @@ def main():
 
     print('scenario {} episode {}'.format(args.scenario, args.episode_idx))
 
-    occlusion_detector = OcclusionDetector2D(args.scenario_name, args.episode_idx, debug=args.debug,
+    occlusion_detector = OcclusionDetector2D(args.scenario, args.episode_idx, debug=args.debug,
                                              compute_occlusions_roads=args.compute_occlusions_roads,
                                              compute_occlusions_lanes=args.ccompute_occlusions_lanes)
 
