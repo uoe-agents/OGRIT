@@ -9,10 +9,12 @@ from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
 from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
 from shapely.ops import unary_union
+from tqdm import tqdm
 
 import ogrit.occlusion_detection.visualisation_tools as util
 from ogrit.core.base import get_scenarios_dir, get_occlusions_dir
 from ogrit.core.data_processing import get_episode_frames
+from ogrit.core.logger import logger
 from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
 
 # After how many meters can't the vehicle see anything
@@ -65,10 +67,10 @@ class OcclusionDetector2D:
 
         all_occlusion_data = {}
 
-        for frame_id, frame in enumerate(episode_frames):
+        for frame_id, frame in enumerate(tqdm(episode_frames)):
 
             if frame_id % 1000 == 0:
-                print(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
+                logger.info(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
 
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
         self._save_occlusions(all_occlusion_data)
