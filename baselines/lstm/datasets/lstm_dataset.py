@@ -8,10 +8,10 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from baselines.lstm.lstm_logger import logger
 from ogrit.core.base import get_lstm_dir
 from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.core.feature_extraction import FeatureExtractor
+from ogrit.core.logger import logger
 
 """
 Define the skeleton of the base class that each other dataset should inherit # TODO: what is this called?
@@ -87,14 +87,6 @@ class LSTMDataset(Dataset):
             targets: the true goal type of each trajectory
             (if test dataset) fractions_observed: the fraction of the trajectory that has been observed so far
         """
-
-        """
-
-                Returns:
-                    trajectories: a list of trajectories, each trajectory is a list of OGRIT features for each timestep
-                    targets: the true goal type of each trajectory
-                    (if test dataset) fractions_observed: the fraction of the trajectory that has been observed so far
-                """
         samples = self.get_samples()
 
         trajectories = []
