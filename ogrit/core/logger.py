@@ -7,7 +7,7 @@ import sys
 
 
 class Logger:
-    def __init__(self, ):
+    def __init__(self):
         self.logger = logging.getLogger()
         self.logger.setLevel(logging.INFO)
         self.ch = logging.StreamHandler(sys.stdout)
@@ -22,3 +22,6 @@ class Logger:
     def error(self, msg):
         self.ch.setLevel(logging.ERROR)
         self.logger.error(msg)
+
+
+logger = Logger()

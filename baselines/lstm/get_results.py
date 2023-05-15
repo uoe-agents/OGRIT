@@ -1,5 +1,6 @@
 import argparse
 
+from baselines.lstm.lstm_logger import logger
 from model.train_test import FeaturesLSTM
 
 """ 
@@ -15,6 +16,8 @@ It saves the probability assigned by the model on the true goal in the /OGRIT/re
 Consider plotting the results with the /OGRIT/scripts/plot_results.py script.
 """
 
+
+# TODO: could add this to evaluate_models.py
 
 def train_lstm(configs):
     lstm = FeaturesLSTM(configs, mode="train")
@@ -39,6 +42,9 @@ if __name__ == "__main__":
 
     parser.add_argument('--evaluate_only', action='store_true', help='Evaluate an existing model with the '
                                                                      'given hyper-parameters')
+
+    parser.add_argument('--input_type', type=str, default="ogrit_features", help="'absolute_position', "
+                                                                                 "'relative_position' or 'ogrit_features'")
     parser.add_argument('--batch_size', type=int, default=10,
                         help='Batch size')
     parser.add_argument('--max_epochs', type=int, default=100, help='Maximum number of epochs')
@@ -53,6 +59,8 @@ if __name__ == "__main__":
     # Parse the arguments into a dictionary
     configs = parser.parse_args()
     configs = vars(configs)
+
+    logger.info(f"Configurations used: {configs}")
 
     if configs["evaluate_only"]:
         test_lstm(configs)

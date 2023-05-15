@@ -1,19 +1,19 @@
 import json
+import math
+from functools import lru_cache
 from typing import Dict, List
 
-import pandas as pd
 import numpy as np
-import math
+import pandas as pd
 from igp2 import AgentState, Box
 from igp2.data import Episode
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
-
-from ogrit.core.feature_extraction import FeatureExtractor, GoalDetector
 from shapely.geometry import LineString
+from tqdm import tqdm
 
 from ogrit.core.base import get_data_dir, get_base_dir, get_scenarios_dir, set_working_dir
-from functools import lru_cache
+from ogrit.core.feature_extraction import FeatureExtractor, GoalDetector
 
 FRAME_STEP_SIZE = 25  # take a sample every 25 frames in the original episode frames (i.e., one per second)
 
@@ -41,8 +41,8 @@ def get_dataset(scenario_name, subset='train', features=True, data_dir=None):
         return training_set
     else:
         unique_training_samples = training_set[['episode', 'agent_id', 'initial_frame_id', 'frame_id',
-                                            'true_goal', 'true_goal_type', 'fraction_observed']
-                                            ].drop_duplicates().reset_index()
+                                                'true_goal', 'true_goal_type', 'fraction_observed']
+        ].drop_duplicates().reset_index()
         return unique_training_samples
 
 
@@ -66,7 +66,8 @@ def get_goal_priors(training_set, goal_types, alpha=0):
     goal_counts['goal_count'] += agent_goals.groupby(['true_goal', 'true_goal_type']).size()
     goal_counts = goal_counts.fillna(0)
 
-    goal_priors = ((goal_counts.goal_count + alpha) / (agent_goals.shape[0] + alpha * goal_counts.shape[0])).rename('prior')
+    goal_priors = ((goal_counts.goal_count + alpha) / (agent_goals.shape[0] + alpha * goal_counts.shape[0])).rename(
+        'prior')
     goal_priors = goal_priors.reset_index()
     return goal_priors
 
@@ -112,7 +113,8 @@ def get_trimmed_trajectories(scenario, episode):
         if agent.metadata.agent_type in ['car', 'truck_bus']:
             agent_goals, goal_frame_idxes = goal_detector.detect_goals(agent.trajectory)
             if len(agent_goals) > 0:
-                trimmed_trajectory = agent.trajectory.slice(0, goal_frame_idxes[-1]+1)  # add the +1 since we're slicing
+                trimmed_trajectory = agent.trajectory.slice(0,
+                                                            goal_frame_idxes[-1] + 1)  # add the +1 since we're slicing
 
                 goals[agent_id] = agent_goals[-1]
                 trimmed_trajectories[agent_id] = trimmed_trajectory
@@ -184,14 +186,13 @@ def is_target_vehicle_occluded(current_frame_id, occlusions, target_agent_id, eg
 
 
 def extract_samples(feature_extractor, scenario, episode, extract_missing_features=False):
-
     episode_frames = get_episode_frames(episode)
     trajectories, goals = get_trimmed_trajectories(scenario, episode)
 
     samples_list = []
 
-    for target_agent_idx, (target_agent_id, trajectory) in enumerate(trajectories.items()):
-        print('target agent {}/{}'.format(target_agent_idx, len(trajectories) - 1))
+    for target_agent_idx, (target_agent_id, trajectory) in enumerate(tqdm(trajectories.items())):
+        # logger.info('target agent {}/{}'.format(target_agent_idx, len(trajectories) - 1))
 
         # Get all the reachable goals at every time step of the trajectory.
         full_reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
@@ -218,7 +219,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                 # are alive.
                 start_trajectory_idx = initial_frame_id - target_initial_frame
                 end_trajectory_idx = final_frame_id - target_initial_frame
-                reachable_goals_list = full_reachable_goals_list[start_trajectory_idx:end_trajectory_idx+1]
+                reachable_goals_list = full_reachable_goals_list[start_trajectory_idx:end_trajectory_idx + 1]
             else:
                 reachable_goals_list = full_reachable_goals_list
 
@@ -232,7 +233,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                 true_goal_type = feature_extractor.goal_type(true_goal_route)
 
                 # Align the frames so that they are multiples of FRAME_STEP_SIZE.
-                initial_frame_offset = FRAME_STEP_SIZE * math.ceil(initial_frame_id/FRAME_STEP_SIZE) - initial_frame_id
+                initial_frame_offset = FRAME_STEP_SIZE * math.ceil(
+                    initial_frame_id / FRAME_STEP_SIZE) - initial_frame_id
                 # Save the first frame in which the target vehicle wasn't occluded w.r.t the ego.
                 first_frame_target_not_occluded = None
 

@@ -4,12 +4,14 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from baselines.lstm.datasets.dataset import OGRITFeatureDataset
-from baselines.lstm.lstm_logger import Logger
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
+from baselines.lstm.datasets.lstm_dataset import LSTMDataset
+from baselines.lstm.lstm_logger import logger
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
 from ogrit.core.base import get_lstm_dir, get_results_dir
-from torch.utils.data import DataLoader
 
 """
 The LSTM takes in a list of features at each timestep, the same as those that OGRIT gets to evaluate the 
@@ -33,8 +35,9 @@ class FeaturesLSTM:
             See the /OGRIT/baselines/lstm/get_results.py file for the default values of the hyper-parameters.
         """
 
-        self.logger = Logger()
+        self.logger = logger
         self.writer = None
+        self.VALIDATION_STEP = 2  # How often to validate the model
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Train the model on these scenarios, or use the model trained on these scenarios to test on the test scenarios
@@ -42,12 +45,12 @@ class FeaturesLSTM:
         self.training_scenarios_names = "_".join(training_scenarios)
         self.batch_size = configs["batch_size"]
 
+        self.input_type = configs["input_type"]
+
         # Load the datasets
         if mode == "train":
-            train_dataset = OGRITFeatureDataset(training_scenarios, split_type="train")
-            self.logger.info(f"Train dataset: {train_dataset}")
-            val_dataset = OGRITFeatureDataset(training_scenarios, split_type="valid")
-            self.logger.info(f"Validation dataset: {val_dataset}")
+            train_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="train")
+            val_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="valid")
 
             self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -58,7 +61,7 @@ class FeaturesLSTM:
         elif mode == "test":
             test_scenarios = configs["test_scenarios"].split(",")
             self.test_scenarios_names = "_".join(test_scenarios)
-            test_dataset = OGRITFeatureDataset(test_scenarios, split_type="test")
+            test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, split_type="test")
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size,
@@ -79,7 +82,6 @@ class FeaturesLSTM:
 
         self.logger.info(f"Model created: {str(self.model)}")
 
-        self.dataset = "features"
         self.model_path = self.get_model_path()
 
         if mode == "train":
@@ -112,22 +114,30 @@ class FeaturesLSTM:
 
             train_loss_avg, train_accuracy = self.train_epoch(epoch_nr)
 
-            val_loss_avg, val_acc = self.evaluation(epoch_nr)  # TODO: clarify if accuracy or F1 score...
-            self.logger.info(f"Epoch {epoch_nr + 1} - Validation Loss: {val_loss_avg} - Accuracy: {val_acc}")
+            if epoch_nr % self.VALIDATION_STEP == 0:
+                val_loss_avg, val_acc = self.evaluation(epoch_nr)  # TODO: clarify if accuracy or F1 score...
+                self.logger.info(f"Epoch {epoch_nr + 1} - Validation Loss: {val_loss_avg} - Accuracy: {val_acc}")
 
-            # Update the learning rate according to the validation loss
-            self.scheduler.step(val_loss_avg)
+                # Update the learning rate according to the validation loss
+                self.scheduler.step(val_loss_avg)
 
-            self.writer.write(epoch_nr, train_loss_avg, val_loss_avg, val_acc, 0)  # TODO: last one should be val_f1
-            self.writer.flush()
+                self.writer.write(epoch_nr, train_loss_avg, val_loss_avg, val_acc, 0)  # TODO: last one should be val_f1
+                self.writer.flush()
 
-            val_loss_avg_ls.append(val_loss_avg)
-            f1_score_avg_ls.append(val_acc)
+                val_loss_avg_ls.append(val_loss_avg)
+                f1_score_avg_ls.append(val_acc)
 
-            # Save the model if the validation loss is the best so far
-            if val_loss_avg < min_loss:
-                min_loss = val_loss_avg
-                self.save_model(epoch_nr, np.array(val_loss_avg_ls), np.array(f1_score_avg_ls))
+                # Save the model if the validation loss is the best so far
+                if val_loss_avg < min_loss:
+                    min_loss = val_loss_avg
+                    self.save_model(epoch_nr, np.array(val_loss_avg_ls), np.array(f1_score_avg_ls))
+
+                # Early stopping if the validation loss has not improved for the last 5 validation steps.
+                # 0.4*np.ceil(self.max_epochs / self.VALIDATION_STEP) is an arbitrary number
+                if len(val_loss_avg_ls) > 0.4 * np.ceil(
+                        self.max_epochs / self.VALIDATION_STEP) and val_loss_avg > np.mean(val_loss_avg_ls[-5:]):
+                    self.logger.info("Early stopping.")
+                    break
 
         self.writer.close()
         return np.array(val_loss_avg_ls), np.array(f1_score_avg_ls)
@@ -143,7 +153,7 @@ class FeaturesLSTM:
         running_loss = 0.0
         correct, total = 0, 0
 
-        for i_batch, sample_batched in enumerate(self.train_loader):
+        for i_batch, sample_batched in enumerate(tqdm(self.train_loader)):
             trajectories = sample_batched[0].to(self.device)
             target = sample_batched[1].to(self.device)
 
@@ -214,7 +224,7 @@ class FeaturesLSTM:
         goal_probs_df = {"true_goal_prob": [], "fraction_observed": []}
 
         # Compute the goal probabilities for each trajectory
-        for i_batch, sample_batched in enumerate(self.test_loader):
+        for i_batch, sample_batched in enumerate(tqdm(self.test_loader)):
             trajectories = sample_batched[0]
             targets = sample_batched[1].detach().numpy()
             fraction_observed = sample_batched[2].detach().numpy()
@@ -238,9 +248,9 @@ class FeaturesLSTM:
         true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
 
         true_goal_prob_sem.to_csv(
-            get_results_dir() + f'/{self.test_scenarios_names}_lstm_on_{self.training_scenarios_names}_true_goal_prob_sem.csv')
+            get_results_dir() + f'/{self.test_scenarios_names}_lstm_{self.input_type}_on_{self.training_scenarios_names}_true_goal_prob_sem.csv')
         true_goal_prob.to_csv(
-            get_results_dir() + f'/{self.test_scenarios_names}_lstm_on_{self.training_scenarios_names}_true_goal_prob.csv')
+            get_results_dir() + f'/{self.test_scenarios_names}_lstm_{self.input_type}_on_{self.training_scenarios_names}_true_goal_prob.csv')
 
     def get_model_path(self):
 
@@ -249,7 +259,7 @@ class FeaturesLSTM:
         if not os.path.exists(model_dir):
             os.makedirs(model_dir)
 
-        return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.dataset}.pt")
+        return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.input_type}.pt")
 
     def save_model(self, epoch, losses, accs):
 
