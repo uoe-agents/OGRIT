@@ -2,6 +2,7 @@ import argparse
 from datetime import datetime
 
 from ogrit.core.base import create_folders, set_working_dir
+from ogrit.core.logger import logger
 from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDetector2D
 
 
@@ -26,15 +27,16 @@ def main():
 
     create_folders()
 
-    print('scenario {} episode {}'.format(args.scenario, args.episode_idx))
+    logger.info(f'Start extracting occlusions for scenario {args.scenario} episode {args.episode_idx}')
 
-    occlusion_detector = OcclusionDetector2D(args.scenario_name, args.episode_idx, debug=args.debug,
+    occlusion_detector = OcclusionDetector2D(args.scenario, args.episode_idx, debug=args.debug,
                                              compute_occlusions_roads=args.compute_occlusions_roads,
-                                             compute_occlusions_lanes=args.ccompute_occlusions_lanes)
+                                             compute_occlusions_lanes=args.compute_occlusions_lanes)
 
     start = datetime.now()
     occlusion_detector.extract_occlusions(save_format=args.save_format)
-    print(datetime.now() - start)
+    logger.info(
+        f'Extracting occlusions for scenario {args.scenario} episode {args.episode_idx} took {datetime.now() - start}')
 
 
 if __name__ == '__main__':
