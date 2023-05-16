@@ -18,7 +18,8 @@ plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 # scenario_names = get_all_scenarios()
-scenario_names = ["heckstrasse", "bendplatz", "frankenburg"]
+#scenario_names = ["heckstrasse", "bendplatz", "frankenburg"]
+scenario_names = ['neuweiler', 'rdb5']
 lstm_train_scenario = {"heckstrasse": "heckstrasse",
                        "bendplatz": "bendplatz",
                        "frankenburg": "frankenburg"}
@@ -42,7 +43,9 @@ label_map = {'generalised_grit': 'Oracle',
              'no_possibly_missing_features_grit': 'GRIT',
              'grit_no_missing_uniform': 'GRIT',
              'igp2': 'IGP2',
-             'occlusion_grit_rdb5': 'OGRIT rdb5'}
+             'occlusion_grit_rdb5': 'OGRIT rdb5',
+             'occlusion_grit_old_features': 'old features',
+             'occlusion_grit_new_features': 'new features'}
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
@@ -113,8 +116,8 @@ if plot_true_goal_prob:
     fig, axes = plt.subplots(2, 2)
 
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        # ax = axes[scenario_idx % 2, scenario_idx // 2]
-        ax = axes[scenario_idx]
+        ax = axes[scenario_idx % 2, scenario_idx // 2]
+        #ax = axes[scenario_idx]
         plt.sca(ax)
         if scenario_idx % 2 == 1:
 
@@ -144,8 +147,11 @@ if plot_true_goal_prob:
                 true_goal_prob = pd.read_csv(
                     results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
             else:
-                true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
-                true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
+                try:
+                    true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+                    true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
+                except FileNotFoundError:
+                    continue
 
             if model_name == 'ogrit_oracle':
                 current_marker = None
