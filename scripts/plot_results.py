@@ -5,10 +5,12 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+
 from ogrit.core.base import get_base_dir
 
 parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
 parser.add_argument('--models', type=str, help='List of models, comma separated', default='occlusion_grit')
+parser.add_argument('--scenarios', type=str, help='List of scenarios, comma separated', default='heckstrasse')
 args = parser.parse_args()
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -17,15 +19,13 @@ matplotlib.rcParams['ps.fonttype'] = 42
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-# scenario_names = get_all_scenarios()
-#scenario_names = ["heckstrasse", "bendplatz", "frankenburg"]
-scenario_names = ['neuweiler', 'rdb5']
 lstm_train_scenario = {"heckstrasse": "heckstrasse",
                        "bendplatz": "bendplatz",
                        "frankenburg": "frankenburg"}
 
 # which model(s) we used to train the scenario(s) we are evaluating
 model_names = args.models.split(',')
+scenario_names = args.scenarios.split(',')
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -36,6 +36,9 @@ label_map = {'generalised_grit': 'Oracle',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
+             'lstm_ogrit_features': 'LSTM OGRIT features',
+             'lstm_relative_position': 'LSTM relative position',
+             'lstm_absolute_position': 'LSTM absolute position',
              'sogrit': 'S-OGRIT',
              'ogrit_oracle': 'OGRIT-oracle',
              'trained_trees': 'GRIT',
@@ -117,13 +120,12 @@ if plot_true_goal_prob:
 
     for scenario_idx, scenario_name in enumerate(scenario_names):
         ax = axes[scenario_idx % 2, scenario_idx // 2]
-        #ax = axes[scenario_idx]
+        # ax = axes[scenario_idx]
         plt.sca(ax)
         if scenario_idx % 2 == 1:
-
             plt.xlabel('fraction of trajectory completed')
         if scenario_idx // 2 == 0:
-        #if scenario_idx == 0:
+            # if scenario_idx == 0:
             plt.ylabel('Probability assigned to true goal')
 
         ogrit_marker = None
@@ -141,14 +143,15 @@ if plot_true_goal_prob:
             if model_name == 'occlusion_grit_rdb5' and scenario_name != 'neuweiler':
                 continue
 
-            if model_name == "lstm":
+            if "lstm" in model_name:
                 true_goal_prob_sem = pd.read_csv(
                     results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob_sem.csv')
                 true_goal_prob = pd.read_csv(
                     results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
             else:
                 try:
-                    true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+                    true_goal_prob_sem = pd.read_csv(
+                        results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
                     true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
                 except FileNotFoundError:
                     continue
