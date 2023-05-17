@@ -1,5 +1,6 @@
 import json
 import math
+import os
 import pickle
 from itertools import combinations
 from typing import List
@@ -62,16 +63,16 @@ class OcclusionDetector2D:
 
         self.save_format = save_format
 
+        if os.path.exists(self._get_occlusions_file_name()):
+            logger.error(f"Occlusions already exist for scenario {self.scenario_name} episode {self.episode_idx}")
+            return
+
         # episode_frames contains for each time step the list of frames for all vehicles alive that moment
         episode_frames = get_episode_frames(self.episode, exclude_parked_cars=False, exclude_bicycles=True)
 
         all_occlusion_data = {}
 
         for frame_id, frame in enumerate(tqdm(episode_frames)):
-
-            if frame_id % 1000 == 0:
-                logger.info(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
-
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
         self._save_occlusions(all_occlusion_data)
 
@@ -103,7 +104,7 @@ class OcclusionDetector2D:
 
     def _save_occlusions(self, data_to_store):
 
-        occlusions_file_name = get_occlusions_dir() + f"/{self.scenario_name}_e{self.episode_idx}.{self.save_format}"
+        occlusions_file_name = self._get_occlusions_file_name()
 
         if self.save_format == "p":
             with open(occlusions_file_name, 'wb') as file:
@@ -111,6 +112,9 @@ class OcclusionDetector2D:
         elif self.save_format == "json":
             with open(occlusions_file_name, 'w') as file:
                 json.dump(data_to_store, file)
+
+    def _get_occlusions_file_name(self):
+        return get_occlusions_dir() + f"/{self.scenario_name}_e{self.episode_idx}.{self.save_format}"
 
     def get_occlusions_frame(self, frame):
         frame_occlusions = {}
