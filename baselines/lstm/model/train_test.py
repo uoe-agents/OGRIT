@@ -8,10 +8,10 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from baselines.lstm.datasets.lstm_dataset import LSTMDataset
-from baselines.lstm.lstm_logger import logger
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
 from ogrit.core.base import get_lstm_dir, get_results_dir
+from ogrit.core.logger import logger
 
 """
 The LSTM takes in a list of features at each timestep, the same as those that OGRIT gets to evaluate the 

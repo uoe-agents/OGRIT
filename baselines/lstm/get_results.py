@@ -1,7 +1,7 @@
 import argparse
 
-from baselines.lstm.lstm_logger import logger
 from model.train_test import FeaturesLSTM
+from ogrit.core.logger import logger
 
 """ 
 Train an LSTM baseline and/or evaluate it on the test set.

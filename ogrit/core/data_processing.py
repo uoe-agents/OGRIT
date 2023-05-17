@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from ogrit.core.base import get_data_dir, get_base_dir, get_scenarios_dir, set_working_dir
 from ogrit.core.feature_extraction import FeatureExtractor, GoalDetector
+from ogrit.core.logger import logger
 
 FRAME_STEP_SIZE = 25  # take a sample every 25 frames in the original episode frames (i.e., one per second)
 
@@ -192,7 +193,6 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
     samples_list = []
 
     for target_agent_idx, (target_agent_id, trajectory) in enumerate(tqdm(trajectories.items())):
-        # logger.info('target agent {}/{}'.format(target_agent_idx, len(trajectories) - 1))
 
         # Get all the reachable goals at every time step of the trajectory.
         full_reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
@@ -283,6 +283,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             sample['possible_goal'] = goal_idx
                             sample['true_goal'] = true_goal_idx
                             sample['true_goal_type'] = true_goal_type
+                            sample['delta_x_from_possible_goal'] = abs(typed_goal.goal.center.x - features['x'])
+                            sample['delta_y_from_possible_goal'] = abs(typed_goal.goal.center.y - features['y'])
                             sample['frame_id'] = current_frame_id
                             sample['initial_frame_id'] = target_initial_frame
                             sample['fraction_observed'] = (current_frame_id - target_initial_frame) / target_lifespan
@@ -304,7 +306,7 @@ def get_vehicle_boundary(vehicle):
 def prepare_episode_dataset(params):
     scenario_name, episode_idx, extract_indicator_features = params
 
-    print('scenario {} episode {}'.format(scenario_name, episode_idx))
+    logger.info('scenario {} episode {}'.format(scenario_name, episode_idx))
 
     scenario_map = Map.parse_from_opendrive(get_scenarios_dir() + f"maps/{scenario_name}.xodr")
     scenario_config = ScenarioConfig.load(get_scenarios_dir() + f"configs/{scenario_name}.json")
@@ -321,4 +323,4 @@ def prepare_episode_dataset(params):
 
     samples = extract_samples(feature_extractor, scenario, episode, extract_indicator_features)
     samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
-    print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
+    logger.info('finished scenario {} episode {}'.format(scenario_name, episode_idx))

@@ -46,7 +46,7 @@ class LSTMDataset(Dataset):
         if input_type == 'absolute_position':
             self.features_to_use = ['x', 'y', 'heading']
         elif input_type == 'relative_position':
-            self.features_to_use = ['path_to_goal_length']
+            self.features_to_use = ['delta_x_from_possible_goal', 'delta_y_from_possible_goal']
         elif input_type == 'ogrit_features':
             self.features_to_use = FeatureExtractor.feature_names.keys()
         else:
