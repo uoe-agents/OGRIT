@@ -33,7 +33,6 @@ if [ "$SLURM_ARRAY_TASK_ID" -ge $neuweiler_starts_at ]; then
     ((start_3 = "neuweiler_starts_at+2"))
     ((start_2 = "neuweiler_starts_at+1"))
 
-    # shellcheck disable=SC2086
     if [ $SLURM_ARRAY_TASK_ID -ge "$start_3" ]; then
       input_type="absolute_position"
     elif [ "$SLURM_ARRAY_TASK_ID" -ge "$start_2" ]; then
