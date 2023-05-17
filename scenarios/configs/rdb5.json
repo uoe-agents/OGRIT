@@ -1,17 +1,53 @@
 {
-  "map_center_utm": [617381.021, 5806798.145],
-  "goals": [[-18.1, -10.1],
-            [6.8, -26.9],
-            [22.5, -0.6],
-            [-1.5, 14.9]],
-  "goal_types": [["exit-roundabout"],
-                 ["exit-roundabout"],
-                 ["exit-roundabout"],
-                 ["exit-roundabout"]],
-  "slip_roads": [false, false, false, false],
+  "map_center_utm": [
+    617381.021,
+    5806798.145
+  ],
+  "goals": [
+    [
+      -18.1,
+      -10.1
+    ],
+    [
+      6.8,
+      -26.9
+    ],
+    [
+      22.5,
+      -0.6
+    ],
+    [
+      -1.5,
+      14.9
+    ]
+  ],
+  "goal_types": [
+    [
+      "exit-roundabout"
+    ],
+    [
+      "exit-roundabout"
+    ],
+    [
+      "exit-roundabout"
+    ],
+    [
+      "exit-roundabout"
+    ]
+  ],
+  "slip_roads": [
+    false,
+    false,
+    false,
+    false
+  ],
   "goal_threshold": 1.5,
-  "goal_radius": [3, 3, 3, 3],
-
+  "goal_radius": [
+    3,
+    3,
+    3,
+    3
+  ],
   "opendrive_file": "scenarios/maps/rdb5.xodr",
   "data_format": "opendd",
   "data_root": "scenarios/data/opendd",
@@ -21,47 +57,74 @@
   "target_switch_length": 20,
   "check_lanes": false,
   "check_oncoming": false,
-  "agent_types": ["car", "bus", "truck_bus"],
-  "episodes": [
-    {"recording_id":  "183"},
-    {"recording_id":  "184"},
-    {"recording_id":  "185"},
-    {"recording_id":  "186"},
-    {"recording_id":  "187"},
-    {"recording_id":  "188"},
-    {"recording_id":  "189"},
-    {"recording_id":  "190"},
-    {"recording_id":  "191"},
-    {"recording_id":  "192"},
-    {"recording_id":  "193"},
-    {"recording_id":  "194"},
-    {"recording_id":  "195"},
-    {"recording_id":  "196"}
+  "agent_types": [
+    "car",
+    "bus",
+    "truck_bus"
   ],
-    "dataset_split": {
+  "episodes": [
+    {
+      "recording_id": "183"
+    },
+    {
+      "recording_id": "184"
+    },
+    {
+      "recording_id": "185"
+    },
+    {
+      "recording_id": "186"
+    },
+    {
+      "recording_id": "187"
+    },
+    {
+      "recording_id": "188"
+    },
+    {
+      "recording_id": "189"
+    },
+    {
+      "recording_id": "190"
+    },
+    {
+      "recording_id": "191"
+    },
+    {
+      "recording_id": "192"
+    },
+    {
+      "recording_id": "193"
+    },
+    {
+      "recording_id": "194"
+    },
+    {
+      "recording_id": "195"
+    },
+    {
+      "recording_id": "196"
+    }
+  ],
+  "dataset_split": {
     "train": [
-      0
-    ],
-    "valid": [
-    ],
-    "test": [
       0,
-      1,
-      2,
       3,
       4,
-      5,
       6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13
+      14
+    ],
+    "valid": [
+      2,
+      5,
+      12
+    ],
+    "test": [
+      1,
+      7
     ]
   },
-  "cost_factors":{
+  "cost_factors": {
     "time": 10.0,
     "velocity": 0.0,
     "acceleration": 0.0,
@@ -74,9 +137,9 @@
   },
   "world_params": {
     "x_scale_pixel_width": 0.0194944312,
-    "y_skew_pixel_width":-0.0190786922,
-    "x_skew_pixel_height":-0.0194350337,
-    "y_scale_pixel_height":-0.0195975755,
+    "y_skew_pixel_width": -0.0190786922,
+    "x_skew_pixel_height": -0.0194350337,
+    "y_scale_pixel_height": -0.0195975755,
     "x_coordinate": 617364.9618454372,
     "y_coordinate": 5806856.253282707
   },
