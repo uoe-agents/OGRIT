@@ -174,7 +174,7 @@ def run_experiment(cost_factors: Dict[str, float] = None, use_priors: bool = Fal
     result_episode = EpisodeResult(episode.metadata, episode_id, cost_factors)
 
     # Prepare inputs for multiprocessing
-    grouped_data = test_data[episode_id].groupby(['agent_id', 'ego_agent_id'])
+    grouped_data = test_data.groupby(['agent_id', 'ego_agent_id'])
     args = []
     for (aid, ego_id), group in grouped_data:
         data = group.copy()
