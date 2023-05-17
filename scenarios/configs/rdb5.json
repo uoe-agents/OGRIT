@@ -106,24 +106,6 @@
       "recording_id": "196"
     }
   ],
-  "dataset_split": {
-    "train": [
-      0,
-      3,
-      4,
-      6,
-      14
-    ],
-    "valid": [
-      2,
-      5,
-      12
-    ],
-    "test": [
-      1,
-      7
-    ]
-  },
   "cost_factors": {
     "time": 10.0,
     "velocity": 0.0,
