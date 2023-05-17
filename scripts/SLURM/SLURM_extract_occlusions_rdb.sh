@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=3-24:00:00
 #SBATCH --mem-per-cpu=20G
-#SBATCH --array=0-2%2
+#SBATCH --array=0-267%20
 
 # Adapt the following lines to reflect the paths on your server.
 # To create a new environment, first run: `conda create --name OGRIT python=3.8`
