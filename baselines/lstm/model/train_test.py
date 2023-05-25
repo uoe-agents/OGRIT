@@ -44,13 +44,16 @@ class FeaturesLSTM:
         training_scenarios = configs["train_scenarios"].split(",")
         self.training_scenarios_names = "_".join(training_scenarios)
         self.batch_size = configs["batch_size"]
+        self.update_hz = configs["update_hz"]
 
         self.input_type = configs["input_type"]
 
         # Load the datasets
         if mode == "train":
-            train_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="train")
-            val_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="valid")
+            train_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="train",
+                                        update_hz=self.update_hz)
+            val_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="valid",
+                                      update_hz=self.update_hz)
 
             self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -61,7 +64,8 @@ class FeaturesLSTM:
         elif mode == "test":
             test_scenarios = configs["test_scenarios"].split(",")
             self.test_scenarios_names = "_".join(test_scenarios)
-            test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, split_type="test")
+            test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, split_type="test",
+                                       update_hz=self.update_hz)
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size,
