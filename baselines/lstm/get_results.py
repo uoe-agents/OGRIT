@@ -45,8 +45,10 @@ if __name__ == "__main__":
 
     parser.add_argument('--input_type', type=str, default="ogrit_features", help="'absolute_position', "
                                                                                  "'relative_position' or 'ogrit_features'")
-    parser.add_argument('--batch_size', type=int, default=10,
-                        help='Batch size')
+    parser.add_argument('--update_hz', type=int, help='take a sample every --update_hz frames in the original episode '
+                                                      'frames (e.g., if 25, then take one frame per second)',
+                        default=25)
+    parser.add_argument('--batch_size', type=int, default=10, help='Batch size')
     parser.add_argument('--max_epochs', type=int, default=100, help='Maximum number of epochs')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout for TRAINING. It is 0 for testing.')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for the optimizer')

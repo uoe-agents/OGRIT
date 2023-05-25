@@ -1,11 +1,30 @@
-import pathlib
 import os
+import pathlib
 
 
 def get_all_scenarios():
     return ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
 
 
+#### PATH CONVENTIONS ####
+def get_result_file_path(scenario_name, update_hz, episode_idx):
+    """ Get the path to the result file that contains the samples used by OGRIT. It assumes that unless otherwise
+    specified, the standard update_hz is 25, meaning that samples are taken every 1s"""
+    if update_hz != 25:
+        return get_data_dir() + f'{scenario_name}_{update_hz}Hz_e{episode_idx}.csv'
+    else:
+        return get_data_dir() + f'{scenario_name}_e{episode_idx}.csv'
+
+
+def get_map_path(scenario_name):
+    return get_scenarios_dir() + f"maps/{scenario_name}.xodr"
+
+
+def get_map_configs_path(scenario_name):
+    return get_scenarios_dir() + f"configs/{scenario_name}.json"
+
+
+### BASIC PATH UTILS ####
 def create_folders():
     # Create a folder to store the data.
     data_folder_path = get_base_dir() + '/data/'

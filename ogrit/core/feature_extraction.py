@@ -193,9 +193,15 @@ class FeatureExtractor:
             exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
                 if goal_type == "exit-roundabout" else False
 
-            target_1s_occluded = self.target_previously_occluded(frames, fps, target_occlusion_history)
-            target_2s_occluded = self.target_previously_occluded(frames, 2 * fps, target_occlusion_history)
-            target_3s_occluded = self.target_previously_occluded(frames, 3 * fps, target_occlusion_history)
+            target_1s_occluded = self.target_previously_occluded(frames=frames, frames_ago=fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+            target_2s_occluded = self.target_previously_occluded(frames=frames, frames_ago=2 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+            target_3s_occluded = self.target_previously_occluded(frames=frames, frames_ago=3 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
 
             indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
                                   'oncoming_vehicle_missing': oncoming_vehicle_occluded,

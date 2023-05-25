@@ -21,7 +21,8 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
 lstm_train_scenario = {"heckstrasse": "heckstrasse",
                        "bendplatz": "bendplatz",
-                       "frankenburg": "frankenburg"}
+                       "frankenburg": "frankenburg",
+                       "rdb3": "rdb3"}
 
 # which model(s) we used to train the scenario(s) we are evaluating
 model_names = args.models.split(',')
@@ -55,7 +56,8 @@ title_map = {'heckstrasse': 'Heckstrasse',
              'frankenburg': 'Frankenburg',
              'neuweiler': 'Neuweiler',
              'neukoellnerstrasse': 'Neukoellner Strasse',
-             'rdb5': 'Rdb5'}
+             'rdb5': 'Rdb5',
+             'rdb3': 'Rdb3', }
 
 plot_accuracy = False
 plot_normalised_entropy = False
@@ -144,10 +146,13 @@ if plot_true_goal_prob:
                 continue
 
             if "lstm" in model_name:
-                true_goal_prob_sem = pd.read_csv(
-                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob_sem.csv')
-                true_goal_prob = pd.read_csv(
-                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
+                try:
+                    true_goal_prob_sem = pd.read_csv(
+                        results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob_sem.csv')
+                    true_goal_prob = pd.read_csv(
+                        results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
+                except FileNotFoundError:
+                    continue
             else:
                 try:
                     true_goal_prob_sem = pd.read_csv(

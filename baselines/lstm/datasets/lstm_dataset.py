@@ -23,7 +23,7 @@ or position (x, y, heading at each timestep), etc.
 
 class LSTMDataset(Dataset):
 
-    def __init__(self, scenario_names: List[str], input_type, split_type):
+    def __init__(self, scenario_names: List[str], input_type, split_type, update_hz):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -34,12 +34,15 @@ class LSTMDataset(Dataset):
                     'relative_position' =  "     "           "  "   "      "  path_to_goal_length
                     'ogrit_features' =     "     "           "  "   "      "  (all the features used by OGRIT) steps
             split_type: "train" or "test"
+            update_hz: take a sample every update_hz frames in the original episode frames (e.g., if 25, then take
+                        one frame per second)
         """
 
         # To convert the goal_type into a hot-one encoding vector. E.g., "continue" -> [0, 0, 1, 0, 0]
         self.le = LabelEncoder()
         self.split_type = split_type
         self.input_type = input_type
+        self.update_hz = update_hz
 
         self.scenario_names = scenario_names
 
@@ -136,7 +139,7 @@ class LSTMDataset(Dataset):
 
         """
 
-        samples = get_multi_scenario_dataset(self.scenario_names, self.split_type)
+        samples = get_multi_scenario_dataset(self.scenario_names, self.split_type, update_hz=self.update_hz)
 
         unique_goal_types = np.unique(samples["true_goal_type"].values)
         self.le.fit(unique_goal_types)
