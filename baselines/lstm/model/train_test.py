@@ -222,9 +222,9 @@ class FeaturesLSTM:
         f1_accuracy = 0
 
         for i_batch, sample_batched in enumerate(tqdm(self.train_loader)):
-            trajectories = sample_batched[0]
-            targets = sample_batched[1]
-            lengths = sample_batched[2]
+            trajectories = sample_batched[0].to(self.device)
+            targets = sample_batched[1].to(self.device)
+            lengths = sample_batched[2].to(self.device)
 
             loss, final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
                                                                                  lengths=lengths, targets=targets)
