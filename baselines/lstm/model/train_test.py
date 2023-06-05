@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -68,8 +69,7 @@ class FeaturesLSTM:
                                        update_hz=self.update_hz)
             self.logger.info(f"Test dataset: {test_dataset}")
 
-            self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size,
-                                          shuffle=configs["shuffle"])
+            self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             input_size = test_dataset.get_num_features()
             output_size = test_dataset.get_num_classes()
         else:
@@ -107,44 +107,107 @@ class FeaturesLSTM:
             self.writer = LSTMWriter(scheduler=self.scheduler)
         torch.random.manual_seed(configs["seed"])
 
+    def _compute_loss(self, intermediate_predictions, lengths, targets):
+        """
+        Args:
+            intermediate_predictions: tensor of shape (batch_size, seq_len, num_classes)
+            lengths: list of shape (batch_size)
+            targets: tensor of shape (batch_size)
+        Returns:
+            loss: the loss value
+        """
+        # Compute the loss
+        loss = 0
+        nr_trajectories = intermediate_predictions.shape[0]
+        for i in range(nr_trajectories):
+            # The loss function requires the target for each timestep, so we repeat it for all the steps in the trajectory
+            targets_i = torch.tensor([targets[i]] * lengths[i])
+            loss += self.loss_fn(intermediate_predictions[i, :lengths[i], :], targets_i)
+        loss /= nr_trajectories
+        return loss
+
     def train(self):
 
         min_loss = np.inf
         val_loss_avg_ls = []
+        val_acc_ls = []
         f1_score_avg_ls = []
 
         self.logger.info("Starting gradient descent:")
         for epoch_nr in range(self.max_epochs):
 
-            train_loss_avg, train_accuracy = self.train_epoch(epoch_nr)
+            train_loss_avg, train_accuracy, f1_train = self.train_epoch(epoch_nr)
 
             if epoch_nr % self.VALIDATION_STEP == 0:
-                val_loss_avg, val_acc = self.evaluation(epoch_nr)  # TODO: clarify if accuracy or F1 score...
-                self.logger.info(f"Epoch {epoch_nr + 1} - Validation Loss: {val_loss_avg} - Accuracy: {val_acc}")
+                val_loss_avg, val_acc, val_f1 = self.evaluation(epoch_nr)
+                self.logger.info(
+                    f"Epoch {epoch_nr + 1} - Validation Loss: {val_loss_avg} - Val. Accuracy: {val_acc} - Val. F1: {val_f1}")
 
                 # Update the learning rate according to the validation loss
                 self.scheduler.step(val_loss_avg)
 
-                self.writer.write(epoch_nr, train_loss_avg, val_loss_avg, val_acc, 0)  # TODO: last one should be val_f1
+                self.writer.write(epoch_nr, train_loss_avg, train_accuracy, f1_train, val_loss_avg, val_acc, val_f1)
                 self.writer.flush()
 
                 val_loss_avg_ls.append(val_loss_avg)
-                f1_score_avg_ls.append(val_acc)
+                val_acc_ls.append(val_acc)
+                f1_score_avg_ls.append(val_f1)
 
                 # Save the model if the validation loss is the best so far
                 if val_loss_avg < min_loss:
                     min_loss = val_loss_avg
-                    self.save_model(epoch_nr, np.array(val_loss_avg_ls), np.array(f1_score_avg_ls))
-
-                # Early stopping if the validation loss has not improved for the last 5 validation steps.
-                # 0.4*np.ceil(self.max_epochs / self.VALIDATION_STEP) is an arbitrary number
-                if len(val_loss_avg_ls) > 0.4 * np.ceil(
-                        self.max_epochs / self.VALIDATION_STEP) and val_loss_avg > np.mean(val_loss_avg_ls[-5:]):
-                    self.logger.info("Early stopping.")
-                    break
+                    self.save_model(epoch_nr, np.array(val_loss_avg_ls), np.array(val_acc_ls),
+                                    np.array(f1_score_avg_ls))
+                # TODO: Early stopping uncomment
+                # # Early stopping if the validation loss has not improved for the last 5 validation steps.
+                # # 0.4*np.ceil(self.max_epochs / self.VALIDATION_STEP) is an arbitrary number
+                # if len(val_loss_avg_ls) > 0.4 * np.ceil(
+                #         self.max_epochs / self.VALIDATION_STEP) and val_loss_avg > np.mean(val_loss_avg_ls[-5:]):
+                #     self.logger.info("Early stopping.")
+                #     break
 
         self.writer.close()
-        return np.array(val_loss_avg_ls), np.array(f1_score_avg_ls)
+        return np.array(val_loss_avg_ls), np.array(val_acc_ls), np.array(f1_score_avg_ls)
+
+    def forward_pass(self, trajectories, lengths, targets, test=False):
+        """
+        Perform a forward pass through the model. Compute the predictions and the loss.
+
+        Args:
+            trajectories: tensor of shape (batch_size, seq_len, num_features)
+            lengths: list of shape (batch_size)
+            targets: tensor of shape (batch_size)
+            test: if True, the loss is not computed
+        Returns:
+            loss: the loss value
+            final_prediction: the final prediction of the model (after the last timestep)
+            intermediate_predictions: the intermediate predictions of the model (after each timestep)
+        """
+        final_prediction, intermediate_predictions = self.model(trajectories, lengths, device=self.device)
+
+        if test:
+            return final_prediction, intermediate_predictions
+
+        loss = self._compute_loss(intermediate_predictions, lengths, targets)
+        return loss, final_prediction, intermediate_predictions
+
+    def compute_accuracy(self, final_prediction, targets):
+        """
+        Compute the accuracy of the model.
+        Args:
+            final_prediction: the final prediction of the model (after the last timestep)
+            targets: tensor of shape (batch_size)
+        Returns:
+            correct: nr of correct predictions
+            total: total nr of predictions
+        """
+        _, predicted = torch.max(final_prediction.data, 1)
+        total = targets.size(0)
+        correct = (predicted == targets).sum().item()
+
+        # compute f1 score
+        f1 = f1_score(targets.cpu().numpy(), predicted.cpu().numpy(), average='macro')
+        return correct, total, f1
 
     def train_epoch(self, epoch_nr):
         """
@@ -156,30 +219,31 @@ class FeaturesLSTM:
         self.model.train()
         running_loss = 0.0
         correct, total = 0, 0
+        f1_accuracy = 0
 
         for i_batch, sample_batched in enumerate(tqdm(self.train_loader)):
             trajectories = sample_batched[0].to(self.device)
-            target = sample_batched[1].to(self.device)
+            targets = sample_batched[1].to(self.device)
+            lengths = sample_batched[2].to(self.device)
 
-            predictions, _ = self.model(trajectories, device=self.device)
+            loss, final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
+                                                                                 lengths=lengths, targets=targets)
 
+            # backward pass
             self.optimizer.zero_grad()
-
-            loss = self.loss_fn(predictions, target)
             loss.backward()  # Compute the gradients
 
-            self.optimizer.step()  # Update the weights
+            # Update the weights
+            self.optimizer.step()
+
+            new_correct, new_total, f1 = self.compute_accuracy(final_prediction, targets)
+            f1_accuracy += f1
+            correct += new_correct
+            total += new_total
 
             running_loss += loss.item()
 
-            _, predicted = torch.max(predictions, 1)
-            total += target.size(0)
-            correct += (predicted == target).sum().item()
-
-            # self.logger.info(
-            #     f"Epoch: {epoch_nr}; Step: {len(self.train_loader) * epoch_nr + i_batch}; Loss: {loss.item()}")
-
-        return running_loss / len(self.train_loader), correct / total
+        return running_loss / len(self.train_loader), correct / total, f1_accuracy / len(self.train_loader)
 
     def evaluation(self, epoch_nr):
         """
@@ -199,22 +263,20 @@ class FeaturesLSTM:
             for i_batch, sample_batched in enumerate(self.val_loader):
                 trajectories = sample_batched[0].to(self.device)
                 target = sample_batched[1].to(self.device)
+                lengths = sample_batched[2].to(self.device)
 
-                predictions, _ = self.model(trajectories, device=self.device)
-                _, predicted = torch.max(predictions, 1)
+                loss, final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
+                                                                                     lengths=lengths, targets=target)
 
-                loss = self.loss_fn(predictions, target)
+                new_correct, new_total, f1 = self.compute_accuracy(final_prediction, target)
+
+                f1_accuracy += f1
+                correct += new_correct
+                total += new_total
 
                 running_loss += loss.item()
 
-                # Compute F1 score as the data may be imbalanced TODO
-                # f1_accuracy += f1_score(target.cpu().data, predicted.cpu())
-
-                _, predicted = torch.max(predictions, 1)
-                total += target.size(0)
-                correct += (predicted == target).sum().item()
-
-        return running_loss / len(self.val_loader), correct / total
+        return running_loss / len(self.val_loader), correct / total, f1_accuracy / len(self.val_loader)
 
     def test(self):
 
@@ -230,19 +292,26 @@ class FeaturesLSTM:
         # Compute the goal probabilities for each trajectory
         for i_batch, sample_batched in enumerate(tqdm(self.test_loader)):
             trajectories = sample_batched[0]
-            targets = sample_batched[1].detach().numpy()
-            fraction_observed = sample_batched[2].detach().numpy()
+            targets = sample_batched[1].detach()
+            lengths = sample_batched[2].detach()
+            fraction_observed = sample_batched[3].detach().numpy()
 
-            # For each trajectory, compute the sub-trajectories and their goal probabilities
-            # predictions will be a (batch_size, n_goals) tensor with the goal probabilities for each trajectory
-            predictions, _ = self.model(trajectories, device=self.device)
-            goal_probs = torch.exp(predictions).detach().numpy()
+            final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
+                                                                           lengths=lengths, targets=targets,
+                                                                           test=True)
+            goal_probs = torch.exp(intermediate_predictions).detach().numpy()
 
-            # Get the probability assigned by the LSTM to the true goal.
-            true_goal_prob = goal_probs[np.arange(len(targets)), targets]
+            for i in range(len(trajectories)):
+                # Get the probability assigned by the LSTM to the true goal by the i-th trajectory
+                # It is a list of length lengths[i]
+                true_goal_prob_timestep = goal_probs[i, :lengths[i], targets[i]]
 
-            goal_probs_df["true_goal_prob"].extend(true_goal_prob)
-            goal_probs_df["fraction_observed"].extend(np.round(fraction_observed, 1))
+                if i == 0:
+                    assert true_goal_prob_timestep[-1] == goal_probs[i, lengths[i] - 1, targets[i]]
+                    assert true_goal_prob_timestep[0] == goal_probs[i, 0, targets[i]]
+
+                goal_probs_df["true_goal_prob"].extend(true_goal_prob_timestep)
+                goal_probs_df["fraction_observed"].extend(np.round(fraction_observed[i, :lengths[i]], 1))
 
         goal_probs_df = pd.DataFrame(goal_probs_df)
 
@@ -265,7 +334,7 @@ class FeaturesLSTM:
 
         return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.input_type}.pt")
 
-    def save_model(self, epoch, losses, accs):
+    def save_model(self, epoch, losses, accs, f1_scores):
 
         self.logger.info(f"Saving model to {self.model_path}")
 
@@ -279,7 +348,8 @@ class FeaturesLSTM:
             'model_state_dict': model_state_dict,
             'optimizer_state_dict': self.optimizer.state_dict(),
             'losses': losses,
-            'accs': accs
+            'accs': accs,
+            'f1_scores': f1_scores
         }, self.model_path)
 
 

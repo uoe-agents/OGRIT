@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from ogrit.core.base import get_lstm_dir
+from ogrit.core.base import get_lstm_dir, LSTM_PADDING_VALUE
 from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.core.feature_extraction import FeatureExtractor
 from ogrit.core.logger import logger
@@ -56,17 +56,17 @@ class LSTMDataset(Dataset):
             raise ValueError(f"Parameter type should be either 'absolute_position', 'relative_position', "
                              f"'ogrit_features', but got {input_type} instead.")
 
-        self._trajectories, self._targets, self._fractions_observed = self.load_dataset()
+        self._trajectories, self._targets, self._lengths, self._fractions_observed = self.load_dataset()
 
     def load_dataset(self):
 
         dataset_path = get_lstm_dir() + f"/datasets/{'_'.join(self.scenario_names)}_{self.input_type}_{self.split_type}_{self.update_hz}hz.pt"
         if not os.path.exists(dataset_path):
             logger.info(f"Creating dataset {dataset_path}...")
-            trajectories, targets, fractions_observed = self.get_dataset()
+            trajectories, targets, lengths, fractions_observed = self.get_dataset()
             torch.save({"dataset": trajectories,
                         "targets": targets,
-                        # "lengths": dataset.lengths, TODO: use lengths?
+                        "lengths": lengths,
                         "fractions_observed": fractions_observed},
                        dataset_path)
         else:
@@ -74,9 +74,9 @@ class LSTMDataset(Dataset):
             dataset_dict = torch.load(dataset_path)
             trajectories = dataset_dict["dataset"]
             targets = dataset_dict["targets"]
-            # dataset.lengths = dataset_dict["lengths"] TODO: use lengths?
+            lengths = dataset_dict["lengths"]
             fractions_observed = dataset_dict["fractions_observed"]
-        return trajectories, targets, fractions_observed
+        return trajectories, targets, lengths, fractions_observed
 
     def get_dataset(self):
         """
@@ -88,35 +88,27 @@ class LSTMDataset(Dataset):
                           position, then we should output np.torch([[[x_10, y_10, h_10], ..., [x_1n, y_1n, h_1n]],
                           [[x_k0, y_k0, h_k0], ..., [x_kn, y_kn, h_kn]], ...]) for k trajectories, each of n steps
             targets: the true goal type of each trajectory
-            (if test dataset) fractions_observed: the fraction of the trajectory that has been observed so far
+            fractions_observed: the fraction of the trajectory that has been observed so far
         """
         samples = self.get_samples()
 
         trajectories = []
         targets = []
         fractions_observed = []
+        lengths = []
 
-        for i in tqdm(range(len(samples))):
-            ith_step = samples.iloc[i]
+        for i in tqdm(samples["group_idx"].unique()):
+            trajectory_steps_original = samples[samples["group_idx"] == i]
 
-            # TODO: add explanation for why this way -- maybe use a mask of embedding instead?
-            if self.split_type == "test":
-                # The trajectory consists of the steps with the same group_idx as the ith step and with a <= frame_id
-                # This will be a dataframe with the different steps as different rows.
-                trajectory_steps = samples[(samples["group_idx"] == ith_step["group_idx"])
-                                           & (samples["frame_id"] <= ith_step["frame_id"])]
-
-            else:
-                # The trajectory consists of the steps with the same group_idx as the ith step.
-                # TODO: there are multiple lines in the df, one for each possible goal
-                trajectory_steps = samples[samples["group_idx"] == ith_step["group_idx"]]
+            assert len(np.unique(trajectory_steps_original[
+                                     "possible_goal"])) == 1, "There should be only one possible goal per trajectory."
 
             # The output of this trajectory will be the goal_type of the trajectory after
             # ith_step["fraction_observed"] of the total trajectory executed by the target agent.
-            fraction_observed = ith_step["fraction_observed"]
+            fraction_observed = list(trajectory_steps_original["fraction_observed"])
 
             # Get the data in the samples for the features we want.
-            trajectory_steps = trajectory_steps[self.features_to_use].values.astype(np.float32)
+            trajectory_steps = trajectory_steps_original[self.features_to_use].values.astype(np.float32)
 
             # Given the different steps in the trajectory, we want to create a sequence by combining the steps into one
             # input for the lstm. The sequence will be a 1-d array with a tuple of features for each step.
@@ -125,18 +117,22 @@ class LSTMDataset(Dataset):
             trajectory = torch.tensor([tuple(step) for step in trajectory_steps])
 
             trajectories.append(trajectory)
-            targets.append(ith_step["true_goal_type"])
-            fractions_observed.append(fraction_observed)
 
-        trajectories = pad_sequence(trajectories, batch_first=True, padding_value=0.0)
-        return trajectories, targets, fractions_observed
+            assert len(np.unique(trajectory_steps_original[
+                                     "true_goal_type"].values)) == 1, "There should be only one goal type per trajectory."
+            targets.append(trajectory_steps_original["true_goal_type"].values[0])
+            fractions_observed.append(fraction_observed)
+            lengths.append(len(trajectory))
+
+        trajectories = pad_sequence(trajectories, batch_first=True, padding_value=LSTM_PADDING_VALUE)
+        fractions_observed = pad_sequence([torch.tensor(f) for f in fractions_observed], batch_first=True,
+                                          padding_value=LSTM_PADDING_VALUE)
+        return trajectories, targets, lengths, fractions_observed
 
     def get_samples(self):
         """
         Returns: the samples used by OGRIT for the scenarios required. Change the "true_goal_type" column to be
         a scalar rather than a string (e.g., "straight-on" becomes 1, etc), so that we can use it with an LSTM.
-
-
         """
 
         samples = get_multi_scenario_dataset(self.scenario_names, self.split_type, update_hz=self.update_hz)
@@ -163,9 +159,9 @@ class LSTMDataset(Dataset):
         """
 
         if self.split_type == "test":
-            return self._trajectories[idx], self._targets[idx], self._fractions_observed[idx]
+            return self._trajectories[idx], self._targets[idx], self._lengths[idx], self._fractions_observed[idx]
         else:
-            return self._trajectories[idx], self._targets[idx]
+            return self._trajectories[idx], self._targets[idx], self._lengths[idx]
 
     def __len__(self):
         """
@@ -181,7 +177,14 @@ class LSTMDataset(Dataset):
             the number of features in each step of the trajectory
         """
 
-        return self._trajectories.shape[2]
+        num_features = self._trajectories.shape[-1]
+
+        if self.input_type == "relative_position":
+            assert num_features == 2, f"Expected 2 features for relative position, but got {num_features} instead."
+        elif self.input_type == "absolute_position":
+            assert num_features == 3, f"Expected 3 features for absolute position, but got {num_features} instead."
+
+        return num_features
 
     def get_num_classes(self):
         """

@@ -6,6 +6,10 @@ def get_all_scenarios():
     return ['heckstrasse', 'bendplatz', 'frankenburg', 'neuweiler']
 
 
+#### CONSTANTS ####
+LSTM_PADDING_VALUE = 0
+
+
 #### PATH CONVENTIONS ####
 def get_result_file_path(scenario_name, update_hz, episode_idx):
     """ Get the path to the result file that contains the samples used by OGRIT. It assumes that unless otherwise
