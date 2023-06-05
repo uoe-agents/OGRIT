@@ -30,7 +30,7 @@ class LSTMModel(nn.Module):
         x = trajectory.to(device)
         # h_n = hidden state | c_n = cell state | encoding = output of lstm ("last" depth-wise layer)
         encoding, (h_n, c_n) = self.lstm(x)
-        final_prediction = self.fc(h_n[-1])
+        final_prediction = self.fc(h_n[-1]).to(device)
 
         # todo: if we want to compute the goal probabilities for the trajectories at each time step
         if use_encoding:
@@ -38,7 +38,7 @@ class LSTMModel(nn.Module):
             mask = (torch.arange(encoding.shape[1])[None, :].to(device) >= lengths[:, None]).to(device)
             encoding = encoding.masked_fill(mask.unsqueeze(-1).repeat(1, 1, encoding.shape[-1]), LSTM_PADDING_VALUE)
             # todo: we pass through fc as we do for the output above to get probabilities for the goals
-            intermediate_predictions = self.fc(encoding)
+            intermediate_predictions = self.fc(encoding).to(device)
             return final_prediction, intermediate_predictions
         else:
             return final_prediction, None
