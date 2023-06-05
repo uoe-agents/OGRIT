@@ -122,7 +122,7 @@ class FeaturesLSTM:
         for i in range(nr_trajectories):
             # The loss function requires the target for each timestep, so we repeat it for all the steps in the trajectory
             targets_i = torch.tensor([targets[i]] * lengths[i])
-            loss += self.loss_fn(intermediate_predictions[i, :lengths[i], :].to(device), targets_i.to(device))
+            loss += self.loss_fn(intermediate_predictions[i, :lengths[i], :].to(self.device), targets_i.to(self.device))
         loss /= nr_trajectories
         return loss
 
