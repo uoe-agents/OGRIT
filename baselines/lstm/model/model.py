@@ -35,8 +35,7 @@ class LSTMModel(nn.Module):
         # todo: if we want to compute the goal probabilities for the trajectories at each time step
         if use_encoding:
             # encoding, lengths = nn.utils.rnn.pad_packed_sequence(encoding, batch_first=True, padding_value=0.0)
-            print("devices for encoding, lengths: ", encoding.device, lengths.device)
-            mask = (torch.arange(encoding.shape[1])[None, :] >= lengths[:, None]).to(device)
+            mask = (torch.arange(encoding.shape[1])[None, :].to(device) >= lengths[:, None]).to(device)
             encoding = encoding.masked_fill(mask.unsqueeze(-1).repeat(1, 1, encoding.shape[-1]), LSTM_PADDING_VALUE)
             # todo: we pass through fc as we do for the output above to get probabilities for the goals
             intermediate_predictions = self.fc(encoding)
