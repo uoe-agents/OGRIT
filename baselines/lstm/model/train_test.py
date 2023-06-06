@@ -285,7 +285,8 @@ class FeaturesLSTM:
 
         model_dict = torch.load(self.model_path, map_location=torch.device('cpu'))
 
-        self.model.load_state_dict(model_dict['model_state_dict']).to(self.device)
+        self.model.load_state_dict(model_dict['model_state_dict'])
+        self.model.to(self.device)
 
         self.model.eval()
         self.logger.info(f"Running test")
