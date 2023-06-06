@@ -39,6 +39,7 @@ class FeaturesLSTM:
         self.logger = logger
         self.writer = None
         self.VALIDATION_STEP = 2  # How often to validate the model
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Train the model on these scenarios, or use the model trained on these scenarios to test on the test scenarios
@@ -88,13 +89,13 @@ class FeaturesLSTM:
 
         self.model_path = self.get_model_path()
 
-        # Use multiple GPUs if available
-        if torch.cuda.device_count() > 1:
-            self.model = nn.DataParallel(self.model)
-        self.logger.info(f"Training on {self.device} (CUDA: {torch.cuda.device_count()}).")
-        self.model.to(self.device)
-        
         if mode == "train":
+            # Use multiple GPUs if available
+            if torch.cuda.device_count() > 1:
+                self.model = nn.DataParallel(self.model)
+            self.logger.info(f"Training on {self.device} (CUDA: {torch.cuda.device_count()}).")
+            self.model.to(self.device)
+
             self.max_epochs = configs["max_epochs"]
 
             # Define the loss function and optimizer
@@ -284,7 +285,7 @@ class FeaturesLSTM:
 
         model_dict = torch.load(self.model_path, map_location=torch.device('cpu'))
 
-        self.model.load_state_dict(model_dict['model_state_dict'])
+        self.model.load_state_dict(model_dict['model_state_dict']).to(self.device)
 
         self.model.eval()
         self.logger.info(f"Running test")
