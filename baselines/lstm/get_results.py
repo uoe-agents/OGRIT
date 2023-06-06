@@ -57,6 +57,8 @@ if __name__ == "__main__":
     parser.add_argument('--lstm_layers', type=int, default=1, help='Number of LSTM layers')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--shuffle', action='store_false', help='Shuffle the dataset')
+    parser.add_argument('--recompute_dataset', action='store_true',
+                        help='Recompute the dataset even if it exists on disk')
 
     # Parse the arguments into a dictionary
     configs = parser.parse_args()

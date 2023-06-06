@@ -23,7 +23,7 @@ or position (x, y, heading at each timestep), etc.
 
 class LSTMDataset(Dataset):
 
-    def __init__(self, scenario_names: List[str], input_type, split_type, update_hz):
+    def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -36,6 +36,7 @@ class LSTMDataset(Dataset):
             split_type: "train" or "test"
             update_hz: take a sample every update_hz frames in the original episode frames (e.g., if 25, then take
                         one frame per second)
+            recompute_dataset: if True, recompute the dataset from scratch, otherwise load it from disk (if it exists)
         """
 
         # To convert the goal_type into a hot-one encoding vector. E.g., "continue" -> [0, 0, 1, 0, 0]
@@ -43,6 +44,7 @@ class LSTMDataset(Dataset):
         self.split_type = split_type
         self.input_type = input_type
         self.update_hz = update_hz
+        self.recompute_dataset = recompute_dataset
 
         self.scenario_names = scenario_names
 
@@ -61,7 +63,7 @@ class LSTMDataset(Dataset):
     def load_dataset(self):
 
         dataset_path = get_lstm_dir() + f"/datasets/{'_'.join(self.scenario_names)}_{self.input_type}_{self.split_type}_{self.update_hz}hz.pt"
-        if not os.path.exists(dataset_path):
+        if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed = self.get_dataset()
             torch.save({"dataset": trajectories,
@@ -100,8 +102,10 @@ class LSTMDataset(Dataset):
         for i in tqdm(samples["group_idx"].unique()):
             trajectory_steps_original = samples[samples["group_idx"] == i]
 
-            assert len(np.unique(trajectory_steps_original[
-                                     "possible_goal"])) == 1, "There should be only one possible goal per trajectory."
+            # In absolute_position, we don't care about possible goals, as we only take the real position of the agent
+            if self.input_type != 'absolute_position':
+                assert len(np.unique(trajectory_steps_original[
+                                         "possible_goal"])) == 1, "There should be only one possible goal per trajectory."
 
             # The output of this trajectory will be the goal_type of the trajectory after
             # ith_step["fraction_observed"] of the total trajectory executed by the target agent.
@@ -142,10 +146,16 @@ class LSTMDataset(Dataset):
 
         samples["true_goal_type"] = self.le.transform(samples["true_goal_type"])
 
-        # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type.
-        # Add index to each group as a column.
-        samples["group_idx"] = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
-                                               as_index=False).ngroup()
+        # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type. If we want the
+        # absolute position we don't need the possible goal_type.
+        if self.input_type == "absolute_position":
+            # Drop duplicates x,y for the same frame_id due to different possible goal types.
+            samples = samples.drop_duplicates(subset=["agent_id", "episode", "scenario", "ego_agent_id", "x", "y"])
+            groups = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id"], as_index=False)
+        else:
+            groups = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
+                                     as_index=False)
+        samples["group_idx"] = groups.ngroup()
 
         return samples
 

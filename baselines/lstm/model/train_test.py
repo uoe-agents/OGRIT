@@ -27,10 +27,10 @@ class FeaturesLSTM:
             configs: dict containing the following keys:
                         for mode=="train":
                             batch_size, lr, input_size, lstm_hidden_size, fc_hidden_shape, out_shape, lstm_layers,
-                            dropout, seed, max_epochs, shuffle, train_scenarios.
+                            dropout, seed, max_epochs, shuffle, train_scenarios, recompute_dataset.
                         for mode=="test":
                             batch_size, input_size, lstm_hidden_size, fc_hidden_shape, out_shape, lstm_layers,
-                            dropout, seed, shuffle, train_scenarios, test_scenarios.
+                            dropout, seed, shuffle, train_scenarios, test_scenarios, recompute_dataset.
             mode: "train" or "test" to either train or test the model.
         Notes:
             See the /OGRIT/baselines/lstm/get_results.py file for the default values of the hyper-parameters.
@@ -49,13 +49,14 @@ class FeaturesLSTM:
         self.update_hz = configs["update_hz"]
 
         self.input_type = configs["input_type"]
+        self.recompute_dataset = configs["recompute_dataset"]
 
         # Load the datasets
         if mode == "train":
             train_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="train",
-                                        update_hz=self.update_hz)
+                                        update_hz=self.update_hz, recompute_dataset=self.recompute_dataset)
             val_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="valid",
-                                      update_hz=self.update_hz)
+                                      update_hz=self.update_hz, recompute_dataset=self.recompute_dataset)
 
             self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -67,7 +68,7 @@ class FeaturesLSTM:
             test_scenarios = configs["test_scenarios"].split(",")
             self.test_scenarios_names = "_".join(test_scenarios)
             test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, split_type="test",
-                                       update_hz=self.update_hz)
+                                       update_hz=self.update_hz, recompute_dataset=self.recompute_dataset)
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
