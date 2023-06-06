@@ -144,7 +144,7 @@ class LSTMDataset(Dataset):
 
         # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type.
         # Add index to each group as a column.
-        samples["group_idx"] = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "goal_type"],
+        samples["group_idx"] = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
                                                as_index=False).ngroup()
 
         return samples
