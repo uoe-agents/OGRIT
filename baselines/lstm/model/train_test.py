@@ -191,11 +191,12 @@ class FeaturesLSTM:
         loss = self._compute_loss(intermediate_predictions, lengths, targets)
         return loss, final_prediction, intermediate_predictions
 
-    def compute_accuracy(self, final_prediction, targets):
+    def compute_accuracy(self, final_prediction, intermediate_predictions, lengths, targets):
         """
         Compute the accuracy of the model.
         Args:
             final_prediction: the final prediction of the model (after the last timestep)
+            intermediate_predictions: the intermediate predictions of the model (after each timestep)
             targets: tensor of shape (batch_size)
         Returns:
             correct: nr of correct predictions
@@ -236,7 +237,8 @@ class FeaturesLSTM:
             # Update the weights
             self.optimizer.step()
 
-            new_correct, new_total, f1 = self.compute_accuracy(final_prediction, targets)
+            new_correct, new_total, f1 = self.compute_accuracy(final_prediction, intermediate_predictions, lengths,
+                                                               targets)
             f1_accuracy += f1
             correct += new_correct
             total += new_total
@@ -291,10 +293,10 @@ class FeaturesLSTM:
 
         # Compute the goal probabilities for each trajectory
         for i_batch, sample_batched in enumerate(tqdm(self.test_loader)):
-            trajectories = sample_batched[0]
-            targets = sample_batched[1].detach()
-            lengths = sample_batched[2].detach()
-            fraction_observed = sample_batched[3].detach().numpy()
+            trajectories = sample_batched[0].to(self.device)
+            targets = sample_batched[1].to(self.device)
+            lengths = sample_batched[2].to(self.device)
+            fraction_observed = sample_batched[3].to(self.device)
 
             final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
                                                                            lengths=lengths, targets=targets,
