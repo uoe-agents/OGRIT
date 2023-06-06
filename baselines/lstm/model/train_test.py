@@ -88,13 +88,13 @@ class FeaturesLSTM:
 
         self.model_path = self.get_model_path()
 
+        # Use multiple GPUs if available
+        if torch.cuda.device_count() > 1:
+            self.model = nn.DataParallel(self.model)
+        self.logger.info(f"Training on {self.device} (CUDA: {torch.cuda.device_count()}).")
+        self.model.to(self.device)
+        
         if mode == "train":
-            # Use multiple GPUs if available
-            if torch.cuda.device_count() > 1:
-                self.model = nn.DataParallel(self.model)
-            self.logger.info(f"Training on {self.device} (CUDA: {torch.cuda.device_count()}).")
-            self.model.to(self.device)
-
             self.max_epochs = configs["max_epochs"]
 
             # Define the loss function and optimizer
