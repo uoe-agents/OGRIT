@@ -192,7 +192,7 @@ class FeaturesLSTM:
         loss = self._compute_loss(intermediate_predictions, lengths, targets)
         return loss, final_prediction, intermediate_predictions
 
-    def compute_accuracy(self, final_prediction, intermediate_predictions, lengths, targets):
+    def compute_accuracy(self, final_prediction, targets):
         """
         Compute the accuracy of the model.
         Args:
@@ -202,10 +202,16 @@ class FeaturesLSTM:
         Returns:
             correct: nr of correct predictions
             total: total nr of predictions
+            # todo: add intermediate correct
         """
         _, predicted = torch.max(final_prediction.data, 1)
         total = targets.size(0)
         correct = (predicted == targets).sum().item()
+
+        # total_intermediate = 0 todo: finish
+        # correct_intermediate = 0
+        # for
+        # _, intermediate_predicted = torch.max(intermediate_predictions.data, 3)
 
         # compute f1 score
         f1 = f1_score(targets.cpu().numpy(), predicted.cpu().numpy(), average='macro')
@@ -238,7 +244,7 @@ class FeaturesLSTM:
             # Update the weights
             self.optimizer.step()
 
-            new_correct, new_total, f1 = self.compute_accuracy(final_prediction, intermediate_predictions, lengths,
+            new_correct, new_total, f1 = self.compute_accuracy(final_prediction,
                                                                targets)
             f1_accuracy += f1
             correct += new_correct
