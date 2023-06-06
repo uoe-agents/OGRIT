@@ -303,7 +303,7 @@ class FeaturesLSTM:
             final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
                                                                            lengths=lengths, targets=targets,
                                                                            test=True)
-            goal_probs = torch.exp(intermediate_predictions).detach().numpy()
+            goal_probs = torch.exp(intermediate_predictions).cpu().detach().numpy()
 
             for i in range(len(trajectories)):
                 # Get the probability assigned by the LSTM to the true goal by the i-th trajectory
