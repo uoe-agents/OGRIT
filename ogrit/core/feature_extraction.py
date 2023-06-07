@@ -39,7 +39,7 @@ class FeatureExtractor:
                      'oncoming_vehicle_dist': 'scalar',
                      'oncoming_vehicle_speed': 'scalar',
                      'road_heading': 'scalar',
-                     # 'exit_number': 'integer',
+                     'exit_number': 'integer',
                      # 'speed_change_1s': 'scalar',
                      # 'speed_change_2s': 'scalar',
                      # 'speed_change_3s': 'scalar',
@@ -49,8 +49,8 @@ class FeatureExtractor:
                      # 'dist_travelled_1s': 'scalar',
                      # 'dist_travelled_2s': 'scalar',
                      # 'dist_travelled_3s': 'scalar'
-                     'roundabout_slip_road': 'binary',
-                     'roundabout_uturn': 'binary',
+                     # 'roundabout_slip_road': 'binary',
+                     # 'roundabout_uturn': 'binary',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
