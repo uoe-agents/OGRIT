@@ -16,7 +16,7 @@ def get_result_file_path(scenario_name, update_hz, episode_idx):
     """ Get the path to the result file that contains the samples used by OGRIT. It assumes that unless otherwise
     specified, the standard update_hz is 25, meaning that samples are taken every 1s"""
     if update_hz != 25:
-        return get_data_dir() + f'{scenario_name}_{update_hz}fps_e{episode_idx}.csv'
+        return get_data_dir() + f'{scenario_name}_{update_hz}hz_e{episode_idx}.csv'
     else:
         return get_data_dir() + f'{scenario_name}_e{episode_idx}.csv'
 
