@@ -80,5 +80,5 @@ else
 fi
 
 
-python ~/OGRIT/baselines/lstm/get_results.py --train_scenarios $train_scenarios --test_scenarios $test_scenarios --input_type $input_type --fill_occluded_frames_mode $fill_mode
+python ~/OGRIT/baselines/lstm/get_results.py --train_scenarios $train_scenarios --test_scenarios $test_scenarios --input_type $input_type --fill_occluded_frames_mode $fill_mode --update_hz 1
 
