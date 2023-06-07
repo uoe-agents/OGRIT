@@ -223,10 +223,11 @@ class LSTMDataset(Dataset):
 
         num_features = self._trajectories.shape[-1]
 
+        extra_features = 0 if self.fill_occluded_frames_mode != "use_frame_id" else 1
         if self.input_type == "relative_position":
-            assert num_features == 2, f"Expected 2 features for relative position, but got {num_features} instead."
+            assert num_features == 2 + extra_features, f"Expected 2 features for relative position, but got {num_features} instead."
         elif self.input_type == "absolute_position":
-            assert num_features == 3, f"Expected 3 features for absolute position, but got {num_features} instead."
+            assert num_features == 3 + extra_features, f"Expected 3 features for absolute position, but got {num_features} instead."
 
         return num_features
 
