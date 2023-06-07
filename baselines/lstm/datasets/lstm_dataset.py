@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from ogrit.core.base import get_lstm_dir, LSTM_PADDING_VALUE
+from ogrit.core.base import get_lstm_dir, LSTM_PADDING_VALUE, FAKE_LSTM_PADDING
 from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.core.feature_extraction import FeatureExtractor
 from ogrit.core.logger import logger
@@ -23,7 +23,8 @@ or position (x, y, heading at each timestep), etc.
 
 class LSTMDataset(Dataset):
 
-    def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset):
+    def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset,
+                 fill_occluded_frames_mode):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -37,6 +38,10 @@ class LSTMDataset(Dataset):
             update_hz: take a sample every update_hz frames in the original episode frames (e.g., if 25, then take
                         one frame per second)
             recompute_dataset: if True, recompute the dataset from scratch, otherwise load it from disk (if it exists)
+            fill_occluded_frames_mode: how to fill the frames in the trajectories in which the target is occluded w.r.t the ego. Can be either:
+                - "remove" (default): remove the occluded frames
+                - "fake_pad": pad the occluded frames with fake values (e.g., -1 for x, y, heading)
+                - "use_frame_id": add 'frame_id' to the input features (i.e. "tell" the LSTM which frames are occluded)
         """
 
         # To convert the goal_type into a hot-one encoding vector. E.g., "continue" -> [0, 0, 1, 0, 0]
@@ -45,6 +50,7 @@ class LSTMDataset(Dataset):
         self.input_type = input_type
         self.update_hz = update_hz
         self.recompute_dataset = recompute_dataset
+        self.fill_occluded_frames_mode = fill_occluded_frames_mode
 
         self.scenario_names = scenario_names
 
@@ -57,6 +63,12 @@ class LSTMDataset(Dataset):
         else:
             raise ValueError(f"Parameter type should be either 'absolute_position', 'relative_position', "
                              f"'ogrit_features', but got {input_type} instead.")
+
+        if fill_occluded_frames_mode == "use_frame_id":
+            self.features_to_use.append("frame_id")
+
+        logger.info(
+            f"frame_id {'is' if 'frame_id' in self.features_to_use else 'is NOT'} included in the features to use")
 
         self._trajectories, self._targets, self._lengths, self._fractions_observed = self.load_dataset()
 
@@ -118,7 +130,11 @@ class LSTMDataset(Dataset):
             # input for the lstm. The sequence will be a 1-d array with a tuple of features for each step.
             # E.g., if the trajectory has 2 time-steps, each with 3 features,
             # the sequence will [(f1, f2, f3), (f1, f2, f3)]
-            trajectory = torch.tensor([tuple(step) for step in trajectory_steps])
+            if self.fill_occluded_frames_mode == "fake_pad":
+                frame_ids = trajectory_steps_original["frame_id"].values
+                trajectory = self.fill_occluded_frames(trajectory_steps, frame_ids, self.update_hz)
+            else:
+                trajectory = torch.tensor([tuple(step) for step in trajectory_steps])
 
             trajectories.append(trajectory)
 
@@ -132,6 +148,23 @@ class LSTMDataset(Dataset):
         fractions_observed = pad_sequence([torch.tensor(f) for f in fractions_observed], batch_first=True,
                                           padding_value=LSTM_PADDING_VALUE)
         return trajectories, targets, lengths, fractions_observed
+
+    def fill_occluded_frames(self, trajectory_steps, frame_ids, update_hz):
+        """
+        Given a trajectory, we want to add the frames in which the target is occluded w.r.t the ego
+         to it, to tell the lstm that the trajectory is not fully known.
+        """
+        trajectory = []
+        for i in range(len(trajectory_steps) - 1):
+            trajectory.append(tuple(trajectory_steps[i]))
+            # If the next step is not consecutive, we need to add the missing steps
+            for j in range((frame_ids[i + 1] - frame_ids[i] - update_hz) // update_hz):
+                # # We add the missing steps with the same features as the last step
+                # trajectory.append(tuple(trajectory_steps[i])) todo
+                trajectory.append(tuple([FAKE_LSTM_PADDING] * len(trajectory_steps[i])))
+        # We add the last step
+        trajectory.append(tuple(trajectory_steps[-1]))
+        return torch.tensor(trajectory)
 
     def get_samples(self):
         """

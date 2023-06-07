@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 import pandas as pd
 import torch
@@ -11,7 +9,7 @@ from tqdm import tqdm
 from baselines.lstm.datasets.lstm_dataset import LSTMDataset
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
-from ogrit.core.base import get_lstm_dir, get_results_dir
+from ogrit.core.base import get_lstm_model_path, get_lstm_results_path
 from ogrit.core.logger import logger
 
 """
@@ -49,14 +47,17 @@ class FeaturesLSTM:
         self.update_hz = configs["update_hz"]
 
         self.input_type = configs["input_type"]
-        self.recompute_dataset = configs["recompute_dataset"]
+        recompute_dataset = configs["recompute_dataset"]
+        fill_occluded_frames_mode = configs["fill_occluded_frames_mode"]
 
         # Load the datasets
         if mode == "train":
             train_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="train",
-                                        update_hz=self.update_hz, recompute_dataset=self.recompute_dataset)
+                                        update_hz=self.update_hz, recompute_dataset=recompute_dataset,
+                                        fill_occluded_frames_mode=fill_occluded_frames_mode)
             val_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="valid",
-                                      update_hz=self.update_hz, recompute_dataset=self.recompute_dataset)
+                                      update_hz=self.update_hz, recompute_dataset=recompute_dataset,
+                                      fill_occluded_frames_mode=fill_occluded_frames_mode)
 
             self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -68,7 +69,8 @@ class FeaturesLSTM:
             test_scenarios = configs["test_scenarios"].split(",")
             self.test_scenarios_names = "_".join(test_scenarios)
             test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, split_type="test",
-                                       update_hz=self.update_hz, recompute_dataset=self.recompute_dataset)
+                                       update_hz=self.update_hz, recompute_dataset=recompute_dataset,
+                                       fill_occluded_frames_mode=fill_occluded_frames_mode)
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -88,7 +90,7 @@ class FeaturesLSTM:
 
         self.logger.info(f"Model created: {str(self.model)}")
 
-        self.model_path = self.get_model_path()
+        self.model_path = get_lstm_model_path(self.training_scenarios_names, self.input_type, self.update_hz)
 
         if mode == "train":
             # Use multiple GPUs if available
@@ -334,19 +336,10 @@ class FeaturesLSTM:
         true_goal_prob = fraction_observed_grouped.mean()
         true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
 
-        true_goal_prob_sem.to_csv(
-            get_results_dir() + f'/{self.test_scenarios_names}_lstm_{self.input_type}_on_{self.training_scenarios_names}_true_goal_prob_sem.csv')
-        true_goal_prob.to_csv(
-            get_results_dir() + f'/{self.test_scenarios_names}_lstm_{self.input_type}_on_{self.training_scenarios_names}_true_goal_prob.csv')
-
-    def get_model_path(self):
-
-        model_dir = os.path.join(get_lstm_dir(), f"checkpoint/")
-
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-
-        return os.path.join(model_dir, f"{self.training_scenarios_names}_{self.input_type}.pt")
+        goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(self.training_scenarios_names,
+                                                                             self.input_type, self.test_scenarios_names)
+        true_goal_prob_sem.to_csv(goal_prob_sem_file_path)
+        true_goal_prob.to_csv(goal_prob_file_path)
 
     def save_model(self, epoch, losses, accs, f1_scores):
 

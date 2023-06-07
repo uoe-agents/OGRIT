@@ -8,6 +8,7 @@ def get_all_scenarios():
 
 #### CONSTANTS ####
 LSTM_PADDING_VALUE = 0
+FAKE_LSTM_PADDING = -1  # used to pad the LSTM input when we have occluded frames
 
 
 #### PATH CONVENTIONS ####
@@ -15,9 +16,29 @@ def get_result_file_path(scenario_name, update_hz, episode_idx):
     """ Get the path to the result file that contains the samples used by OGRIT. It assumes that unless otherwise
     specified, the standard update_hz is 25, meaning that samples are taken every 1s"""
     if update_hz != 25:
-        return get_data_dir() + f'{scenario_name}_{update_hz}Hz_e{episode_idx}.csv'
+        return get_data_dir() + f'{scenario_name}_{update_hz}fps_e{episode_idx}.csv'
     else:
         return get_data_dir() + f'{scenario_name}_e{episode_idx}.csv'
+
+
+def get_lstm_model_path(training_scenarios_names, input_type, update_hz):
+    """ Get the path to the LSTM model checkpoint file. """
+
+    model_dir = os.path.join(get_lstm_dir(), f"checkpoint/")
+
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    return os.path.join(model_dir, f"{training_scenarios_names}_{input_type}_{update_hz}Hz.pt")
+
+
+def get_lstm_results_path(training_scenarios_names, input_type, test_scenarios_names):
+    def get_lstm_base_path(x=''):
+        return get_results_dir() + f'/{test_scenarios_names}_lstm_{input_type}_on_{training_scenarios_names}_true_goal_prob_{x}.csv'
+
+    goal_prob_file = get_lstm_base_path()
+    goal_prob_sem_file = get_lstm_base_path('sem')
+    return goal_prob_file, goal_prob_sem_file
 
 
 def get_map_path(scenario_name):

@@ -59,6 +59,11 @@ if __name__ == "__main__":
     parser.add_argument('--shuffle', action='store_false', help='Shuffle the dataset')
     parser.add_argument('--recompute_dataset', action='store_true',
                         help='Recompute the dataset even if it exists on disk')
+    parser.add_argument('--fill_occluded_frames_mode', type=str, default="remove",
+                        help='how to fill the frames in the trajectories in which the target is occluded w.r.t the ego. Can be either: '
+                             '- "remove" (default): remove the occluded frames'
+                             '- "fake_pad": pad the occluded frames with fake values (e.g., -1 for x, y, heading)'
+                             '- "use_frame_id": add "frame_id" to the input features (i.e. "tell" the LSTM which frames are occluded)')
 
     # Parse the arguments into a dictionary
     configs = parser.parse_args()
