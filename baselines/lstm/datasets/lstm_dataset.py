@@ -140,8 +140,8 @@ class LSTMDataset(Dataset):
             trajectories.append(trajectory)
 
             assert len(np.unique(trajectory_steps_original[
-                                     "true_goal_type"].values)) == 1, "There should be only one goal type per trajectory."
-            targets.append(trajectory_steps_original["true_goal_type"].values[0])
+                                     "true_goal"].values)) == 1, "All steps in a trajectory should have the same goal."
+            targets.append(trajectory_steps_original["true_goal"].values[0])
             fractions_observed.append(fraction_observed)
             lengths.append(len(trajectory))
 
