@@ -21,7 +21,7 @@ def get_result_file_path(scenario_name, update_hz, episode_idx):
         return get_data_dir() + f'{scenario_name}_e{episode_idx}.csv'
 
 
-def get_lstm_model_path(training_scenarios_names, input_type, update_hz):
+def get_lstm_model_path(training_scenarios_names, input_type, update_hz, fill_occluded_frames_mode):
     """ Get the path to the LSTM model checkpoint file. """
 
     model_dir = os.path.join(get_lstm_dir(), f"checkpoint/")
@@ -29,16 +29,22 @@ def get_lstm_model_path(training_scenarios_names, input_type, update_hz):
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
-    return os.path.join(model_dir, f"{training_scenarios_names}_{input_type}_{update_hz}Hz.pt")
+    return os.path.join(model_dir,
+                        f"{training_scenarios_names}_{input_type}_{update_hz}Hz_{fill_occluded_frames_mode}.pt")
 
 
-def get_lstm_results_path(training_scenarios_names, input_type, test_scenarios_names):
+def get_lstm_results_path(training_scenarios_names, input_type, test_scenarios_names, update_hz,
+                          fill_occluded_frames_mode):
     def get_lstm_base_path(x=''):
-        return get_results_dir() + f'/{test_scenarios_names}_lstm_{input_type}_on_{training_scenarios_names}_true_goal_prob_{x}.csv'
+        return get_results_dir() + f'/{test_scenarios_names}_lstm_{input_type}_on_{training_scenarios_names}_{update_hz}Hz_{fill_occluded_frames_mode}_true_goal_prob_{x}.csv'
 
     goal_prob_file = get_lstm_base_path()
     goal_prob_sem_file = get_lstm_base_path('sem')
     return goal_prob_file, goal_prob_sem_file
+
+
+def get_lstm_dataset_path(scenario_names, input_type, split_type, update_hz, fill_occluded_frames_mode):
+    return get_lstm_dir() + f"/datasets/{'_'.join(scenario_names)}_{input_type}_{split_type}_{update_hz}Hz_{fill_occluded_frames_mode}.pt"
 
 
 def get_map_path(scenario_name):

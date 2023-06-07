@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from ogrit.core.base import get_lstm_dir, LSTM_PADDING_VALUE, FAKE_LSTM_PADDING
+from ogrit.core.base import LSTM_PADDING_VALUE, FAKE_LSTM_PADDING, get_lstm_dataset_path
 from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.core.feature_extraction import FeatureExtractor
 from ogrit.core.logger import logger
@@ -74,7 +74,8 @@ class LSTMDataset(Dataset):
 
     def load_dataset(self):
 
-        dataset_path = get_lstm_dir() + f"/datasets/{'_'.join(self.scenario_names)}_{self.input_type}_{self.split_type}_{self.update_hz}hz.pt"
+        dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
+                                             self.fill_occluded_frames_mode)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed = self.get_dataset()
