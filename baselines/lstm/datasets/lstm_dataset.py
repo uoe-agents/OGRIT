@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from ogrit.core.base import LSTM_PADDING_VALUE, FAKE_LSTM_PADDING, get_lstm_dataset_path
+from ogrit.core.base import LSTM_PADDING_VALUE, get_lstm_dataset_path, FAKE_LSTM_PADDING
 from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.core.feature_extraction import FeatureExtractor
 from ogrit.core.logger import logger
@@ -162,7 +162,7 @@ class LSTMDataset(Dataset):
             for j in range((frame_ids[i + 1] - frame_ids[i] - update_hz) // update_hz):
                 # # We add the missing steps with the same features as the last step
                 # trajectory.append(tuple(trajectory_steps[i])) todo
-                trajectory.append(tuple([FAKE_LSTM_PADDING] * len(trajectory_steps[i])))
+                trajectory.append(get_fake_padding(len(trajectory_steps[i])))
         # We add the last step
         trajectory.append(tuple(trajectory_steps[-1]))
         return torch.tensor(trajectory)
@@ -238,3 +238,12 @@ class LSTMDataset(Dataset):
         """
 
         return len(np.unique(self._targets))
+
+
+def get_fake_padding(nr_features_in_step):
+    """
+    Returns a tuple of fake padding values to be used in frames when the target is occluded.
+    Args:
+        nr_features_in_step: the number of features in the step of the trajectory
+    """
+    return tuple([FAKE_LSTM_PADDING] * nr_features_in_step)

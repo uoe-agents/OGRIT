@@ -6,7 +6,7 @@ from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from baselines.lstm.datasets.lstm_dataset import LSTMDataset
+from baselines.lstm.datasets.lstm_dataset import LSTMDataset, get_fake_padding
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
 from ogrit.core.base import get_lstm_model_path, get_lstm_results_path
@@ -313,6 +313,17 @@ class FeaturesLSTM:
             final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
                                                                            lengths=lengths, targets=targets,
                                                                            test=True)
+
+            # todo: make mask more efficient
+            # Only keep the probabilities for steps in which the frames are observed (i.e., non occluded)
+            trajectories = trajectories.cpu().detach().numpy()
+            fake_i, fake_j, _ = np.where(trajectories == get_fake_padding(trajectories.shape[-1]))
+            padded_frames = set(zip(list(fake_i), list(fake_j)))
+            # create a dictionary with key = trajectory index and value = list of frames that are padded
+            padded_frames_dict = {i: [] for i in range(len(trajectories))}
+            for i, j in padded_frames:
+                padded_frames_dict[i].append(j)
+
             goal_probs = torch.exp(intermediate_predictions).cpu().detach().numpy()
             lengths = lengths.cpu().detach().numpy()
             targets = targets.cpu().detach().numpy()
@@ -327,8 +338,12 @@ class FeaturesLSTM:
                     assert true_goal_prob_timestep[-1] == goal_probs[i, lengths[i] - 1, targets[i]]
                     assert true_goal_prob_timestep[0] == goal_probs[i, 0, targets[i]]
 
+                # Remove the probabilities for the frames that are padded
+                true_goal_prob_timestep = np.delete(true_goal_prob_timestep, padded_frames_dict[i])
+                actual_length = lengths[i] - len(padded_frames_dict[i])
+
                 goal_probs_df["true_goal_prob"].extend(true_goal_prob_timestep)
-                goal_probs_df["fraction_observed"].extend(np.round(fraction_observed[i, :lengths[i]], 1))
+                goal_probs_df["fraction_observed"].extend(np.round(fraction_observed[i, :actual_length], 1))
 
         goal_probs_df = pd.DataFrame(goal_probs_df)
 
