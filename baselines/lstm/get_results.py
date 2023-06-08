@@ -1,7 +1,7 @@
 import argparse
 
-from baselines.lstm.lstm_logger import logger
 from model.train_test import FeaturesLSTM
+from ogrit.core.logger import logger
 
 """ 
 Train an LSTM baseline and/or evaluate it on the test set.
@@ -45,8 +45,10 @@ if __name__ == "__main__":
 
     parser.add_argument('--input_type', type=str, default="ogrit_features", help="'absolute_position', "
                                                                                  "'relative_position' or 'ogrit_features'")
-    parser.add_argument('--batch_size', type=int, default=10,
-                        help='Batch size')
+    parser.add_argument('--update_hz', type=int, help='take a sample every --update_hz frames in the original episode '
+                                                      'frames (e.g., if 25, then take one frame per second)',
+                        default=25)
+    parser.add_argument('--batch_size', type=int, default=10, help='Batch size')
     parser.add_argument('--max_epochs', type=int, default=100, help='Maximum number of epochs')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout for TRAINING. It is 0 for testing.')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate for the optimizer')
@@ -55,6 +57,13 @@ if __name__ == "__main__":
     parser.add_argument('--lstm_layers', type=int, default=1, help='Number of LSTM layers')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--shuffle', action='store_false', help='Shuffle the dataset')
+    parser.add_argument('--recompute_dataset', action='store_true',
+                        help='Recompute the dataset even if it exists on disk')
+    parser.add_argument('--fill_occluded_frames_mode', type=str, default="remove",
+                        help='how to fill the frames in the trajectories in which the target is occluded w.r.t the ego. Can be either: '
+                             '- "remove" (default): remove the occluded frames'
+                             '- "fake_pad": pad the occluded frames with fake values (e.g., -1 for x, y, heading)'
+                             '- "use_frame_id": add "frame_id" to the input features (i.e. "tell" the LSTM which frames are occluded)')
 
     # Parse the arguments into a dictionary
     configs = parser.parse_args()

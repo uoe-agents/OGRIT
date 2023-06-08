@@ -12,10 +12,10 @@ from igp2.opendrive.map import Map
 from shapely.geometry import LineString
 from tqdm import tqdm
 
-from ogrit.core.base import get_data_dir, get_base_dir, get_scenarios_dir, set_working_dir
+from ogrit.core.base import get_base_dir, set_working_dir, get_result_file_path, \
+    get_map_path, get_map_configs_path
 from ogrit.core.feature_extraction import FeatureExtractor, GoalDetector
-
-FRAME_STEP_SIZE = 25  # take a sample every 25 frames in the original episode frames (i.e., one per second)
+from ogrit.core.logger import logger
 
 
 def load_dataset_splits():
@@ -23,16 +23,13 @@ def load_dataset_splits():
         return json.load(f)
 
 
-def get_dataset(scenario_name, subset='train', features=True, data_dir=None):
-    if data_dir is None:
-        data_dir = get_data_dir()
+def get_dataset(scenario_name, subset='train', features=True, update_hz=25):
     data_set_splits = load_dataset_splits()
     episode_idxes = data_set_splits[scenario_name][subset]
     episode_training_sets = []
 
     for episode_idx in episode_idxes:
-        episode_training_set = pd.read_csv(
-            data_dir + '{}_e{}.csv'.format(scenario_name, episode_idx, subset))
+        episode_training_set = pd.read_csv(get_result_file_path(scenario_name, update_hz, episode_idx))
         episode_training_set['episode'] = episode_idx
         episode_training_sets.append(episode_training_set)
     training_set = pd.concat(episode_training_sets)
@@ -46,10 +43,10 @@ def get_dataset(scenario_name, subset='train', features=True, data_dir=None):
         return unique_training_samples
 
 
-def get_multi_scenario_dataset(scenario_names: List[str], subset='train', data_dir=None) -> pd.DataFrame:
+def get_multi_scenario_dataset(scenario_names: List[str], subset='train', update_hz=25) -> pd.DataFrame:
     scenario_datasets = []
     for scenario_idx, scenario_name in enumerate(scenario_names):
-        scenario_dataset = get_dataset(scenario_name, subset=subset, data_dir=data_dir)
+        scenario_dataset = get_dataset(scenario_name, subset=subset, update_hz=update_hz)
         scenario_dataset['scenario'] = scenario_idx
         scenario_datasets.append(scenario_dataset)
     dataset = pd.concat(scenario_datasets)
@@ -58,7 +55,7 @@ def get_multi_scenario_dataset(scenario_names: List[str], subset='train', data_d
 
 def get_goal_priors(training_set, goal_types, alpha=0):
     agent_goals = training_set[['episode', 'agent_id', 'true_goal', 'true_goal_type']].drop_duplicates()
-    print('training_vehicles: {}'.format(agent_goals.shape[0]))
+    logger.info('training_vehicles: {}'.format(agent_goals.shape[0]))
     goal_counts = pd.DataFrame(data=[(x, t, 0) for x in range(len(goal_types)) for t in goal_types[x]],
                                columns=['true_goal', 'true_goal_type', 'goal_count'])
 
@@ -142,7 +139,7 @@ def get_first_last_frame_ids(episode, vehicle_id):
     return initial_frame_id, final_frame_id
 
 
-def _get_frame_ids(episode, target_agent_id, ego_agent_id=None):
+def _get_frame_ids(episode, target_agent_id, update_hz, ego_agent_id=None):
     f"""
     If the ego agent id is given, return the ids of the frames in which both the ego and target are alive.
     Otherwise, return the ids of the frames in which the target is alive.
@@ -164,8 +161,8 @@ def _get_frame_ids(episode, target_agent_id, ego_agent_id=None):
         initial_frame_id = max(initial_frame_id_target, initial_frame_id_ego)
         last_frame_id = min(last_frame_id_target, last_frame_id_ego)
 
-        # Only take samples in which the two vehicles are alive for at least FRAME_STEP_SIZE number of frames.
-        if last_frame_id_ego - initial_frame_id_ego < FRAME_STEP_SIZE or initial_frame_id > last_frame_id:
+        # Only take samples in which the two vehicles are alive for at least update_hz number of frames.
+        if last_frame_id_ego - initial_frame_id_ego < update_hz or initial_frame_id > last_frame_id:
             return None, None, None
 
     else:
@@ -185,14 +182,13 @@ def is_target_vehicle_occluded(current_frame_id, occlusions, target_agent_id, eg
     return occlusions.contains(vehicle_boundary)
 
 
-def extract_samples(feature_extractor, scenario, episode, extract_missing_features=False):
+def extract_samples(feature_extractor, scenario, episode, update_hz, extract_missing_features=False):
     episode_frames = get_episode_frames(episode)
     trajectories, goals = get_trimmed_trajectories(scenario, episode)
 
     samples_list = []
 
     for target_agent_idx, (target_agent_id, trajectory) in enumerate(tqdm(trajectories.items())):
-        # logger.info('target agent {}/{}'.format(target_agent_idx, len(trajectories) - 1))
 
         # Get all the reachable goals at every time step of the trajectory.
         full_reachable_goals_list = get_trajectory_reachable_goals(trajectory, feature_extractor, scenario)
@@ -207,7 +203,7 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
             if not extract_missing_features and ego_agent_idx != 0:
                 break
 
-            target_initial_frame, initial_frame_id, final_frame_id = _get_frame_ids(episode, target_agent_id,
+            target_initial_frame, initial_frame_id, final_frame_id = _get_frame_ids(episode, target_agent_id, update_hz,
                                                                                     ego_agent_id if
                                                                                     extract_missing_features else None)
             if target_initial_frame is None:
@@ -232,17 +228,17 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                 true_goal_route = reachable_goals_list[0][true_goal_idx].lane_path
                 true_goal_type = feature_extractor.goal_type(true_goal_route)
 
-                # Align the frames so that they are multiples of FRAME_STEP_SIZE.
-                initial_frame_offset = FRAME_STEP_SIZE * math.ceil(
-                    initial_frame_id / FRAME_STEP_SIZE) - initial_frame_id
+                # Align the frames so that they are multiples of update_hz.
+                initial_frame_offset = update_hz * math.ceil(
+                    initial_frame_id / update_hz) - initial_frame_id
                 # Save the first frame in which the target vehicle wasn't occluded w.r.t the ego.
                 first_frame_target_not_occluded = None
 
                 target_occlusion_history = []  # booleans indicating whether the target was occluded in each frame
 
-                # Get a sample every FRAME_STEP_SIZE time steps from when the target first becomes visible to the ego
+                # Get a sample every update_hz time steps from when the target first becomes visible to the ego
                 # until it is last visible.
-                for step_idx in range(initial_frame_offset, len(reachable_goals_list), FRAME_STEP_SIZE):
+                for step_idx in range(initial_frame_offset, len(reachable_goals_list), update_hz):
 
                     reachable_goals = reachable_goals_list[step_idx]
                     current_frame_id = initial_frame_id + step_idx
@@ -271,9 +267,10 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                                 features = feature_extractor.extract(target_agent_id, frames, typed_goal,
                                                                      ego_agent_id=ego_agent_id,
                                                                      initial_frame=first_frame_target_not_occluded,
-                                                                     target_occlusion_history=target_occlusion_history)
+                                                                     target_occlusion_history=target_occlusion_history,
+                                                                     fps=update_hz)
                             else:
-                                features = feature_extractor.extract(target_agent_id, frames, typed_goal)
+                                features = feature_extractor.extract(target_agent_id, frames, typed_goal, fps=update_hz)
 
                             sample = features.copy()
                             sample['agent_id'] = target_agent_id
@@ -283,6 +280,8 @@ def extract_samples(feature_extractor, scenario, episode, extract_missing_featur
                             sample['possible_goal'] = goal_idx
                             sample['true_goal'] = true_goal_idx
                             sample['true_goal_type'] = true_goal_type
+                            sample['delta_x_from_possible_goal'] = abs(typed_goal.goal.center.x - features['x'])
+                            sample['delta_y_from_possible_goal'] = abs(typed_goal.goal.center.y - features['y'])
                             sample['frame_id'] = current_frame_id
                             sample['initial_frame_id'] = target_initial_frame
                             sample['fraction_observed'] = (current_frame_id - target_initial_frame) / target_lifespan
@@ -302,12 +301,15 @@ def get_vehicle_boundary(vehicle):
 
 
 def prepare_episode_dataset(params):
-    scenario_name, episode_idx, extract_indicator_features = params
+    scenario_name, episode_idx, extract_indicator_features, update_hz = params
 
-    print('scenario {} episode {}'.format(scenario_name, episode_idx))
+    # update_hz =  take a sample every update_hz frames in the original episode frames (e.g., if 25,
+    # then take one frame per second)
 
-    scenario_map = Map.parse_from_opendrive(get_scenarios_dir() + f"maps/{scenario_name}.xodr")
-    scenario_config = ScenarioConfig.load(get_scenarios_dir() + f"configs/{scenario_name}.json")
+    logger.info('scenario {} episode {}'.format(scenario_name, episode_idx))
+
+    scenario_map = Map.parse_from_opendrive(get_map_path(scenario_name))
+    scenario_config = ScenarioConfig.load(get_map_configs_path(scenario_name))
 
     set_working_dir()
     scenario = InDScenario(scenario_config)
@@ -319,6 +321,7 @@ def prepare_episode_dataset(params):
 
     episode = scenario.load_episode(episode_idx)
 
-    samples = extract_samples(feature_extractor, scenario, episode, extract_indicator_features)
-    samples.to_csv(get_data_dir() + '{}_e{}.csv'.format(scenario_name, episode_idx), index=False)
-    print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
+    samples = extract_samples(feature_extractor, scenario, episode, update_hz,
+                              extract_missing_features=extract_indicator_features)
+    samples.to_csv(get_result_file_path(scenario_name, update_hz, episode_idx), index=False)
+    logger.info(f'finished scenario {scenario_name} episode {episode_idx}')
