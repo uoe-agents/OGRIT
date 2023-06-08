@@ -163,13 +163,13 @@ class FeaturesLSTM:
                     min_loss = val_loss_avg
                     self.save_model(epoch_nr, np.array(val_loss_avg_ls), np.array(val_acc_ls),
                                     np.array(f1_score_avg_ls))
-                # TODO: Early stopping uncomment
-                # # Early stopping if the validation loss has not improved for the last 5 validation steps.
-                # # 0.4*np.ceil(self.max_epochs / self.VALIDATION_STEP) is an arbitrary number
-                # if len(val_loss_avg_ls) > 0.4 * np.ceil(
-                #         self.max_epochs / self.VALIDATION_STEP) and val_loss_avg > np.mean(val_loss_avg_ls[-5:]):
-                #     self.logger.info("Early stopping.")
-                #     break
+
+                # Early stopping if the validation loss has not improved for the last 5 validation steps.
+                # 0.4*np.ceil(self.max_epochs / self.VALIDATION_STEP) is an arbitrary number
+                if len(val_loss_avg_ls) > 0.4 * np.ceil(
+                        self.max_epochs / self.VALIDATION_STEP) and val_loss_avg > np.mean(val_loss_avg_ls[-5:]):
+                    self.logger.info("Early stopping.")
+                    break
 
         self.writer.close()
         return np.array(val_loss_avg_ls), np.array(val_acc_ls), np.array(f1_score_avg_ls)
