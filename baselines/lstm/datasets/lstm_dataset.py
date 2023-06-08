@@ -52,6 +52,8 @@ class LSTMDataset(Dataset):
         self.recompute_dataset = recompute_dataset
         self.fill_occluded_frames_mode = fill_occluded_frames_mode
 
+        self._nr_occluded_frames = 0  # for debugging
+
         self.scenario_names = scenario_names
 
         if input_type == 'absolute_position':
@@ -161,7 +163,7 @@ class LSTMDataset(Dataset):
             # If the next step is not consecutive, we need to add the missing steps
             for j in range((frame_ids[i + 1] - frame_ids[i] - update_hz) // update_hz):
                 # # We add the missing steps with the same features as the last step
-                # trajectory.append(tuple(trajectory_steps[i])) todo
+                self._nr_occluded_frames += 1
                 trajectory.append(get_fake_padding(len(trajectory_steps[i])))
         # We add the last step
         trajectory.append(tuple(trajectory_steps[-1]))
@@ -238,6 +240,17 @@ class LSTMDataset(Dataset):
         """
 
         return len(np.unique(self._targets))
+
+    def get_avg_trajectory_length(self):
+        """
+        Returns:
+            the average length of the trajectories in the dataset
+        """
+
+        return np.mean(self._lengths)
+
+    def get_nr_occluded_frames(self):
+        return self._nr_occluded_frames
 
 
 def get_fake_padding(nr_features_in_step):
