@@ -24,7 +24,7 @@ or position (x, y, heading at each timestep), etc.
 class LSTMDataset(Dataset):
 
     def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset,
-                 fill_occluded_frames_mode):
+                 fill_occluded_frames_mode, goal_type):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -34,7 +34,7 @@ class LSTMDataset(Dataset):
                     'absolute_position' = the trajectories are a sequence of (x,y,heading) steps
                     'relative_position' =  "     "           "  "   "      "  path_to_goal_length
                     'ogrit_features' =     "     "           "  "   "      "  (all the features used by OGRIT) steps
-            split_type: "train" or "test"
+            split_type: "train", "valid" or "test"
             update_hz: take a sample every update_hz frames in the original episode frames (e.g., if 25, then take
                         one frame per second)
             recompute_dataset: if True, recompute the dataset from scratch, otherwise load it from disk (if it exists)
@@ -42,6 +42,8 @@ class LSTMDataset(Dataset):
                 - "remove" (default): remove the occluded frames
                 - "fake_pad": pad the occluded frames with fake values (e.g., -1 for x, y, heading)
                 - "use_frame_id": add 'frame_id' to the input features (i.e. "tell" the LSTM which frames are occluded)
+            goal_type: if not None, only keep the trajectories that have the given *possible* goal type (e.g.,
+                       "straight-on", "exit_left", ...). Used to train the LSTM to predict a specific goal type.
         """
 
         # To convert the goal_type into a hot-one encoding vector. E.g., "continue" -> [0, 0, 1, 0, 0]
@@ -55,6 +57,9 @@ class LSTMDataset(Dataset):
         self._nr_occluded_frames = 0  # for debugging
 
         self.scenario_names = scenario_names
+        self.goal_type = goal_type
+
+        assert goal_type is not None, "goal_type should be specified"
 
         if input_type == 'absolute_position':
             self.features_to_use = ['x', 'y', 'heading']
@@ -77,7 +82,7 @@ class LSTMDataset(Dataset):
     def load_dataset(self):
 
         dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
-                                             self.fill_occluded_frames_mode)
+                                             self.fill_occluded_frames_mode, self.goal_type)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed = self.get_dataset()
@@ -143,7 +148,17 @@ class LSTMDataset(Dataset):
 
             assert len(np.unique(trajectory_steps_original[
                                      "true_goal"].values)) == 1, "All steps in a trajectory should have the same goal."
-            targets.append(trajectory_steps_original["true_goal"].values[0])
+
+            # The target is whether the true goal is the same as the possible goal.
+            targets.append(
+                np.float32(
+                    (trajectory_steps_original["true_goal"] == trajectory_steps_original["possible_goal"]))[0])
+
+            if self.split_type != "test":
+                # In the test set
+                assert len(np.unique(trajectory_steps_original["true_goal"] == trajectory_steps_original[
+                    "possible_goal"])) == 1, "All steps in a trajectory should have the same goal."
+
             fractions_observed.append(fraction_observed)
             lengths.append(len(trajectory))
 
@@ -181,6 +196,11 @@ class LSTMDataset(Dataset):
         self.le.fit(unique_goal_types)
 
         samples["true_goal_type"] = self.le.transform(samples["true_goal_type"])
+
+        if self.split_type is not "test":
+            samples = samples[samples["goal_type"] == self.goal_type]
+        else:
+            samples = samples[samples["possible_goal"] == samples["true_goal"]]
 
         # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type. If we want the
         # absolute position we don't need the possible goal_type.
@@ -232,14 +252,6 @@ class LSTMDataset(Dataset):
             assert num_features == 3 + extra_features, f"Expected 3 features for absolute position, but got {num_features} instead."
 
         return num_features
-
-    def get_num_classes(self):
-        """
-        Returns:
-            the number of goal_types in the dataset
-        """
-
-        return len(np.unique(self._targets))
 
     def get_avg_trajectory_length(self):
         """
