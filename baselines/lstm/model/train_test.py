@@ -9,7 +9,7 @@ from tqdm import tqdm
 from baselines.lstm.datasets.lstm_dataset import LSTMDataset, get_fake_padding
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
-from ogrit.core.base import get_lstm_model_path, get_lstm_results_path
+from ogrit.core.base import get_lstm_model_path, get_scenarios_names
 from ogrit.core.logger import logger
 
 """
@@ -24,11 +24,11 @@ class FeaturesLSTM:
         Args:
             configs: dict containing the following keys:
                         for mode=="train":
-                            batch_size, lr, input_size, lstm_hidden_size, fc_hidden_shape, out_shape, lstm_layers,
-                            dropout, seed, max_epochs, shuffle, train_scenarios, recompute_dataset.
+                            batch_size, lr, input_size, lstm_hidden_size, fc_hidden_shape, lstm_layers,
+                            dropout, goal_type, seed, max_epochs, shuffle, train_scenarios, recompute_dataset.
                         for mode=="test":
-                            batch_size, input_size, lstm_hidden_size, fc_hidden_shape, out_shape, lstm_layers,
-                            dropout, seed, shuffle, train_scenarios, test_scenarios, recompute_dataset.
+                            batch_size, input_size, lstm_hidden_size, fc_hidden_shape, lstm_layers,
+                            dropout, goal_type, seed, shuffle, train_scenarios, test_scenarios, recompute_dataset.
             mode: "train" or "test" to either train or test the model.
         Notes:
             See the /OGRIT/baselines/lstm/get_results.py file for the default values of the hyper-parameters.
@@ -41,8 +41,8 @@ class FeaturesLSTM:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # Train the model on these scenarios, or use the model trained on these scenarios to test on the test scenarios
-        training_scenarios = configs["train_scenarios"].split(",")
-        self.training_scenarios_names = "_".join(training_scenarios)
+        training_scenarios = configs["train_scenarios"]
+        self.training_scenarios_names = get_scenarios_names(training_scenarios)
         self.batch_size = configs["batch_size"]
         self.update_hz = configs["update_hz"]
 
@@ -50,12 +50,16 @@ class FeaturesLSTM:
         recompute_dataset = configs["recompute_dataset"]
         self.fill_occluded_frames_mode = configs["fill_occluded_frames_mode"]
 
+        self.goal_type = configs["goal_type"]
+
         # Load the datasets
         if mode == "train":
-            train_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="train",
+            train_dataset = LSTMDataset(training_scenarios, goal_type=self.goal_type, input_type=self.input_type,
+                                        split_type="train",
                                         update_hz=self.update_hz, recompute_dataset=recompute_dataset,
                                         fill_occluded_frames_mode=self.fill_occluded_frames_mode)
-            val_dataset = LSTMDataset(training_scenarios, input_type=self.input_type, split_type="valid",
+            val_dataset = LSTMDataset(training_scenarios, goal_type=self.goal_type, input_type=self.input_type,
+                                      split_type="valid",
                                       update_hz=self.update_hz, recompute_dataset=recompute_dataset,
                                       fill_occluded_frames_mode=self.fill_occluded_frames_mode)
 
@@ -63,35 +67,38 @@ class FeaturesLSTM:
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
 
             input_size = train_dataset.get_num_features()
-            output_size = train_dataset.get_num_classes()
 
         elif mode == "test":
-            test_scenarios = configs["test_scenarios"].split(",")
-            self.test_scenarios_names = "_".join(test_scenarios)
-            test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, split_type="test",
-                                       update_hz=self.update_hz, recompute_dataset=recompute_dataset,
+            test_scenarios = configs["test_scenarios"]
+            self.test_scenarios_names = get_scenarios_names(test_scenarios)
+            test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, goal_type=self.goal_type,
+                                       split_type="test", update_hz=self.update_hz, recompute_dataset=recompute_dataset,
                                        fill_occluded_frames_mode=self.fill_occluded_frames_mode)
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             input_size = test_dataset.get_num_features()
-            output_size = test_dataset.get_num_classes()
         else:
             raise ValueError(f"Mode {mode} not supported.")
 
         dropout = configs["dropout"] if mode != "test" else 0.0
         # Use the model defined in baselines/lstm/model/model.py
+
+        predict_zeros = False
+
+        self.model_path = get_lstm_model_path(training_scenarios_names=self.training_scenarios_names,
+                                              goal_type=self.goal_type, input_type=self.input_type,
+                                              update_hz=self.update_hz,
+                                              fill_occluded_frames_mode=self.fill_occluded_frames_mode)
+
         self.model = LSTMModel(in_shape=input_size,
                                lstm_hidden_shape=configs["lstm_hidden_size"],
                                fc_hidden_shape=configs["fc_hidden_shape"],
-                               out_shape=output_size,
+                               out_shape=1,  # Binary classification
                                num_layers=configs["lstm_layers"],
                                dropout=dropout)
 
         self.logger.info(f"Model created: {str(self.model)}")
-
-        self.model_path = get_lstm_model_path(self.training_scenarios_names, self.input_type, self.update_hz,
-                                              self.fill_occluded_frames_mode)
 
         if mode == "train":
             # Use multiple GPUs if available
@@ -103,7 +110,7 @@ class FeaturesLSTM:
             self.max_epochs = configs["max_epochs"]
 
             # Define the loss function and optimizer
-            self.loss_fn = nn.NLLLoss()
+            self.loss_fn = nn.BCELoss()  # Binary cross entropy loss
             self.loss_fn.to(self.device)
 
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=configs["lr"])
@@ -126,7 +133,7 @@ class FeaturesLSTM:
         nr_trajectories = intermediate_predictions.shape[0]
         for i in range(nr_trajectories):
             # The loss function requires the target for each timestep, so we repeat it for all the steps in the trajectory
-            targets_i = torch.tensor([targets[i]] * lengths[i])
+            targets_i = torch.tensor([targets[i]] * lengths[i]).reshape(-1, 1)
             loss += self.loss_fn(intermediate_predictions[i, :lengths[i], :].to(self.device), targets_i.to(self.device))
         loss /= nr_trajectories
         return loss
@@ -168,13 +175,13 @@ class FeaturesLSTM:
                 # 0.4*np.ceil(self.max_epochs / self.VALIDATION_STEP) is an arbitrary number
                 if len(val_loss_avg_ls) > 0.4 * np.ceil(
                         self.max_epochs / self.VALIDATION_STEP) and val_loss_avg > np.mean(val_loss_avg_ls[-5:]):
-                    self.logger.info("Early stopping.")
+                    self.logger.info("ggEarly stopping.")
                     break
 
         self.writer.close()
         return np.array(val_loss_avg_ls), np.array(val_acc_ls), np.array(f1_score_avg_ls)
 
-    def forward_pass(self, trajectories, lengths, targets, test=False):
+    def forward_pass(self, trajectories, lengths, targets=None, test=False):
         """
         Perform a forward pass through the model. Compute the predictions and the loss.
 
@@ -188,6 +195,8 @@ class FeaturesLSTM:
             final_prediction: the final prediction of the model (after the last timestep)
             intermediate_predictions: the intermediate predictions of the model (after each timestep)
         """
+
+        assert targets is not None or test, "Targets must be provided if test=False."
         final_prediction, intermediate_predictions = self.model(trajectories, lengths, device=self.device)
 
         if test:
@@ -293,25 +302,33 @@ class FeaturesLSTM:
 
     def test(self):
 
-        model_dict = torch.load(self.model_path, map_location=torch.device('cpu'))
-
-        self.model.load_state_dict(model_dict['model_state_dict'])
-        self.model.to(self.device)
+        predict_zeros = False
+        try:
+            model_dict = torch.load(self.model_path, map_location=torch.device('cpu'))
+            self.model.load_state_dict(model_dict['model_state_dict'])
+            self.model.to(self.device)
+        except FileNotFoundError as e:
+            self.logger.info(f"Training model didn't have this goal_type. Predicting zeros.")
+            predict_zeros = True
 
         self.model.eval()
         self.logger.info(f"Running test")
 
-        goal_probs_df = {"true_goal_prob": [], "fraction_observed": []}
+        goal_probs_df = {"goal_prob": [], "fraction_observed": [], "group_id": [], "frame_id": [],
+                         "is_true_goal": []}
 
         # Compute the goal probabilities for each trajectory
         for i_batch, sample_batched in enumerate(tqdm(self.test_loader)):
             trajectories = sample_batched[0].to(self.device)
-            targets = sample_batched[1].to(self.device)
+            is_true_goal = sample_batched[
+                1].cpu().detach().numpy()  # Whether each trajectory is relative to the true goal
             lengths = sample_batched[2].to(self.device)
-            fraction_observed = sample_batched[3].to(self.device)
+            fraction_observed = sample_batched[3].cpu().detach().numpy()
+            frame_ids = sample_batched[4].cpu().detach().numpy()
+            group_ids = sample_batched[5].cpu().detach().numpy()
 
             final_prediction, intermediate_predictions = self.forward_pass(trajectories=trajectories,
-                                                                           lengths=lengths, targets=targets,
+                                                                           lengths=lengths,
                                                                            test=True)
 
             # todo: make mask more efficient
@@ -324,41 +341,31 @@ class FeaturesLSTM:
             for i, j in padded_frames:
                 padded_frames_dict[i].append(j)
 
-            goal_probs = torch.exp(intermediate_predictions).cpu().detach().numpy()
-            lengths = lengths.cpu().detach().numpy()
-            targets = targets.cpu().detach().numpy()
-            fraction_observed = fraction_observed.cpu().detach().numpy()
+            goal_probs = intermediate_predictions.cpu().detach().numpy()
+
+            if predict_zeros:
+                goal_probs = np.zeros_like(goal_probs)
 
             for i in range(len(trajectories)):
-                # Get the probability assigned by the LSTM to the true goal by the i-th trajectory
-                # It is a list of length lengths[i]
-                true_goal_prob_timestep = goal_probs[i, :lengths[i], targets[i]]
-
-                if i == 0:
-                    assert true_goal_prob_timestep[-1] == goal_probs[i, lengths[i] - 1, targets[i]]
-                    assert true_goal_prob_timestep[0] == goal_probs[i, 0, targets[i]]
+                actual_length = lengths[i] - len(padded_frames_dict[i])
+                actual_prob_timestep = goal_probs[i, :lengths[i]]
+                frame_ids_timestep = frame_ids[i, :actual_length]
+                group_ids_timestep = group_ids[i, :actual_length]
+                is_true_goal_timestep = [is_true_goal[i]] * actual_length
 
                 # Remove the probabilities for the frames that are padded
-                true_goal_prob_timestep = np.delete(true_goal_prob_timestep, padded_frames_dict[i])
-                actual_length = lengths[i] - len(padded_frames_dict[i])
+                actual_prob_timestep = np.delete(actual_prob_timestep, padded_frames_dict[i])
 
-                goal_probs_df["true_goal_prob"].extend(true_goal_prob_timestep)
+                assert len(
+                    actual_prob_timestep) == actual_length, f"Length of actual_prob_timestep ({len(actual_prob_timestep)}) is not equal to actual_length ({actual_length})"
+
+                goal_probs_df["goal_prob"].extend(actual_prob_timestep)
                 goal_probs_df["fraction_observed"].extend(np.round(fraction_observed[i, :actual_length], 1))
+                goal_probs_df["group_id"].extend(group_ids_timestep)
+                goal_probs_df["frame_id"].extend(frame_ids_timestep)
+                goal_probs_df["is_true_goal"].extend(is_true_goal_timestep)
 
-        goal_probs_df = pd.DataFrame(goal_probs_df)
-
-        # save true goal probability
-        fraction_observed_grouped = goal_probs_df.groupby('fraction_observed')
-        true_goal_prob = fraction_observed_grouped.mean()
-        true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
-
-        goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(self.training_scenarios_names,
-                                                                             self.input_type, self.test_scenarios_names,
-                                                                             self.update_hz,
-                                                                             self.fill_occluded_frames_mode)
-
-        true_goal_prob_sem.to_csv(goal_prob_sem_file_path)
-        true_goal_prob.to_csv(goal_prob_file_path)
+        return pd.DataFrame(goal_probs_df)
 
     def save_model(self, epoch, losses, accs, f1_scores):
 

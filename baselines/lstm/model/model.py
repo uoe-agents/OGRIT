@@ -43,3 +43,6 @@ class LSTMModel(nn.Module):
             return final_prediction, intermediate_predictions
         else:
             return final_prediction, None
+
+    def predict_zeros(self):
+        self._predict_zeros = True

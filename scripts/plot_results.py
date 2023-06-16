@@ -6,11 +6,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ogrit.core.base import get_base_dir
+from ogrit.core.base import get_base_dir, get_lstm_results_path
 
 parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
 parser.add_argument('--models', type=str, help='List of models, comma separated', default='occlusion_grit')
 parser.add_argument('--scenarios', type=str, help='List of scenarios, comma separated', default='heckstrasse')
+parser.add_argument('--lstm_train_scenario', type=str,
+                    help='Use the LSTM model trained on this scenario(s) to evaluate the test --scenarios. Own = use the same scenario as the testing one',
+                    default='own')
 args = parser.parse_args()
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -19,14 +22,14 @@ matplotlib.rcParams['ps.fonttype'] = 42
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-lstm_train_scenario = {"heckstrasse": "heckstrasse",
-                       "bendplatz": "bendplatz",
-                       "frankenburg": "frankenburg",
-                       "rdb3": "rdb3"}
-
 # which model(s) we used to train the scenario(s) we are evaluating
 model_names = args.models.split(',')
 scenario_names = args.scenarios.split(',')
+
+if args.lstm_train_scenario == "own":
+    lstm_train_scenario = {s: s for s in scenario_names}
+else:
+    lstm_train_scenario = {s: args.lstm_train_scenario for s in scenario_names}
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -39,7 +42,7 @@ label_map = {'generalised_grit': 'Oracle',
              'lstm': 'LSTM',
              'lstm_ogrit_features': 'LSTM OGRIT features',
              'lstm_relative_position': 'LSTM relative position',
-             'lstm_absolute_position': 'LSTM absolute position',
+             'lstm_absolute_position': 'LSTM abs',
              'sogrit': 'S-OGRIT',
              'ogrit_oracle': 'OGRIT-oracle',
              'trained_trees': 'GRIT',
@@ -146,11 +149,18 @@ if plot_true_goal_prob:
                 continue
 
             if "lstm" in model_name:
+                _, input_type, update_hz, fill_occluded_frames_mode = model_name.split("-")
+                update_hz = int(update_hz)
                 try:
-                    true_goal_prob_sem = pd.read_csv(
-                        results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob_sem.csv')
-                    true_goal_prob = pd.read_csv(
-                        results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
+
+                    goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(lstm_train_scenario[
+                                                                                             scenario_name],
+                                                                                         input_type,
+                                                                                         scenario_name,
+                                                                                         update_hz,
+                                                                                         fill_occluded_frames_mode)
+                    true_goal_prob_sem = pd.read_csv(goal_prob_sem_file_path)
+                    true_goal_prob = pd.read_csv(goal_prob_file_path)
                 except FileNotFoundError:
                     continue
             else:
@@ -170,8 +180,13 @@ if plot_true_goal_prob:
                 color = None
                 line_style = '-'
 
+            if "lstm" in model_name:
+                label = label_map[
+                            f"lstm_{input_type}"] + f" ({1 if update_hz == 25 else 25} Hz)"
+            else:
+                label = label_map[model_name]
             p = plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, line_style,
-                         label=label_map[model_name], marker=current_marker, color=color)
+                         label=label, marker=current_marker, color=color)
 
             if model_name == 'occlusion_grit':
                 ogrit_color = p[0].get_color()

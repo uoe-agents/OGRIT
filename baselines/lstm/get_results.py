@@ -39,6 +39,16 @@ def test_lstm(configs, goal_types):
         # Append the new goal probs to the dataframe goal_probs_df
         goal_probs_df = goal_probs_df.append(goal_probs_df_new, ignore_index=True)
 
+    # normalize the goal probabilities at each time step
+    # 1. Take all the samples belonging to the same group (ego-target agent pair) and time frame
+    groups = goal_probs_df.groupby(['group_id', 'frame_id'], group_keys=False)
+
+    # 2. Normalize the goal probabilities of different possible reachable goals at each time step
+    goal_probs_df['true_goal_prob'] = groups['goal_prob'].apply(lambda x: x / x.sum())
+
+    # 3. Only keep the probabiility associeted with the true goal
+    goal_probs_df = goal_probs_df[goal_probs_df['is_true_goal'] == True]
+
     # save true goal probability
     fraction_observed_grouped = goal_probs_df.groupby('fraction_observed')
     true_goal_prob = fraction_observed_grouped.mean()
@@ -104,17 +114,16 @@ if __name__ == "__main__":
     configs["test_scenarios"] = configs["test_scenarios"].split(",")
     configs["train_scenarios"] = configs["train_scenarios"].split(",")
 
-    all_goal_types_in_scenarios = get_scenario_goal_types(configs["train_scenarios"], update_hz=configs["update_hz"])
+    goal_types_in_train_scenarios = get_scenario_goal_types(configs["train_scenarios"], update_hz=configs["update_hz"])
+    goal_types_in_test_scenarios = get_scenario_goal_types(configs["test_scenarios"], update_hz=configs["update_hz"])
     if configs["goal_type"] == "all":
-        goal_types = all_goal_types_in_scenarios
+        goal_types = goal_types_in_train_scenarios
     else:
         goal_types = configs["goal_type"].split(",")
-        assert all([goal_type in all_goal_types_in_scenarios for goal_type in goal_types]), \
+        assert all([goal_type in goal_types_in_train_scenarios for goal_type in goal_types]), \
             f"Goal type {goal_type} not available for the training scenarios {configs['train_scenarios']}"
 
-    if configs["evaluate_only"]:
-        test_lstm(configs, goal_types=goal_types)
-    else:
+    if not configs["evaluate_only"]:
         for goal_type in goal_types:
             configs["goal_type"] = goal_type
 
@@ -122,4 +131,4 @@ if __name__ == "__main__":
 
             train_lstm(configs)
 
-        test_lstm(configs, goal_types=goal_types)
+    test_lstm(configs, goal_types=goal_types_in_test_scenarios)
