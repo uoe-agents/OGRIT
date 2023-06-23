@@ -16,7 +16,8 @@ class LSTMModel(nn.Module):
                                 nn.Dropout(dropout),
                                 nn.Linear(fc_hidden_shape, out_shape),
                                 nn.Dropout(dropout),
-                                nn.LogSoftmax(dim=-1))
+                                nn.Sigmoid())
+        self.float()
 
         for layer in self.fc:
             if isinstance(layer, nn.Linear):
@@ -42,3 +43,6 @@ class LSTMModel(nn.Module):
             return final_prediction, intermediate_predictions
         else:
             return final_prediction, None
+
+    def predict_zeros(self):
+        self._predict_zeros = True

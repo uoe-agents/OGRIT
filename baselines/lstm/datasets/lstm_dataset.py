@@ -24,7 +24,7 @@ or position (x, y, heading at each timestep), etc.
 class LSTMDataset(Dataset):
 
     def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset,
-                 fill_occluded_frames_mode):
+                 fill_occluded_frames_mode, goal_type):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -34,7 +34,7 @@ class LSTMDataset(Dataset):
                     'absolute_position' = the trajectories are a sequence of (x,y,heading) steps
                     'relative_position' =  "     "           "  "   "      "  path_to_goal_length
                     'ogrit_features' =     "     "           "  "   "      "  (all the features used by OGRIT) steps
-            split_type: "train" or "test"
+            split_type: "train", "valid" or "test"
             update_hz: take a sample every update_hz frames in the original episode frames (e.g., if 25, then take
                         one frame per second)
             recompute_dataset: if True, recompute the dataset from scratch, otherwise load it from disk (if it exists)
@@ -42,6 +42,8 @@ class LSTMDataset(Dataset):
                 - "remove" (default): remove the occluded frames
                 - "fake_pad": pad the occluded frames with fake values (e.g., -1 for x, y, heading)
                 - "use_frame_id": add 'frame_id' to the input features (i.e. "tell" the LSTM which frames are occluded)
+            goal_type: if not None, only keep the trajectories that have the given *possible* goal type (e.g.,
+                       "straight-on", "exit_left", ...). Used to train the LSTM to predict a specific goal type.
         """
 
         # To convert the goal_type into a hot-one encoding vector. E.g., "continue" -> [0, 0, 1, 0, 0]
@@ -55,6 +57,9 @@ class LSTMDataset(Dataset):
         self._nr_occluded_frames = 0  # for debugging
 
         self.scenario_names = scenario_names
+        self.goal_type = goal_type
+
+        assert goal_type is not None, "goal_type should be specified"
 
         if input_type == 'absolute_position':
             self.features_to_use = ['x', 'y', 'heading']
@@ -72,19 +77,21 @@ class LSTMDataset(Dataset):
         logger.info(
             f"frame_id {'is' if 'frame_id' in self.features_to_use else 'is NOT'} included in the features to use")
 
-        self._trajectories, self._targets, self._lengths, self._fractions_observed = self.load_dataset()
+        self._trajectories, self._targets, self._lengths, self._fractions_observed, self._frame_ids, self._group_ids = self.load_dataset()
 
     def load_dataset(self):
 
         dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
-                                             self.fill_occluded_frames_mode)
+                                             self.fill_occluded_frames_mode, self.goal_type)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
-            trajectories, targets, lengths, fractions_observed = self.get_dataset()
+            trajectories, targets, lengths, fractions_observed, frame_ids, group_ids = self.get_dataset()
             torch.save({"dataset": trajectories,
                         "targets": targets,
                         "lengths": lengths,
-                        "fractions_observed": fractions_observed},
+                        "fractions_observed": fractions_observed,
+                        "frame_ids": frame_ids,
+                        "group_ids": group_ids},
                        dataset_path)
         else:
             logger.info(f"Loading dataset {dataset_path}...")
@@ -93,7 +100,9 @@ class LSTMDataset(Dataset):
             targets = dataset_dict["targets"]
             lengths = dataset_dict["lengths"]
             fractions_observed = dataset_dict["fractions_observed"]
-        return trajectories, targets, lengths, fractions_observed
+            frame_ids = dataset_dict["frame_ids"]
+            group_ids = dataset_dict["group_ids"]
+        return trajectories, targets, lengths, fractions_observed, frame_ids, group_ids
 
     def get_dataset(self):
         """
@@ -106,6 +115,8 @@ class LSTMDataset(Dataset):
                           [[x_k0, y_k0, h_k0], ..., [x_kn, y_kn, h_kn]], ...]) for k trajectories, each of n steps
             targets: the true goal type of each trajectory
             fractions_observed: the fraction of the trajectory that has been observed so far
+            frame_ids: the frame ids of the steps in the trajectories
+            group_ids: to which ego-target_agent pair each trajectory belongs to
         """
         samples = self.get_samples()
 
@@ -113,12 +124,15 @@ class LSTMDataset(Dataset):
         targets = []
         fractions_observed = []
         lengths = []
+        frame_ids = []
+        group_ids = []
 
-        for i in tqdm(samples["group_idx"].unique()):
-            trajectory_steps_original = samples[samples["group_idx"] == i]
+        for i in tqdm(samples["trajectory_idx"].unique()):
+            trajectory_steps_original = samples[samples["trajectory_idx"] == i]
 
-            # In absolute_position, we don't care about possible goals, as we only take the real position of the agent
-            if self.input_type != 'absolute_position':
+            # In absolute_position, we don't care about possible goals, as we only take the real position of the agent.
+            # When testing, we consider the other possible goals to normalize the probabilities.
+            if self.input_type != 'absolute_position' and self.split_type != "test":
                 assert len(np.unique(trajectory_steps_original[
                                          "possible_goal"])) == 1, "There should be only one possible goal per trajectory."
 
@@ -133,9 +147,9 @@ class LSTMDataset(Dataset):
             # input for the lstm. The sequence will be a 1-d array with a tuple of features for each step.
             # E.g., if the trajectory has 2 time-steps, each with 3 features,
             # the sequence will [(f1, f2, f3), (f1, f2, f3)]
+            frame_ids_traj = trajectory_steps_original["frame_id"].values
             if self.fill_occluded_frames_mode == "fake_pad":
-                frame_ids = trajectory_steps_original["frame_id"].values
-                trajectory = self.fill_occluded_frames(trajectory_steps, frame_ids, self.update_hz)
+                trajectory = self.fill_occluded_frames(trajectory_steps, frame_ids_traj, self.update_hz)
             else:
                 trajectory = torch.tensor([tuple(step) for step in trajectory_steps])
 
@@ -143,14 +157,38 @@ class LSTMDataset(Dataset):
 
             assert len(np.unique(trajectory_steps_original[
                                      "true_goal"].values)) == 1, "All steps in a trajectory should have the same goal."
-            targets.append(trajectory_steps_original["true_goal"].values[0])
+
+            # The target is whether the true goal is the same as the possible goal.
+            targets.append(
+                np.float32(
+                    (trajectory_steps_original["true_goal"] == trajectory_steps_original["possible_goal"]))[0])
+
+            if self.split_type != "test":
+                # In the test set
+                assert len(np.unique(trajectory_steps_original["true_goal"] == trajectory_steps_original[
+                    "possible_goal"])) == 1, "All steps in a trajectory should have the same goal."
+
             fractions_observed.append(fraction_observed)
             lengths.append(len(trajectory))
+
+            if self.split_type == "test":
+                frame_ids.append(frame_ids_traj)
+
+                assert len(np.unique(trajectory_steps_original[
+                                         "super_group_idx"])) == 1, "All steps in a trajectory should have the same ego-target_agent pair."
+                group_ids.append(trajectory_steps_original["super_group_idx"].values)
 
         trajectories = pad_sequence(trajectories, batch_first=True, padding_value=LSTM_PADDING_VALUE)
         fractions_observed = pad_sequence([torch.tensor(f) for f in fractions_observed], batch_first=True,
                                           padding_value=LSTM_PADDING_VALUE)
-        return trajectories, targets, lengths, fractions_observed
+
+        if self.split_type == "test":
+            frame_ids = pad_sequence([torch.tensor(f) for f in frame_ids], batch_first=True,
+                                     padding_value=LSTM_PADDING_VALUE)
+            group_ids = pad_sequence([torch.tensor(f) for f in group_ids], batch_first=True,
+                                     padding_value=LSTM_PADDING_VALUE)
+
+        return trajectories, targets, lengths, fractions_observed, frame_ids, group_ids
 
     def fill_occluded_frames(self, trajectory_steps, frame_ids, update_hz):
         """
@@ -177,21 +215,31 @@ class LSTMDataset(Dataset):
 
         samples = get_multi_scenario_dataset(self.scenario_names, self.split_type, update_hz=self.update_hz)
 
-        unique_goal_types = np.unique(samples["true_goal_type"].values)
-        self.le.fit(unique_goal_types)
+        # TODO: delete
+        # unique_goal_types = np.unique(samples["true_goal_type"].values)
+        # self.le.fit(unique_goal_types)
+        #
+        # samples["true_goal_type"] = self.le.transform(samples["true_goal_type"])
 
-        samples["true_goal_type"] = self.le.transform(samples["true_goal_type"])
+        # trajectories = frames with the same ego_agent-target_agent-possible_goal combination
+        # super group = frames with the same ego_agent-target_agent pair (with possibly different reachable goals at each step).
+        super_groups = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id"], as_index=False)
+        samples.loc[:, "super_group_idx"] = super_groups.ngroup()
+
+        samples = samples[samples["goal_type"] == self.goal_type]
 
         # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type. If we want the
         # absolute position we don't need the possible goal_type.
         if self.input_type == "absolute_position":
             # Drop duplicates x,y for the same frame_id due to different possible goal types.
             samples = samples.drop_duplicates(subset=["agent_id", "episode", "scenario", "ego_agent_id", "x", "y"])
-            groups = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id"], as_index=False)
+            trajectories = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id"], as_index=False)
         else:
-            groups = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
-                                     as_index=False)
-        samples["group_idx"] = groups.ngroup()
+            trajectories = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
+                                           as_index=False)
+
+        assert len(samples) == len(trajectories.ngroup()), "There should be one trajectory per group."
+        samples.loc[:, "trajectory_idx"] = trajectories.ngroup()
 
         return samples
 
@@ -205,7 +253,8 @@ class LSTMDataset(Dataset):
         """
 
         if self.split_type == "test":
-            return self._trajectories[idx], self._targets[idx], self._lengths[idx], self._fractions_observed[idx]
+            return self._trajectories[idx], self._targets[idx], self._lengths[idx], self._fractions_observed[idx], \
+                self._frame_ids[idx], self._group_ids[idx]
         else:
             return self._trajectories[idx], self._targets[idx], self._lengths[idx]
 
@@ -232,14 +281,6 @@ class LSTMDataset(Dataset):
             assert num_features == 3 + extra_features, f"Expected 3 features for absolute position, but got {num_features} instead."
 
         return num_features
-
-    def get_num_classes(self):
-        """
-        Returns:
-            the number of goal_types in the dataset
-        """
-
-        return len(np.unique(self._targets))
 
     def get_avg_trajectory_length(self):
         """
