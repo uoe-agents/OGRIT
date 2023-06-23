@@ -49,8 +49,8 @@ class FeatureExtractor:
                      # 'dist_travelled_1s': 'scalar',
                      # 'dist_travelled_2s': 'scalar',
                      # 'dist_travelled_3s': 'scalar'
-                     # 'roundabout_slip_road': 'binary',
-                     # 'roundabout_uturn': 'binary',
+                     'roundabout_slip_road': 'binary',
+                     'roundabout_uturn': 'binary',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -68,7 +68,9 @@ class FeatureExtractor:
                                  # 'heading_change_3s': 'target_3s_occluded',
                                  # 'dist_travelled_1s': 'target_1s_occluded',
                                  # 'dist_travelled_2s': 'target_2s_occluded',
-                                 # 'dist_travelled_3s': 'target_3s_occluded'
+                                 # 'dist_travelled_3s': 'target_3s_occluded',
+                                 'roundabout_slip_road': 'exit_number_missing',
+                                 'roundabout_uturn': 'exit_number_missing',
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 

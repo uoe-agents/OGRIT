@@ -5,7 +5,7 @@ from ogrit.core.base import get_all_scenarios
 from memory_profiler import profile
 
 
-@profile
+#@profile
 def main():
     parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
     parser.add_argument('--scenarios', type=str, help='Name of scenarios to validate, comma separated', default=None)

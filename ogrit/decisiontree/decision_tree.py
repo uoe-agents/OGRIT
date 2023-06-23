@@ -3,6 +3,7 @@ from typing import Union
 
 import numpy as np
 import pandas as pd
+from memory_profiler import profile
 from scipy.special import xlogy
 
 pd.options.mode.chained_assignment = None
@@ -279,6 +280,12 @@ class Node:
                         best_feature = indicator
                         best_threshold = 0.5
 
+                # cleanup
+                try:
+                    del child_samples
+                except UnboundLocalError:
+                    pass
+
                 if best_impurity_decrease > 0:
                     true_idx = (node_samples[best_feature] > best_threshold).astype('bool')
                     true_samples = node_samples.loc[true_idx]
@@ -299,6 +306,11 @@ class Node:
                     else:
                         true_child_true_indicators = true_indicators
                         false_child_false_indicators = false_indicators
+
+                    # cleanup
+                    del true_samples
+                    del false_samples
+
                     _recursive_split(node.decision.true_child, node_samples.loc[true_idx],
                                      true_child_true_indicators, false_indicators)
                     _recursive_split(node.decision.false_child, node_samples.loc[~true_idx],

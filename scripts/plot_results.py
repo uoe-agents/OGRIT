@@ -5,6 +5,7 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 from ogrit.core.base import get_base_dir
 
@@ -48,6 +49,7 @@ label_map = {'generalised_grit': 'Oracle',
              'grit_no_missing_uniform': 'GRIT',
              'igp2': 'IGP2',
              'occlusion_grit_rdb5': 'OGRIT rdb5',
+             'occlusion_grit_all_opendd': 'OGRIT openDD',
              'occlusion_grit_old_features': 'old features',
              'occlusion_grit_new_features': 'new features'}
 
@@ -170,7 +172,7 @@ if plot_true_goal_prob:
                 color = None
                 line_style = '-'
 
-            p = plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, line_style,
+            p = plt.plot(np.array(true_goal_prob.fraction_observed), np.array(true_goal_prob.true_goal_prob), line_style,
                          label=label_map[model_name], marker=current_marker, color=color)
 
             if model_name == 'occlusion_grit':

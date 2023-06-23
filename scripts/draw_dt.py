@@ -4,8 +4,8 @@ from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, GeneralisedGrit
 
 models = [OcclusionGrit]
 for model_class in models:
-    test_scenario = 'rdb5'
-    suffix = '_old_features'
+    test_scenario = 'neuweiler'
+    suffix = '_all_opendd_new_features'
     models_dir = get_data_dir() #+ f'/loocv/{test_scenario}/'
     model = model_class.load(test_scenario, suffix=suffix) #, episode_idx=0)
     model.save_images()
