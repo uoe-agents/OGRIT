@@ -48,6 +48,10 @@ def get_lstm_dataset_path(scenario_names, input_type, split_type, update_hz, fil
     return get_lstm_dir() + f"/datasets/{'_'.join(scenario_names)}_{goal_type}_{input_type}_{split_type}_{update_hz}Hz_{fill_occluded_frames_mode}.pt"
 
 
+def get_dataset_split_path():
+    return get_base_dir() + '/ogrit/core/dataset_split.json'
+
+
 def get_scenarios_names(scenario_names):
     return '_'.join(scenario_names)
 
