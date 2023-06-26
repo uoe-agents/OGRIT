@@ -12,14 +12,14 @@ from igp2.opendrive.map import Map
 from shapely.geometry import LineString
 from tqdm import tqdm
 
-from ogrit.core.base import get_base_dir, set_working_dir, get_result_file_path, \
-    get_map_path, get_map_configs_path
+from ogrit.core.base import set_working_dir, get_result_file_path, \
+    get_map_path, get_map_configs_path, get_dataset_split_path
 from ogrit.core.feature_extraction import FeatureExtractor, GoalDetector
 from ogrit.core.logger import logger
 
 
 def load_dataset_splits():
-    with open(get_base_dir() + '/ogrit/core/dataset_split.json', 'r') as f:
+    with open(get_dataset_split_path(), 'r') as f:
         return json.load(f)
 
 
