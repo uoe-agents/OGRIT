@@ -215,12 +215,6 @@ class LSTMDataset(Dataset):
 
         samples = get_multi_scenario_dataset(self.scenario_names, self.split_type, update_hz=self.update_hz)
 
-        # TODO: delete
-        # unique_goal_types = np.unique(samples["true_goal_type"].values)
-        # self.le.fit(unique_goal_types)
-        #
-        # samples["true_goal_type"] = self.le.transform(samples["true_goal_type"])
-
         # trajectories = frames with the same ego_agent-target_agent-possible_goal combination
         # super group = frames with the same ego_agent-target_agent pair (with possibly different reachable goals at each step).
         super_groups = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id"], as_index=False)

@@ -6,17 +6,16 @@ from itertools import combinations
 from typing import List
 
 import numpy as np
+import ogrit.occlusion_detection.visualisation_tools as util
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
-from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
-from shapely.ops import unary_union
-from tqdm import tqdm
-
-import ogrit.occlusion_detection.visualisation_tools as util
 from ogrit.core.base import get_scenarios_dir, get_occlusions_dir
 from ogrit.core.data_processing import get_episode_frames
 from ogrit.core.logger import logger
 from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
+from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
+from shapely.ops import unary_union
+from tqdm import tqdm
 
 # After how many meters can't the vehicle see anything
 OCCLUSION_RADIUS = 100
@@ -243,7 +242,7 @@ class OcclusionDetector2D:
             if self.debug and self.save_format == "p":
                 self.occlusion_lines.append([(v1, v3), (v2, v4)])
 
-            # Find the area that is occluded by obstacle u -- that define by vertices v1, v2, v3, v4.
+            # Find the area that is occluded by obstacle u: the one define by vertices v1, v2, v3, v4.
             occlusions_ego_list.append(Polygon([v1, v2, v4, v3]))
             occlusions_ego = unary_union([geom if geom.is_valid else geom.buffer(0) for geom in occlusions_ego_list])
         return occlusions_ego
