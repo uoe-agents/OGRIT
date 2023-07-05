@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # This file is a template for the LSTM baseline experiments. It is meant to be used with the SLURM scheduler.
-# It is used to compute the LSTM baseline for all scenarios and all input types.
+# It is used to compare how the LSTM baseline erforms when different fill_occluded_frames_mode are used.
 
 #SBATCH --job-name=OGRIT_LSTM_BASELINE
 #
@@ -32,12 +32,7 @@ if [ "$SLURM_ARRAY_TASK_ID" -ge $neuweiler_starts_at ]; then
     test_scenarios="neuweiler"
 
     ((start_2 = "neuweiler_starts_at+1"))
-
-    if [ "$SLURM_ARRAY_TASK_ID" -ge "$start_2" ]; then
-      fill_mode="fake_pad"
-    else
-      fill_mode="use_frame_id"
-    fi
+    ((start_3 = "neuweiler_starts_at+2"))
 
 elif [ "$SLURM_ARRAY_TASK_ID" -ge $bendplatz_starts_at ]; then
     train_scenarios="bendplatz"
@@ -46,12 +41,6 @@ elif [ "$SLURM_ARRAY_TASK_ID" -ge $bendplatz_starts_at ]; then
     ((start_3 = "bendplatz_starts_at+2"))
     ((start_2 = "bendplatz_starts_at+1"))
 
-    if [ "$SLURM_ARRAY_TASK_ID" -ge "$start_2" ]; then
-      fill_mode="fake_pad"
-    else
-      fill_mode="use_frame_id"
-    fi
-
 elif [ $SLURM_ARRAY_TASK_ID -ge $frankenburg_starts_at ]; then
     train_scenarios="frankenburg"
     test_scenarios="frankenburg"
@@ -59,26 +48,19 @@ elif [ $SLURM_ARRAY_TASK_ID -ge $frankenburg_starts_at ]; then
     ((start_3 = "frankenburg_starts_at+2"))
     ((start_2 = "frankenburg_starts_at+1"))
 
-    if [ "$SLURM_ARRAY_TASK_ID" -ge "$start_2" ]; then
-      fill_mode="fake_pad"
-    else
-      fill_mode="use_frame_id"
-    fi
-
 else
     train_scenarios="heckstrasse"
     test_scenarios="heckstrasse"
 
     ((start_3 = "heckstrasse_starts_at+2"))
     ((start_2 = "heckstrasse_starts_at+1"))
+fi
 
-    if [ "$SLURM_ARRAY_TASK_ID" -ge "$start_2" ]; then
+if [ "$SLURM_ARRAY_TASK_ID" -ge "$start_2" ]; then
       fill_mode="fake_pad"
     else
       fill_mode="use_frame_id"
     fi
-fi
-
 
 python ~/OGRIT/baselines/lstm/get_results.py --train_scenarios $train_scenarios --test_scenarios $test_scenarios --input_type $input_type --fill_occluded_frames_mode $fill_mode --update_hz 1
 
