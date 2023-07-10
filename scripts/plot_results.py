@@ -69,7 +69,8 @@ title_map = {'heckstrasse': 'Heckstrasse',
              'rdb3': 'Rdb3',
              'rdb4': 'Rdb4',
              'rdb5': 'Rdb5',
-             'rdb3': 'Rdb3', }
+             'rdb6': 'Rdb6',
+             'rdb7': 'Rdb7', }
 
 if args.lstm_train_scenario == "variants":
     title_map = {"variant1": 'Variant 1',
@@ -176,7 +177,8 @@ if plot_true_goal_prob:
                     goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(
                         lstm_train_scenario[scenario_name],
                         input_type,
-                        test_scenario_variants[scenario_name],
+                        test_scenario_variants[
+                            scenario_name] if args.lstm_train_scenario == "variants" else scenario_name,
                         update_hz,
                         fill_occluded_frames_mode)
                     true_goal_prob_sem = pd.read_csv(goal_prob_sem_file_path)
