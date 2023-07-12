@@ -163,7 +163,7 @@ class LSTMDataset(Dataset):
                 np.float32(
                     (trajectory_steps_original["true_goal"] == trajectory_steps_original["possible_goal"]))[0])
 
-            if self.split_type != "test":
+            if self.split_type != "test" and self.input_type != "absolute_position":
                 # In the test set
                 assert len(np.unique(trajectory_steps_original["true_goal"] == trajectory_steps_original[
                     "possible_goal"])) == 1, "All steps in a trajectory should have the same goal."
@@ -185,7 +185,7 @@ class LSTMDataset(Dataset):
         if self.split_type == "test":
             frame_ids = pad_sequence([torch.tensor(f) for f in frame_ids], batch_first=True,
                                      padding_value=LSTM_PADDING_VALUE)
-            group_ids = pad_sequence([torch.tensor(f) for f in group_ids], batch_first=True,
+            group_ids = pad_sequence([torch.tensor(f) for f  in group_ids], batch_first=True,
                                      padding_value=LSTM_PADDING_VALUE)
 
         return trajectories, targets, lengths, fractions_observed, frame_ids, group_ids
