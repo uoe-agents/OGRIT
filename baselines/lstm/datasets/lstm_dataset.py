@@ -130,9 +130,8 @@ class LSTMDataset(Dataset):
         for i in tqdm(samples["trajectory_idx"].unique()):
             trajectory_steps_original = samples[samples["trajectory_idx"] == i]
 
-            # In absolute_position, we don't care about possible goals, as we only take the real position of the agent.
             # When testing, we consider the other possible goals to normalize the probabilities.
-            if self.input_type != 'absolute_position' and self.split_type != "test":
+            if self.split_type != "test":
                 assert len(np.unique(trajectory_steps_original[
                                          "possible_goal"])) == 1, "There should be only one possible goal per trajectory."
 
@@ -163,7 +162,7 @@ class LSTMDataset(Dataset):
                 np.float32(
                     (trajectory_steps_original["true_goal"] == trajectory_steps_original["possible_goal"]))[0])
 
-            if self.split_type != "test" and self.input_type != "absolute_position":
+            if self.split_type != "test":
                 # In the test set
                 assert len(np.unique(trajectory_steps_original["true_goal"] == trajectory_steps_original[
                     "possible_goal"])) == 1, "All steps in a trajectory should have the same goal."
@@ -185,7 +184,7 @@ class LSTMDataset(Dataset):
         if self.split_type == "test":
             frame_ids = pad_sequence([torch.tensor(f) for f in frame_ids], batch_first=True,
                                      padding_value=LSTM_PADDING_VALUE)
-            group_ids = pad_sequence([torch.tensor(f) for f  in group_ids], batch_first=True,
+            group_ids = pad_sequence([torch.tensor(f) for f in group_ids], batch_first=True,
                                      padding_value=LSTM_PADDING_VALUE)
 
         return trajectories, targets, lengths, fractions_observed, frame_ids, group_ids
@@ -222,15 +221,9 @@ class LSTMDataset(Dataset):
 
         samples = samples[samples["goal_type"] == self.goal_type]
 
-        # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type. If we want the
-        # absolute position we don't need the possible goal_type.
-        if self.input_type == "absolute_position":
-            # Drop duplicates x,y for the same frame_id due to different possible goal types.
-            samples = samples.drop_duplicates(subset=["agent_id", "episode", "scenario", "ego_agent_id", "x", "y"])
-            trajectories = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id"], as_index=False)
-        else:
-            trajectories = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
-                                           as_index=False)
+        # Group the samples by scenario, episode_id, agent_id and ego_agent_id and possible goal_type.
+        trajectories = samples.groupby(["agent_id", "episode", "scenario", "ego_agent_id", "possible_goal"],
+                                       as_index=False)
 
         assert len(samples) == len(trajectories.ngroup()), "There should be one trajectory per group."
         samples.loc[:, "trajectory_idx"] = trajectories.ngroup()
