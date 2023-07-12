@@ -2,15 +2,14 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.metrics import f1_score
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
 from baselines.lstm.datasets.lstm_dataset import LSTMDataset, get_fake_padding
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
 from ogrit.core.base import get_lstm_model_path, get_scenarios_names
 from ogrit.core.logger import logger
+from sklearn.metrics import f1_score
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 """
 The LSTM takes in a list of features at each timestep, the same as those that OGRIT gets to evaluate the 
@@ -321,7 +320,7 @@ class FeaturesLSTM:
         for i_batch, sample_batched in enumerate(tqdm(self.test_loader)):
             trajectories = sample_batched[0].to(self.device)
             is_true_goal = sample_batched[
-                1].cpu().detach().numpy()  # Whether each trajectory is relative to the true goal
+                1].cpu().detach().numpy()  # Whether each trajectory is relative to the true goal or another possible one.
             lengths = sample_batched[2].to(self.device)
             fraction_observed = sample_batched[3].cpu().detach().numpy()
             frame_ids = sample_batched[4].cpu().detach().numpy()
@@ -331,8 +330,8 @@ class FeaturesLSTM:
                                                                            lengths=lengths,
                                                                            test=True)
 
-            # todo: make mask more efficient
-            # Only keep the probabilities for steps in which the frames are observed (i.e., non occluded)
+            # Only keep the probabilities for steps in which the frames are observed (i.e., non occluded) -- this
+            # applies if we used a "fake_padding" when computing the model.
             trajectories = trajectories.cpu().detach().numpy()
             fake_i, fake_j, _ = np.where(trajectories == get_fake_padding(trajectories.shape[-1]))
             padded_frames = set(zip(list(fake_i), list(fake_j)))
@@ -348,7 +347,7 @@ class FeaturesLSTM:
 
             for i in range(len(trajectories)):
                 actual_length = lengths[i] - len(padded_frames_dict[i])
-                actual_prob_timestep = goal_probs[i, :lengths[i]]
+                actual_prob_timestep = goal_probs[i, :actual_length]
                 frame_ids_timestep = frame_ids[i, :actual_length]
                 group_ids_timestep = group_ids[i, :actual_length]
                 is_true_goal_timestep = [is_true_goal[i]] * actual_length

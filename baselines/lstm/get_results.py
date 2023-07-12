@@ -30,6 +30,18 @@ def train_lstm(configs):
 
 
 def test_lstm(configs, goal_types):
+    """
+    For each possible goal type, test the samples in the dataset with that goal type and compute its likelihood. Then
+    normalise the likelihoods at each time step and only keep the probability associated with the true goal
+
+    Args:
+        configs:
+        goal_types:
+
+    Returns:
+
+    """
+
     goal_probs_df = pd.DataFrame()
     for goal_type in goal_types:
         configs["goal_type"] = goal_type
