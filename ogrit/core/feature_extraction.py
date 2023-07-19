@@ -29,6 +29,7 @@ class FeatureExtractor:
     MISSING = True
     NON_MISSING = False
 
+    # Include here the features that you want to use in the decision tree.
     feature_names = {'path_to_goal_length': 'scalar',
                      'in_correct_lane': 'binary',
                      'speed': 'scalar',
@@ -51,6 +52,7 @@ class FeatureExtractor:
                      # 'dist_travelled_3s': 'scalar'
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
+                     'angle_to_goal': 'scalar'
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -121,6 +123,8 @@ class FeatureExtractor:
         angle_in_lane = self.angle_in_lane(current_state, current_lane)
         road_heading = self.road_heading(lane_path)
         exit_number = self.exit_number(initial_state, lane_path)
+        angle_to_goal = self.angle_to_goal(current_state, goal)
+
         goal_type = goal.goal_type
 
         vehicle_in_front_id, vehicle_in_front_dist = self.vehicle_in_front(agent_id, lane_path, current_frame)
@@ -175,8 +179,9 @@ class FeatureExtractor:
                     'dist_travelled_3s': dist_travelled_3s,
                     'roundabout_uturn': roundabout_uturn,
                     'roundabout_slip_road': roundabout_slip_road,
+                    'angle_to_goal': angle_to_goal,
 
-                    # Note: x, y, heading below are used for the LSTM baseline and not by OGRIT
+                    # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
                     'x': current_state.position[0],
                     'y': current_state.position[1],
                     'heading': current_state.heading}
@@ -417,7 +422,7 @@ class FeatureExtractor:
 
     @staticmethod
     def angle_to_goal(state, goal):
-        goal_heading = np.arctan2(goal[1] - state.y, goal[0] - state.x)
+        goal_heading = np.arctan2(goal.goal.center.y - state.position[1], goal.goal.center.x - state.position[0])
         return heading_diff(goal_heading, state.heading)
 
     @staticmethod
