@@ -323,5 +323,15 @@ def prepare_episode_dataset(params):
 
     samples = extract_samples(feature_extractor, scenario, episode, update_hz,
                               extract_missing_features=extract_indicator_features)
+
+    # TODO: remove following 3 lines
+    # Merge the samples with the new features
+    old_samples = pd.read_csv(get_result_file_path(scenario_name, update_hz, episode_idx))
+    new_samples = round(samples, 5).merge(round(old_samples, 5),
+                                          on=[c for c in samples.columns if c in old_samples.columns], how="inner")
+
+    assert new_samples.shape[0] == samples.shape[0] and new_samples.shape[0] == old_samples.shape[0]
+    samples = new_samples
+
     samples.to_csv(get_result_file_path(scenario_name, update_hz, episode_idx), index=False)
     logger.info(f'finished scenario {scenario_name} episode {episode_idx}')
