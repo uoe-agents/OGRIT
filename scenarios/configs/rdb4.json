@@ -58,13 +58,13 @@
     ]
   },
   "cost_factors":{
-    "time": 0.0,
+    "time": 10.0,
     "velocity": 0.0,
     "acceleration": 0.0,
     "jerk": 0.0,
-    "heading": 1000,
+    "heading": 0,
     "angular_velocity": 0.0,
-    "angular_acceleration": 0.0,
+    "angular_acceleration": 100.0,
     "curvature": 0.0,
     "safety": 0.0
   },
