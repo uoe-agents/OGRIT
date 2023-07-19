@@ -2,24 +2,23 @@
 A collection of methods used to plot the maps.
 """
 
+from typing import List, Dict, Tuple
+
+import igp2 as ip
+import matplotlib.pyplot as plt
+import numpy as np
+from descartes import PolygonPatch
+from igp2 import AgentState
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
-from descartes import PolygonPatch
-
-import matplotlib.pyplot as plt
-from typing import List, Dict, Tuple
-import igp2 as ip
-from igp2 import AgentState
-import numpy as np
-
 
 # Set up the colors for the plots.
-OCCLUSIONS_COLOR = "g"
-OCCLUDED_LANE_COLOR = "r"
-OBSTACLES_COLOR = "y"
+OCCLUSIONS_COLOR = "tab:blue"
+OCCLUDED_LANE_COLOR = "tab:blue"
+OBSTACLES_COLOR = "w"
+EGO_COLOR = "orange"
 
-OCCLUDED_AREA_ALPHA = 0.7
-OCCLUSION_SEGMENTS_ALPHA = 0.3
+OCCLUDED_AREA_ALPHA = 0.5
 
 
 def get_box(vehicle, x=None, y=None, heading=None):
@@ -42,18 +41,18 @@ def get_box(vehicle, x=None, y=None, heading=None):
                   vehicle.heading)
 
 
-def plot_map(scenario_map, scenario_config=None, frame: Dict[int, AgentState] = None):
-
+def plot_map(scenario_map, ego_id, scenario_config=None, frame: Dict[int, AgentState] = None):
     if scenario_config is not None:
         ip.plot_map(scenario_map, markings=False, midline=False, scenario_config=scenario_config,
-                    plot_background=True, ignore_roads=True, plot_goals=False, plot_buildings=True)
+                    plot_background=True, ignore_roads=True, plot_goals=True, plot_buildings=True)
     else:
         ip.plot_map(scenario_map, markings=False, midline=False)
 
     if frame:
         for aid, state in frame.items():
+            color = OBSTACLES_COLOR if aid != ego_id else EGO_COLOR
             plt.text(*state.position, aid)
-            plot_area(Polygon(get_box(state).boundary), color=OBSTACLES_COLOR)
+            plot_area(Polygon(get_box(state).boundary), color=color)
 
 
 def plot_area(polygon, color="r", alpha=.5, linewidth=None, ax=None):
@@ -135,7 +134,7 @@ def plot_area_from_list(geometries, color="r", alpha=0.5, ax=None):
 
 
 def plot_ego_position(ego_position):
-    plt.plot(*ego_position, marker="x")
+    plt.plot(*ego_position, marker="x", color=EGO_COLOR, markersize=10)
 
 
 def show_plot():
