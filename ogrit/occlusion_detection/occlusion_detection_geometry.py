@@ -1,21 +1,21 @@
 import json
 import math
+import os
 import pickle
 from itertools import combinations
 from typing import List
 
 import numpy as np
+import ogrit.occlusion_detection.visualisation_tools as util
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
-from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
-from shapely.ops import unary_union
-from tqdm import tqdm
-
-import ogrit.occlusion_detection.visualisation_tools as util
 from ogrit.core.base import get_scenarios_dir, get_occlusions_dir
 from ogrit.core.data_processing import get_episode_frames
 from ogrit.core.logger import logger
 from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
+from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
+from shapely.ops import unary_union
+from tqdm import tqdm
 
 # After how many meters can't the vehicle see anything
 OCCLUSION_RADIUS = 100
@@ -62,16 +62,16 @@ class OcclusionDetector2D:
 
         self.save_format = save_format
 
+        if os.path.exists(self._get_occlusions_file_name()):
+            logger.error(f"Occlusions already exist for scenario {self.scenario_name} episode {self.episode_idx}")
+            return
+
         # episode_frames contains for each time step the list of frames for all vehicles alive that moment
         episode_frames = get_episode_frames(self.episode, exclude_parked_cars=False, exclude_bicycles=True)
 
         all_occlusion_data = {}
 
         for frame_id, frame in enumerate(tqdm(episode_frames)):
-
-            if frame_id % 1000 == 0:
-                logger.info(f"Starting frame {frame_id}/{len(episode_frames) - 1}")
-
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
         self._save_occlusions(all_occlusion_data)
 
@@ -103,7 +103,7 @@ class OcclusionDetector2D:
 
     def _save_occlusions(self, data_to_store):
 
-        occlusions_file_name = get_occlusions_dir() + f"/{self.scenario_name}_e{self.episode_idx}.{self.save_format}"
+        occlusions_file_name = self._get_occlusions_file_name()
 
         if self.save_format == "p":
             with open(occlusions_file_name, 'wb') as file:
@@ -111,6 +111,9 @@ class OcclusionDetector2D:
         elif self.save_format == "json":
             with open(occlusions_file_name, 'w') as file:
                 json.dump(data_to_store, file)
+
+    def _get_occlusions_file_name(self):
+        return get_occlusions_dir() + f"/{self.scenario_name}_e{self.episode_idx}.{self.save_format}"
 
     def get_occlusions_frame(self, frame):
         frame_occlusions = {}
@@ -239,7 +242,7 @@ class OcclusionDetector2D:
             if self.debug and self.save_format == "p":
                 self.occlusion_lines.append([(v1, v3), (v2, v4)])
 
-            # Find the area that is occluded by obstacle u -- that define by vertices v1, v2, v3, v4.
+            # Find the area that is occluded by obstacle u: the one define by vertices v1, v2, v3, v4.
             occlusions_ego_list.append(Polygon([v1, v2, v4, v3]))
             occlusions_ego = unary_union([geom if geom.is_valid else geom.buffer(0) for geom in occlusions_ego_list])
         return occlusions_ego

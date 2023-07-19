@@ -1,16 +1,53 @@
 {
-  "map_center_utm": [618080.465, 5805732.301],
-  "goals": [[9.8, -23.3],
-            [24.6, 12.8],
-            [-5.0, 24.9],
-            [-18.7, -12.2]],
-  "goal_types": [["exit-roundabout"],
-                 ["exit-roundabout"],
-                 ["exit-roundabout"],
-                 ["exit-roundabout"]],
-  "slip_roads": [true, false, false, false],
+  "map_center_utm": [
+    618080.465,
+    5805732.301
+  ],
+  "goals": [
+    [
+      9.8,
+      -23.3
+    ],
+    [
+      24.6,
+      12.8
+    ],
+    [
+      -5.0,
+      24.9
+    ],
+    [
+      -18.7,
+      -12.2
+    ]
+  ],
+  "goal_types": [
+    [
+      "exit-roundabout"
+    ],
+    [
+      "exit-roundabout"
+    ],
+    [
+      "exit-roundabout"
+    ],
+    [
+      "exit-roundabout"
+    ]
+  ],
+  "slip_roads": [
+    true,
+    false,
+    false,
+    false
+  ],
   "goal_threshold": 1.5,
-  "goal_radius": [3, 3, 3, 3],
+  "goal_radius": [
+    3,
+    3,
+    3,
+    3
+  ],
   "opendrive_file": "scenarios/maps/rdb2.xodr",
   "data_format": "opendd",
   "data_root": "scenarios/data/opendd",
@@ -20,57 +57,103 @@
   "target_switch_length": 20,
   "check_lanes": false,
   "check_oncoming": true,
-  "agent_types": ["car", "truck_bus"],
-  "episodes": [
-    {"recording_id":  "102"},
-    {"recording_id":  "103"},
-    {"recording_id":  "104"},
-    {"recording_id":  "105"},
-    {"recording_id":  "106"},
-    {"recording_id":  "107"},
-    {"recording_id":  "108"},
-    {"recording_id":  "109"},
-    {"recording_id":  "110"},
-    {"recording_id":  "111"},
-    {"recording_id":  "112"},
-    {"recording_id":  "113"},
-    {"recording_id":  "114"},
-    {"recording_id":  "115"},
-    {"recording_id":  "116"},
-    {"recording_id":  "117"},
-    {"recording_id":  "118"},
-    {"recording_id":  "119"},
-    {"recording_id":  "120"},
-    {"recording_id":  "121"},
-    {"recording_id":  "122"},
-    {"recording_id":  "123"},
-    {"recording_id":  "124"},
-    {"recording_id":  "125"},
-    {"recording_id":  "126"},
-    {"recording_id":  "127"},
-    {"recording_id":  "128"},
-    {"recording_id":  "129"},
-    {"recording_id":  "130"},
-    {"recording_id":  "131"}
+  "agent_types": [
+    "car",
+    "truck_bus"
   ],
-    "dataset_split": {
-    "train": [
-    ],
-    "valid": [
-    ],
-    "test": [
-      0,
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8
-    ]
-  },
-  "cost_factors":{
+  "episodes": [
+    {
+      "recording_id": "102"
+    },
+    {
+      "recording_id": "103"
+    },
+    {
+      "recording_id": "104"
+    },
+    {
+      "recording_id": "105"
+    },
+    {
+      "recording_id": "106"
+    },
+    {
+      "recording_id": "107"
+    },
+    {
+      "recording_id": "108"
+    },
+    {
+      "recording_id": "109"
+    },
+    {
+      "recording_id": "110"
+    },
+    {
+      "recording_id": "111"
+    },
+    {
+      "recording_id": "112"
+    },
+    {
+      "recording_id": "113"
+    },
+    {
+      "recording_id": "114"
+    },
+    {
+      "recording_id": "115"
+    },
+    {
+      "recording_id": "116"
+    },
+    {
+      "recording_id": "117"
+    },
+    {
+      "recording_id": "118"
+    },
+    {
+      "recording_id": "119"
+    },
+    {
+      "recording_id": "120"
+    },
+    {
+      "recording_id": "121"
+    },
+    {
+      "recording_id": "122"
+    },
+    {
+      "recording_id": "123"
+    },
+    {
+      "recording_id": "124"
+    },
+    {
+      "recording_id": "125"
+    },
+    {
+      "recording_id": "126"
+    },
+    {
+      "recording_id": "127"
+    },
+    {
+      "recording_id": "128"
+    },
+    {
+      "recording_id": "129"
+    },
+    {
+      "recording_id": "130"
+    },
+    {
+      "recording_id": "131"
+    }
+  ],
+  "cost_factors": {
     "time": 0.0,
     "velocity": 0.0,
     "acceleration": 0.0,

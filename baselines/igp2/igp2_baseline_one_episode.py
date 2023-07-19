@@ -1,25 +1,20 @@
-import copy
-import os
-import pandas as pd
-import pickle
-import dill
-import concurrent.futures
 import argparse
+import concurrent.futures
+import pickle
 import sys
 import time
 
 from igp2 import setup_logging, AgentState
-from igp2.data.data_loaders import InDDataLoader
+from igp2.cost import Cost
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.goal import PointGoal
-from scipy.interpolate import CubicSpline
-from shapely.geometry import LineString, Point
-from igp2.recognition.goalrecognition import *
-from igp2.recognition.astar import AStar
-from igp2.cost import Cost
-from igp2.results import *
-from igp2.planlibrary.maneuver import Maneuver, SwitchLane
 from igp2.planlibrary.macro_action import ChangeLane
+from igp2.planlibrary.maneuver import Maneuver, SwitchLane
+from igp2.recognition.astar import AStar
+from igp2.recognition.goalrecognition import *
+from igp2.results import *
+from scipy.interpolate import CubicSpline
+from shapely.geometry import LineString
 
 from ogrit.core.base import set_working_dir, get_occlusions_dir, get_data_dir, get_igp2_results_dir
 from ogrit.occlusion_detection.visualisation_tools import get_box
@@ -46,7 +41,7 @@ def create_args():
                                       help="valid: runs on the validation dataset, test: runs on the test dataset",
                                       type=str)
     config_specification.add_argument('--scenario', default="heckstrasse", type=str)
-    config_specification.add_argument('--episode_idx', type=int, help='Name of episode to process', default=0)
+    config_specification.add_argument('--episode_idx', type=int, help='Id of episode to process', default=0)
 
     parsed_config_specification = vars(config_specification.parse_args())
     return parsed_config_specification

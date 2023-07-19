@@ -18,7 +18,7 @@ def drop_low_sample_agents(dataset, min_samples=2):
     vc = unique_samples.value_counts(['episode', 'agent_id', 'ego_agent_id'])
     vc = vc.to_frame().reset_index().rename(columns={0: 'sample_count'})
     new_dataset = dataset.merge(vc, on=['episode', 'agent_id', 'ego_agent_id'])
-    new_dataset = new_dataset.loc[new_dataset.sample_count >= min_samples]
+    new_dataset = new_dataset.loc[new_dataset['count'] >= min_samples]
     return new_dataset
 
 
@@ -68,7 +68,7 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
                      'no_possibly_missing_features_ogrit': NoPossiblyMissingFeaturesOGrit,
                      'grit_no_missing_uniform': NoPossiblyMissingFeaturesUniformPriorGrit,
                      'ogrit_oracle': OgritOracle,
-                     'occlusion_grit_rdb5': Rdb5OGrit}
+                     'occlusion_grit_rdb5': OcclusionGrit}
 
     accuracies = pd.DataFrame(index=model_names, columns=scenario_names)
     accuracies_sem = pd.DataFrame(index=model_names, columns=scenario_names)
@@ -82,7 +82,7 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
     predictions = {}
 
     for scenario_name in scenario_names:
-        dataset = get_dataset(scenario_name, dataset_name, data_dir=data_dir)
+        dataset = get_dataset(scenario_name, dataset_name)
 
         dataset = drop_low_sample_agents(dataset, 2)
         dataset_predictions = {}

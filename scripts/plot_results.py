@@ -4,11 +4,16 @@ import os
 
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
-from ogrit.core.base import get_base_dir
+from ogrit.core.base import get_base_dir, get_lstm_results_path
 
 parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
 parser.add_argument('--models', type=str, help='List of models, comma separated', default='occlusion_grit')
+parser.add_argument('--scenarios', type=str, help='List of scenarios, comma separated', default='heckstrasse')
+parser.add_argument('--lstm_train_scenario', type=str,
+                    help='Use the LSTM model trained on this scenario(s) to evaluate the test --scenarios. Own = use the same scenario as the testing one',
+                    default='own')
 args = parser.parse_args()
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -17,15 +22,19 @@ matplotlib.rcParams['ps.fonttype'] = 42
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-# scenario_names = get_all_scenarios()
-#scenario_names = ["heckstrasse", "bendplatz", "frankenburg"]
-scenario_names = ['neuweiler', 'rdb5']
-lstm_train_scenario = {"heckstrasse": "heckstrasse",
-                       "bendplatz": "bendplatz",
-                       "frankenburg": "frankenburg"}
-
 # which model(s) we used to train the scenario(s) we are evaluating
 model_names = args.models.split(',')
+scenario_names = args.scenarios.split(',')
+
+if args.lstm_train_scenario == "own":
+    lstm_train_scenario = {s: s for s in scenario_names}
+elif args.lstm_train_scenario == "variants":
+    lstm_train_scenario = {"variant1": 'rdb2_rdb3_rdb6_rdb7',
+                           "variant2": 'rdb2_rdb3_rdb4_rdb6_rdb7',
+                           "variant3": 'rdb2_rdb3_rdb4_rdb5_rdb6_rdb7',
+                           "variant4": 'rdb1_rdb2_rdb3_rdb4_rdb5_rdb6_rdb7'}
+else:
+    lstm_train_scenario = {s: args.lstm_train_scenario for s in scenario_names}
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
@@ -36,6 +45,9 @@ label_map = {'generalised_grit': 'Oracle',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
+             'lstm_ogrit_features': 'LSTM OGRIT features',
+             'lstm_relative_position': 'LSTM relative position',
+             'lstm_absolute_position': 'LSTM abs',
              'sogrit': 'S-OGRIT',
              'ogrit_oracle': 'OGRIT-oracle',
              'trained_trees': 'GRIT',
@@ -52,7 +64,19 @@ title_map = {'heckstrasse': 'Heckstrasse',
              'frankenburg': 'Frankenburg',
              'neuweiler': 'Neuweiler',
              'neukoellnerstrasse': 'Neukoellner Strasse',
-             'rdb5': 'Rdb5'}
+             'rdb1': 'Rdb1',
+             'rdb2': 'Rdb2',
+             'rdb3': 'Rdb3',
+             'rdb4': 'Rdb4',
+             'rdb5': 'Rdb5',
+             'rdb6': 'Rdb6',
+             'rdb7': 'Rdb7', }
+
+if args.lstm_train_scenario == "variants":
+    title_map = {"variant1": 'Variant 1',
+                 "variant2": 'Variant 2',
+                 "variant3": 'Variant 3',
+                 "variant4": 'Variant 4'}
 
 plot_accuracy = False
 plot_normalised_entropy = False
@@ -117,13 +141,12 @@ if plot_true_goal_prob:
 
     for scenario_idx, scenario_name in enumerate(scenario_names):
         ax = axes[scenario_idx % 2, scenario_idx // 2]
-        #ax = axes[scenario_idx]
+        # ax = axes[scenario_idx]
         plt.sca(ax)
         if scenario_idx % 2 == 1:
-
             plt.xlabel('fraction of trajectory completed')
         if scenario_idx // 2 == 0:
-        #if scenario_idx == 0:
+            # if scenario_idx == 0:
             plt.ylabel('Probability assigned to true goal')
 
         ogrit_marker = None
@@ -141,14 +164,31 @@ if plot_true_goal_prob:
             if model_name == 'occlusion_grit_rdb5' and scenario_name != 'neuweiler':
                 continue
 
-            if model_name == "lstm":
-                true_goal_prob_sem = pd.read_csv(
-                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob_sem.csv')
-                true_goal_prob = pd.read_csv(
-                    results_dir + f'/{scenario_name}_{model_name}_on_{lstm_train_scenario[scenario_name]}_true_goal_prob.csv')
+            if "lstm" in model_name:
+                _, input_type, update_hz, fill_occluded_frames_mode = model_name.split("-")
+                update_hz = int(update_hz)
+                try:
+
+                    test_scenario_variants = {"variant1": "neuweiler_rdb4_rdb5",
+                                              "variant2": "neuweiler_rdb5",
+                                              "variant3": "neuweiler",
+                                              "variant4": "neuweiler"}
+
+                    goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(
+                        lstm_train_scenario[scenario_name],
+                        input_type,
+                        test_scenario_variants[
+                            scenario_name] if args.lstm_train_scenario == "variants" else scenario_name,
+                        update_hz,
+                        fill_occluded_frames_mode)
+                    true_goal_prob_sem = pd.read_csv(goal_prob_sem_file_path)
+                    true_goal_prob = pd.read_csv(goal_prob_file_path)
+                except FileNotFoundError:
+                    continue
             else:
                 try:
-                    true_goal_prob_sem = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+                    true_goal_prob_sem = pd.read_csv(
+                        results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
                     true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
                 except FileNotFoundError:
                     continue
@@ -162,8 +202,14 @@ if plot_true_goal_prob:
                 color = None
                 line_style = '-'
 
-            p = plt.plot(true_goal_prob.fraction_observed, true_goal_prob.true_goal_prob, line_style,
-                         label=label_map[model_name], marker=current_marker, color=color)
+            if "lstm" in model_name:
+                label = label_map[
+                            f"lstm_{input_type}"] + f" ({1 if update_hz == 25 else 25} Hz) - {fill_occluded_frames_mode[:3]}"
+            else:
+                label = label_map[model_name]
+            p = plt.plot(np.array(true_goal_prob.fraction_observed), np.array(true_goal_prob.true_goal_prob),
+                         line_style,
+                         label=label, marker=current_marker, color=color)
 
             if model_name == 'occlusion_grit':
                 ogrit_color = p[0].get_color()

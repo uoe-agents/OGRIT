@@ -39,7 +39,7 @@ class FeatureExtractor:
                      'oncoming_vehicle_dist': 'scalar',
                      'oncoming_vehicle_speed': 'scalar',
                      'road_heading': 'scalar',
-                     # 'exit_number': 'integer',
+                     'exit_number': 'integer',
                      # 'speed_change_1s': 'scalar',
                      # 'speed_change_2s': 'scalar',
                      # 'speed_change_3s': 'scalar',
@@ -68,7 +68,9 @@ class FeatureExtractor:
                                  # 'heading_change_3s': 'target_3s_occluded',
                                  # 'dist_travelled_1s': 'target_1s_occluded',
                                  # 'dist_travelled_2s': 'target_2s_occluded',
-                                 # 'dist_travelled_3s': 'target_3s_occluded'
+                                 # 'dist_travelled_3s': 'target_3s_occluded',
+                                 'roundabout_slip_road': 'exit_number_missing',
+                                 'roundabout_uturn': 'exit_number_missing',
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 
@@ -193,9 +195,15 @@ class FeatureExtractor:
             exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
                 if goal_type == "exit-roundabout" else False
 
-            target_1s_occluded = self.target_previously_occluded(frames, fps, target_occlusion_history)
-            target_2s_occluded = self.target_previously_occluded(frames, 2 * fps, target_occlusion_history)
-            target_3s_occluded = self.target_previously_occluded(frames, 3 * fps, target_occlusion_history)
+            target_1s_occluded = self.target_previously_occluded(frames=frames, frames_ago=fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+            target_2s_occluded = self.target_previously_occluded(frames=frames, frames_ago=2 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+            target_3s_occluded = self.target_previously_occluded(frames=frames, frames_ago=3 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
 
             indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
                                   'oncoming_vehicle_missing': oncoming_vehicle_occluded,
