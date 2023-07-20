@@ -46,7 +46,7 @@ class FeatureExtractor:
                      # 'speed_change_3s': 'scalar',
                      # 'heading_change_1s': 'scalar',
                      # 'heading_change_2s': 'scalar',
-                     'heading_change_3s': 'scalar',
+                     'heading_change_5s': 'scalar',
                      # 'dist_travelled_1s': 'scalar',
                      # 'dist_travelled_2s': 'scalar',
                      # 'dist_travelled_3s': 'scalar'
@@ -67,7 +67,7 @@ class FeatureExtractor:
                                  # 'speed_change_3s': 'target_3s_occluded',
                                  # 'heading_change_1s': 'target_1s_occluded',
                                  # 'heading_change_2s': 'target_2s_occluded',
-                                 'heading_change_3s': 'target_3s_occluded',
+                                 'heading_change_5s': 'target_3s_occluded',
                                  # 'dist_travelled_1s': 'target_1s_occluded',
                                  # 'dist_travelled_2s': 'target_2s_occluded',
                                  # 'dist_travelled_3s': 'target_3s_occluded',
@@ -123,7 +123,7 @@ class FeatureExtractor:
         # angle_in_lane = self.angle_in_lane(current_state, current_lane)
         # road_heading = self.road_heading(lane_path)
         # exit_number = self.exit_number(initial_state, lane_path)
-        angle_to_goal = self.angle_to_goal(current_state, goal)
+        # angle_to_goal = self.angle_to_goal(current_state, goal)
 
         # goal_type = goal.goal_type
         #
@@ -147,7 +147,7 @@ class FeatureExtractor:
         #
         # heading_change_1s = self.get_heading_change(agent_id, frames, frames_ago=fps)
         # heading_change_2s = self.get_heading_change(agent_id, frames, frames_ago=2 * fps)
-        # heading_change_3s = self.get_heading_change(agent_id, frames, frames_ago=3 * fps)
+        heading_change_5s = self.get_heading_change(agent_id, frames, frames_ago=5 * fps)
         #
         # dist_travelled_1s = self.get_dist_travelled(agent_id, frames, frames_ago=fps)
         # dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2 * fps)
@@ -173,13 +173,13 @@ class FeatureExtractor:
             #             'speed_change_3s': speed_change_3s,
             #             'heading_change_1s': heading_change_1s,
             #             'heading_change_2s': heading_change_2s,
-            #             'heading_change_3s': heading_change_3s,
+            'heading_change_5s': heading_change_5s,
             #             'dist_travelled_1s': dist_travelled_1s,
             #             'dist_travelled_2s': dist_travelled_2s,
             #             'dist_travelled_3s': dist_travelled_3s,
             #             'roundabout_uturn': roundabout_uturn,
             #             'roundabout_slip_road': roundabout_slip_road,
-            'angle_to_goal': angle_to_goal,
+            # 'angle_to_goal': angle_to_goal,
 
             # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
             'x': current_state.position[0],
