@@ -1,13 +1,12 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import pickle
 
 from ogrit.core.base import get_base_dir, get_all_scenarios, get_data_dir
 from ogrit.core.data_processing import get_dataset
 from ogrit.decisiontree.dt_goal_recogniser import OcclusionGrit, Grit, GeneralisedGrit, UniformPriorGrit, \
     OcclusionBaseline, NoPossiblyMissingFeaturesGrit, SpecializedOgrit, TruncatedGrit, \
-    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesUniformPriorGrit, OgritOracle, Rdb5OGrit
+    NoPossiblyMissingFeaturesOGrit, NoPossiblyMissingFeaturesUniformPriorGrit, OgritOracle
 from ogrit.goalrecognition.goal_recognition import PriorBaseline, UniformPriorBaseline
 
 
@@ -18,7 +17,7 @@ def drop_low_sample_agents(dataset, min_samples=2):
     vc = unique_samples.value_counts(['episode', 'agent_id', 'ego_agent_id'])
     vc = vc.to_frame().reset_index().rename(columns={0: 'sample_count'})
     new_dataset = dataset.merge(vc, on=['episode', 'agent_id', 'ego_agent_id'])
-    new_dataset = new_dataset.loc[new_dataset['count'] >= min_samples]
+    new_dataset = new_dataset.loc[new_dataset['sample_count'] >= min_samples]
     return new_dataset
 
 
@@ -37,7 +36,6 @@ def get_model_class_with_suffix(model_name, model_classes):
 
 def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', results_dir=None, data_dir=None,
                     predictions_dir=None, models_dir=None):
-
     if results_dir is None:
         results_dir = get_base_dir() + '/results/'
     if data_dir is None:
@@ -137,11 +135,11 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
 
     for scenario_name in scenario_names:
         for model_name in model_names:
-
             unique_samples = predictions[scenario_name][model_name]
             unique_samples['fraction_observed'] = unique_samples['fraction_observed'].round(1)
             # save accuracy
-            fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby('fraction_observed')
+            fraction_observed_grouped = unique_samples[['model_correct', 'fraction_observed']].groupby(
+                'fraction_observed')
             accuracy = fraction_observed_grouped.mean()
             accuracy_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
             accuracy_sem.to_csv(results_dir + f'/{scenario_name}_{model_name}_acc_sem.csv')
@@ -156,14 +154,16 @@ def evaluate_models(scenario_names=None, model_names=None, dataset_name='test', 
             entropy_norm.to_csv(results_dir + f'/{scenario_name}_{model_name}_entropy_norm.csv')
 
             # save true goal probability
-            fraction_observed_grouped = unique_samples[['true_goal_prob', 'fraction_observed']].groupby('fraction_observed')
+            fraction_observed_grouped = unique_samples[['true_goal_prob', 'fraction_observed']].groupby(
+                'fraction_observed')
             true_goal_prob = fraction_observed_grouped.mean()
             true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
             true_goal_prob_sem.to_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
             true_goal_prob.to_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
 
             # save cross entropy
-            fraction_observed_grouped = unique_samples[['cross_entropy', 'fraction_observed']].groupby('fraction_observed')
+            fraction_observed_grouped = unique_samples[['cross_entropy', 'fraction_observed']].groupby(
+                'fraction_observed')
             cross_entropy = fraction_observed_grouped.mean()
             cross_entropy_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
             cross_entropy_sem.to_csv(results_dir + f'/{scenario_name}_{model_name}_cross_entropy_sem.csv')
