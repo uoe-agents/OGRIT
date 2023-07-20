@@ -67,7 +67,7 @@ class FeatureExtractor:
                                  # 'speed_change_3s': 'target_3s_occluded',
                                  # 'heading_change_1s': 'target_1s_occluded',
                                  # 'heading_change_2s': 'target_2s_occluded',
-                                 'heading_change_5s': 'target_3s_occluded',
+                                 'heading_change_5s': 'target_5s_occluded',
                                  # 'dist_travelled_1s': 'target_1s_occluded',
                                  # 'dist_travelled_2s': 'target_2s_occluded',
                                  # 'dist_travelled_3s': 'target_3s_occluded',
@@ -187,37 +187,37 @@ class FeatureExtractor:
             'heading': current_state.heading}
 
         # We pass the ego_agent_id only if we want to extract the indicator features.
-        # if ego_agent_id is not None:
-        #     occlusions = self.occlusions[current_state.time][ego_agent_id]["occlusions"]
-        #     vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
-        #                                                                  current_frame, occlusions)
-        #
-        #     oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
-        #
-        #     # Get the first state in which both the ego and target vehicles are alive (even if target is occluded).
-        #     initial_state = initial_frame[agent_id]
-        #
-        #     exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
-        #         if goal_type == "exit-roundabout" else False
-        #
-        #     target_1s_occluded = self.target_previously_occluded(frames=frames, frames_ago=fps,
-        #                                                          target_occlusion_history=target_occlusion_history,
-        #                                                          fps=fps)
-        #     target_2s_occluded = self.target_previously_occluded(frames=frames, frames_ago=2 * fps,
-        #                                                          target_occlusion_history=target_occlusion_history,
-        #                                                          fps=fps)
-        #     target_3s_occluded = self.target_previously_occluded(frames=frames, frames_ago=3 * fps,
-        #                                                          target_occlusion_history=target_occlusion_history,
-        #                                                          fps=fps)
-        #
-        #     indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
-        #                           'oncoming_vehicle_missing': oncoming_vehicle_occluded,
-        #                           'exit_number_missing': exit_number_occluded,
-        #                           'target_1s_occluded': target_1s_occluded,
-        #                           'target_2s_occluded': target_2s_occluded,
-        #                           'target_3s_occluded': target_3s_occluded, }
-        #
-        #     features.update(indicator_features)
+        if ego_agent_id is not None:
+            occlusions = self.occlusions[current_state.time][ego_agent_id]["occlusions"]
+            # vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
+            #                                                              current_frame, occlusions)
+            #
+            # oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
+
+            # Get the first state in which both the ego and target vehicles are alive (even if target is occluded).
+            initial_state = initial_frame[agent_id]
+
+            # exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
+            #     if goal_type == "exit-roundabout" else False
+
+            # target_1s_occluded = self.target_previously_occluded(frames=frames, frames_ago=fps,
+            #                                                      target_occlusion_history=target_occlusion_history,
+            #                                                      fps=fps)
+            # target_2s_occluded = self.target_previously_occluded(frames=frames, frames_ago=2 * fps,
+            #                                                      target_occlusion_history=target_occlusion_history,
+            #                                                      fps=fps)
+            target_5s_occluded = self.target_previously_occluded(frames=frames, frames_ago=5 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+
+            indicator_features = {  # 'vehicle_in_front_missing': vehicle_in_front_occluded,
+                #                       'oncoming_vehicle_missing': oncoming_vehicle_occluded,
+                #                       'exit_number_missing': exit_number_occluded,
+                #                       'target_1s_occluded': target_1s_occluded,
+                #                       'target_2s_occluded': target_2s_occluded,
+                'target_5s_occluded': target_5s_occluded, }
+
+            features.update(indicator_features)
         return features
 
     @staticmethod
