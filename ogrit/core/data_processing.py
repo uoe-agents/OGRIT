@@ -324,9 +324,11 @@ def prepare_episode_dataset(params):
     samples = extract_samples(feature_extractor, scenario, episode, update_hz,
                               extract_missing_features=extract_indicator_features)
 
-    # TODO: remove following 3 lines
+    # TODO: remove following 9 lines
     # Merge the samples with the new features
     old_samples = pd.read_csv(get_result_file_path(scenario_name, update_hz, episode_idx))
+    if "heading_change_5s" in old_samples.columns:
+        old_samples = old_samples.drop(columns=["heading_change_5s"])
     new_samples = round(samples, 5).merge(round(old_samples, 5),
                                           on=[c for c in samples.columns if c in old_samples.columns], how="inner")
 
