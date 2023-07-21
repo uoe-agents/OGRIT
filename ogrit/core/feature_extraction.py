@@ -153,9 +153,6 @@ class FeatureExtractor:
         dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2 * fps)
         dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3 * fps)
 
-        angle_to_goal_change_1s = self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=1 * fps,
-                                                                goal=goal)
-
         roundabout_uturn = self.is_roundabout_uturn(exit_number)
         roundabout_slip_road = self.slip_road(exit_number, goal)
 
@@ -183,13 +180,7 @@ class FeatureExtractor:
                     'roundabout_uturn': roundabout_uturn,
                     'roundabout_slip_road': roundabout_slip_road,
                     'angle_to_goal': angle_to_goal,
-                    'angle_to_goal_1s': angle_to_goal_change_1s,
-                    'angle_to_goal_2s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames,
-                                                                      frames_ago=2 * fps,
-                                                                      goal=goal),
-                    'angle_to_goal_3s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames,
-                                                                      frames_ago=3 * fps,
-                                                                      goal=goal),
+                    
                     # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
                     'x': current_state.position[0],
                     'y': current_state.position[1],
