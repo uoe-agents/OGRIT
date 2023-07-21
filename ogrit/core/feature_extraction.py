@@ -52,7 +52,8 @@ class FeatureExtractor:
                      # 'dist_travelled_3s': 'scalar'
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
-                     'angle_to_goal': 'scalar'
+                     'angle_to_goal': 'scalar',
+                     'angle_to_goal_1s': 'scalar'
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -73,6 +74,7 @@ class FeatureExtractor:
                                  # 'dist_travelled_3s': 'target_3s_occluded',
                                  'roundabout_slip_road': 'exit_number_missing',
                                  'roundabout_uturn': 'exit_number_missing',
+                                 'angle_to_goal_1s': 'target_1s_occluded',
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 
@@ -123,7 +125,7 @@ class FeatureExtractor:
         # angle_in_lane = self.angle_in_lane(current_state, current_lane)
         # road_heading = self.road_heading(lane_path)
         # exit_number = self.exit_number(initial_state, lane_path)
-        angle_to_goal = self.angle_to_goal(current_state, goal)
+        # angle_to_goal = self.angle_to_goal(current_state, goal)
 
         # goal_type = goal.goal_type
         #
@@ -152,6 +154,10 @@ class FeatureExtractor:
         # dist_travelled_1s = self.get_dist_travelled(agent_id, frames, frames_ago=fps)
         # dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2 * fps)
         # dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3 * fps)
+
+        angle_to_goal_change_1s = self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=1 * fps,
+                                                                goal=goal)
+
         #
         # roundabout_uturn = self.is_roundabout_uturn(exit_number)
         # roundabout_slip_road = self.slip_road(exit_number, goal)
@@ -179,7 +185,8 @@ class FeatureExtractor:
             #             'dist_travelled_3s': dist_travelled_3s,
             #             'roundabout_uturn': roundabout_uturn,
             #             'roundabout_slip_road': roundabout_slip_road,
-            'angle_to_goal': angle_to_goal,
+            # 'angle_to_goal': angle_to_goal,
+            'angle_to_goal_1s': angle_to_goal_change_1s,
 
             # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
             'x': current_state.position[0],
@@ -245,6 +252,22 @@ class FeatureExtractor:
         initial_heading = frames[-(frames_ago + 1)][agent_id].heading
         current_heading = frames[-1][agent_id].heading
         heading_change = heading_diff(initial_heading, current_heading)
+        return heading_change
+
+    def get_angle_to_goal_change(self, agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int,
+                                 goal: TypedGoal) -> float:
+        """
+        Return by how much did the angle w.r.t the goal has changed in frames_ago time
+        """
+        if frames_ago + 1 > len(frames):
+            return 0.
+        initial_state = frames[-(frames_ago + 1)][agent_id]
+        current_state = frames[-1][agent_id]
+
+        initial_angle_to_goal = self.angle_to_goal(initial_state, goal)
+        current_angle_to_goal = self.angle_to_goal(current_state, goal)
+
+        heading_change = heading_diff(current_angle_to_goal, initial_angle_to_goal)
         return heading_change
 
     @staticmethod
