@@ -53,7 +53,9 @@ class FeatureExtractor:
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
                      'angle_to_goal': 'scalar',
-                     'angle_to_goal_1s': 'scalar'
+                     'angle_to_goal_1s': 'scalar',
+                     'angle_to_goal_2s': 'scalar',
+                     'angle_to_goal_3s': 'scalar',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -75,6 +77,9 @@ class FeatureExtractor:
                                  'roundabout_slip_road': 'exit_number_missing',
                                  'roundabout_uturn': 'exit_number_missing',
                                  'angle_to_goal_1s': 'target_1s_occluded',
+                                 'angle_to_goal_2s': 'target_2s_occluded',
+                                 'angle_to_goal_3s': 'target_3s_occluded',
+
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 
@@ -187,6 +192,10 @@ class FeatureExtractor:
             #             'roundabout_slip_road': roundabout_slip_road,
             # 'angle_to_goal': angle_to_goal,
             'angle_to_goal_1s': angle_to_goal_change_1s,
+            'angle_to_goal_2s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=2 * fps,
+                                                              goal=goal),
+            'angle_to_goal_3s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=3 * fps,
+                                                              goal=goal),
 
             # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
             'x': current_state.position[0],
