@@ -53,9 +53,6 @@ class FeatureExtractor:
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
                      'angle_to_goal': 'scalar',
-                     'angle_to_goal_1s': 'scalar',
-                     'angle_to_goal_2s': 'scalar',
-                     'angle_to_goal_3s': 'scalar',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -76,10 +73,6 @@ class FeatureExtractor:
                                  # 'dist_travelled_3s': 'target_3s_occluded',
                                  'roundabout_slip_road': 'exit_number_missing',
                                  'roundabout_uturn': 'exit_number_missing',
-                                 'angle_to_goal_1s': 'target_1s_occluded',
-                                 'angle_to_goal_2s': 'target_2s_occluded',
-                                 'angle_to_goal_3s': 'target_3s_occluded',
-
                                  }
     indicator_features = list(set(possibly_missing_features.values()))
 
@@ -119,121 +112,121 @@ class FeatureExtractor:
 
         current_frame = frames[-1]
         current_state = current_frame[agent_id]
-        # initial_state = frames[0][agent_id]
-        # current_lane = goal.lane_path[0]
-        # lane_path = goal.lane_path
+        initial_state = frames[0][agent_id]
+        current_lane = goal.lane_path[0]
+        lane_path = goal.lane_path
 
-        # speed = current_state.speed
-        # acceleration = np.linalg.norm(current_state.acceleration)
-        # in_correct_lane = self.in_correct_lane(lane_path)
-        # path_to_goal_length = self.path_to_goal_length(current_state, goal, lane_path)
-        # angle_in_lane = self.angle_in_lane(current_state, current_lane)
-        # road_heading = self.road_heading(lane_path)
-        # exit_number = self.exit_number(initial_state, lane_path)
-        # angle_to_goal = self.angle_to_goal(current_state, goal)
+        speed = current_state.speed
+        acceleration = np.linalg.norm(current_state.acceleration)
+        in_correct_lane = self.in_correct_lane(lane_path)
+        path_to_goal_length = self.path_to_goal_length(current_state, goal, lane_path)
+        angle_in_lane = self.angle_in_lane(current_state, current_lane)
+        road_heading = self.road_heading(lane_path)
+        exit_number = self.exit_number(initial_state, lane_path)
+        angle_to_goal = self.angle_to_goal(current_state, goal)
 
-        # goal_type = goal.goal_type
-        #
-        # vehicle_in_front_id, vehicle_in_front_dist = self.vehicle_in_front(agent_id, lane_path, current_frame)
-        # if vehicle_in_front_id is None:
-        #     vehicle_in_front_speed = 20
-        #     vehicle_in_front_dist = 100
-        # else:
-        #     vehicle_in_front = current_frame[vehicle_in_front_id]
-        #     vehicle_in_front_speed = vehicle_in_front.speed
-        #
-        # oncoming_vehicle_id, oncoming_vehicle_dist = self.oncoming_vehicle(agent_id, lane_path, current_frame)
-        # if oncoming_vehicle_id is None:
-        #     oncoming_vehicle_speed = 20
-        # else:
-        #     oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
-        #
-        # speed_change_1s = self.get_speed_change(agent_id, frames, frames_ago=fps)
-        # speed_change_2s = self.get_speed_change(agent_id, frames, frames_ago=2 * fps)
-        # speed_change_3s = self.get_speed_change(agent_id, frames, frames_ago=3 * fps)
-        #
-        # heading_change_1s = self.get_heading_change(agent_id, frames, frames_ago=fps)
-        # heading_change_2s = self.get_heading_change(agent_id, frames, frames_ago=2 * fps)
-        # heading_change_3s = self.get_heading_change(agent_id, frames, frames_ago=3 * fps)
-        #
-        # dist_travelled_1s = self.get_dist_travelled(agent_id, frames, frames_ago=fps)
-        # dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2 * fps)
-        # dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3 * fps)
+        goal_type = goal.goal_type
+
+        vehicle_in_front_id, vehicle_in_front_dist = self.vehicle_in_front(agent_id, lane_path, current_frame)
+        if vehicle_in_front_id is None:
+            vehicle_in_front_speed = 20
+            vehicle_in_front_dist = 100
+        else:
+            vehicle_in_front = current_frame[vehicle_in_front_id]
+            vehicle_in_front_speed = vehicle_in_front.speed
+
+        oncoming_vehicle_id, oncoming_vehicle_dist = self.oncoming_vehicle(agent_id, lane_path, current_frame)
+        if oncoming_vehicle_id is None:
+            oncoming_vehicle_speed = 20
+        else:
+            oncoming_vehicle_speed = current_frame[oncoming_vehicle_id].speed
+
+        speed_change_1s = self.get_speed_change(agent_id, frames, frames_ago=fps)
+        speed_change_2s = self.get_speed_change(agent_id, frames, frames_ago=2 * fps)
+        speed_change_3s = self.get_speed_change(agent_id, frames, frames_ago=3 * fps)
+
+        heading_change_1s = self.get_heading_change(agent_id, frames, frames_ago=fps)
+        heading_change_2s = self.get_heading_change(agent_id, frames, frames_ago=2 * fps)
+        heading_change_3s = self.get_heading_change(agent_id, frames, frames_ago=3 * fps)
+
+        dist_travelled_1s = self.get_dist_travelled(agent_id, frames, frames_ago=fps)
+        dist_travelled_2s = self.get_dist_travelled(agent_id, frames, frames_ago=2 * fps)
+        dist_travelled_3s = self.get_dist_travelled(agent_id, frames, frames_ago=3 * fps)
 
         angle_to_goal_change_1s = self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=1 * fps,
                                                                 goal=goal)
 
-        #
-        # roundabout_uturn = self.is_roundabout_uturn(exit_number)
-        # roundabout_slip_road = self.slip_road(exit_number, goal)
+        roundabout_uturn = self.is_roundabout_uturn(exit_number)
+        roundabout_slip_road = self.slip_road(exit_number, goal)
 
-        features = {  # 'path_to_goal_length': path_to_goal_length,
-            #             'in_correct_lane': in_correct_lane,
-            #             'speed': speed,
-            #             'acceleration': acceleration,
-            #             'angle_in_lane': angle_in_lane,
-            #             'vehicle_in_front_dist': vehicle_in_front_dist,
-            #             'vehicle_in_front_speed': vehicle_in_front_speed,
-            #             'oncoming_vehicle_dist': oncoming_vehicle_dist,
-            #             'oncoming_vehicle_speed': oncoming_vehicle_speed,
-            #             'road_heading': road_heading,
-            #             'exit_number': exit_number,
-            #             'goal_type': goal_type,
-            #             'speed_change_1s': speed_change_1s,
-            #             'speed_change_2s': speed_change_2s,
-            #             'speed_change_3s': speed_change_3s,
-            #             'heading_change_1s': heading_change_1s,
-            #             'heading_change_2s': heading_change_2s,
-            #             'heading_change_3s': heading_change_3s,
-            #             'dist_travelled_1s': dist_travelled_1s,
-            #             'dist_travelled_2s': dist_travelled_2s,
-            #             'dist_travelled_3s': dist_travelled_3s,
-            #             'roundabout_uturn': roundabout_uturn,
-            #             'roundabout_slip_road': roundabout_slip_road,
-            # 'angle_to_goal': angle_to_goal,
-            'angle_to_goal_1s': angle_to_goal_change_1s,
-            'angle_to_goal_2s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=2 * fps,
-                                                              goal=goal),
-            'angle_to_goal_3s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames, frames_ago=3 * fps,
-                                                              goal=goal),
-
-            # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
-            'x': current_state.position[0],
-            'y': current_state.position[1],
-            'heading': current_state.heading}
+        features = {'path_to_goal_length': path_to_goal_length,
+                    'in_correct_lane': in_correct_lane,
+                    'speed': speed,
+                    'acceleration': acceleration,
+                    'angle_in_lane': angle_in_lane,
+                    'vehicle_in_front_dist': vehicle_in_front_dist,
+                    'vehicle_in_front_speed': vehicle_in_front_speed,
+                    'oncoming_vehicle_dist': oncoming_vehicle_dist,
+                    'oncoming_vehicle_speed': oncoming_vehicle_speed,
+                    'road_heading': road_heading,
+                    'exit_number': exit_number,
+                    'goal_type': goal_type,
+                    'speed_change_1s': speed_change_1s,
+                    'speed_change_2s': speed_change_2s,
+                    'speed_change_3s': speed_change_3s,
+                    'heading_change_1s': heading_change_1s,
+                    'heading_change_2s': heading_change_2s,
+                    'heading_change_3s': heading_change_3s,
+                    'dist_travelled_1s': dist_travelled_1s,
+                    'dist_travelled_2s': dist_travelled_2s,
+                    'dist_travelled_3s': dist_travelled_3s,
+                    'roundabout_uturn': roundabout_uturn,
+                    'roundabout_slip_road': roundabout_slip_road,
+                    'angle_to_goal': angle_to_goal,
+                    'angle_to_goal_1s': angle_to_goal_change_1s,
+                    'angle_to_goal_2s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames,
+                                                                      frames_ago=2 * fps,
+                                                                      goal=goal),
+                    'angle_to_goal_3s': self.get_angle_to_goal_change(agent_id=agent_id, frames=frames,
+                                                                      frames_ago=3 * fps,
+                                                                      goal=goal),
+                    # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
+                    'x': current_state.position[0],
+                    'y': current_state.position[1],
+                    'heading': current_state.heading}
 
         # We pass the ego_agent_id only if we want to extract the indicator features.
-        # if ego_agent_id is not None:
-        #     occlusions = self.occlusions[current_state.time][ego_agent_id]["occlusions"]
-        #     vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
-        #                                                                  current_frame, occlusions)
-        #
-        #     oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
-        #
-        #     # Get the first state in which both the ego and target vehicles are alive (even if target is occluded).
-        #     initial_state = initial_frame[agent_id]
-        #
-        #     exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
-        #         if goal_type == "exit-roundabout" else False
-        #
-        #     target_1s_occluded = self.target_previously_occluded(frames=frames, frames_ago=fps,
-        #                                                          target_occlusion_history=target_occlusion_history,
-        #                                                          fps=fps)
-        #     target_2s_occluded = self.target_previously_occluded(frames=frames, frames_ago=2 * fps,
-        #                                                          target_occlusion_history=target_occlusion_history,
-        #                                                          fps=fps)
-        #     target_3s_occluded = self.target_previously_occluded(frames=frames, frames_ago=3 * fps,
-        #                                                          target_occlusion_history=target_occlusion_history,
-        #                                                          fps=fps)
-        #
-        #     indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
-        #                           'oncoming_vehicle_missing': oncoming_vehicle_occluded,
-        #                           'exit_number_missing': exit_number_occluded,
-        #                           'target_1s_occluded': target_1s_occluded,
-        #                           'target_2s_occluded': target_2s_occluded,
-        #                           'target_3s_occluded': target_3s_occluded, }
-        #
-        #     features.update(indicator_features)
+        if ego_agent_id is not None:
+            occlusions = self.occlusions[current_state.time][ego_agent_id]["occlusions"]
+            vehicle_in_front_occluded = self.is_vehicle_in_front_missing(vehicle_in_front_dist, agent_id, lane_path,
+                                                                         current_frame, occlusions)
+
+            oncoming_vehicle_occluded = self.is_oncoming_vehicle_missing(oncoming_vehicle_dist, lane_path, occlusions)
+
+            # Get the first state in which both the ego and target vehicles are alive (even if target is occluded).
+            initial_state = initial_frame[agent_id]
+
+            exit_number_occluded = self.is_exit_number_missing(initial_state, goal) \
+                if goal_type == "exit-roundabout" else False
+
+            target_1s_occluded = self.target_previously_occluded(frames=frames, frames_ago=fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+            target_2s_occluded = self.target_previously_occluded(frames=frames, frames_ago=2 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+            target_3s_occluded = self.target_previously_occluded(frames=frames, frames_ago=3 * fps,
+                                                                 target_occlusion_history=target_occlusion_history,
+                                                                 fps=fps)
+
+            indicator_features = {'vehicle_in_front_missing': vehicle_in_front_occluded,
+                                  'oncoming_vehicle_missing': oncoming_vehicle_occluded,
+                                  'exit_number_missing': exit_number_occluded,
+                                  'target_1s_occluded': target_1s_occluded,
+                                  'target_2s_occluded': target_2s_occluded,
+                                  'target_3s_occluded': target_3s_occluded, }
+
+            features.update(indicator_features)
         return features
 
     @staticmethod
