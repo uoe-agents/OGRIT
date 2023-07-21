@@ -180,7 +180,7 @@ class FeatureExtractor:
                     'roundabout_uturn': roundabout_uturn,
                     'roundabout_slip_road': roundabout_slip_road,
                     'angle_to_goal': angle_to_goal,
-                    
+
                     # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
                     'x': current_state.position[0],
                     'y': current_state.position[1],
@@ -246,23 +246,7 @@ class FeatureExtractor:
         current_heading = frames[-1][agent_id].heading
         heading_change = heading_diff(initial_heading, current_heading)
         return heading_change
-
-    def get_angle_to_goal_change(self, agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int,
-                                 goal: TypedGoal) -> float:
-        """
-        Return by how much did the angle w.r.t the goal has changed in frames_ago time
-        """
-        if frames_ago + 1 > len(frames):
-            return 0.
-        initial_state = frames[-(frames_ago + 1)][agent_id]
-        current_state = frames[-1][agent_id]
-
-        initial_angle_to_goal = self.angle_to_goal(initial_state, goal)
-        current_angle_to_goal = self.angle_to_goal(current_state, goal)
-
-        heading_change = heading_diff(current_angle_to_goal, initial_angle_to_goal)
-        return heading_change
-
+        
     @staticmethod
     def get_dist_travelled(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
         if frames_ago + 1 > len(frames):
