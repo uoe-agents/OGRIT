@@ -52,7 +52,7 @@ class FeatureExtractor:
                      # 'dist_travelled_3s': 'scalar'
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
-                     'angle_to_goal': 'scalar'
+                     'angle_to_goal': 'scalar',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -246,7 +246,7 @@ class FeatureExtractor:
         current_heading = frames[-1][agent_id].heading
         heading_change = heading_diff(initial_heading, current_heading)
         return heading_change
-
+        
     @staticmethod
     def get_dist_travelled(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
         if frames_ago + 1 > len(frames):

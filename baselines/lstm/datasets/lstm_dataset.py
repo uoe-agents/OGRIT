@@ -20,6 +20,8 @@ based on what information the input trajectories should have (e.g., OGRIT featur
 or position (x, y, heading at each timestep), etc.
 """
 
+MISSING_FEATURE_VALUE = -1
+
 
 class LSTMDataset(Dataset):
 
@@ -139,6 +141,15 @@ class LSTMDataset(Dataset):
             # ith_step["fraction_observed"] of the total trajectory executed by the target agent.
             fraction_observed = list(trajectory_steps_original["fraction_observed"])
 
+            # For each sample, we want to use the indicator features to remove the values that are occluded/missing.
+            # for all the features in FeatureExtractor.possibly_missing_features.keys(), we want to see whether the
+            # column trajectory_steps_original[FeatureExtractor.possibly_missing_features[feature]] is True or False.
+            # if it's true we want to change the value of the feature to MISSING_FEATURE_VALUE.
+            for feature in FeatureExtractor.possibly_missing_features.keys():
+                trajectory_steps_original.loc[
+                    trajectory_steps_original[FeatureExtractor.possibly_missing_features[feature]] == True,
+                    feature] = MISSING_FEATURE_VALUE
+                
             # Get the data in the samples for the features we want.
             trajectory_steps = trajectory_steps_original[self.features_to_use].values.astype(np.float32)
 

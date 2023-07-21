@@ -323,5 +323,6 @@ def prepare_episode_dataset(params):
 
     samples = extract_samples(feature_extractor, scenario, episode, update_hz,
                               extract_missing_features=extract_indicator_features)
+    
     samples.to_csv(get_result_file_path(scenario_name, update_hz, episode_idx), index=False)
     logger.info(f'finished scenario {scenario_name} episode {episode_idx}')
