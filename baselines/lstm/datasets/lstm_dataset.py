@@ -26,7 +26,7 @@ MISSING_FEATURE_VALUE = -1
 class LSTMDataset(Dataset):
 
     def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset,
-                 fill_occluded_frames_mode, goal_type):
+                 fill_occluded_frames_mode, goal_type, suffix):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -46,6 +46,8 @@ class LSTMDataset(Dataset):
                 - "use_frame_id": add 'frame_id' to the input features (i.e. "tell" the LSTM which frames are occluded)
             goal_type: if not None, only keep the trajectories that have the given *possible* goal type (e.g.,
                        "straight-on", "exit_left", ...). Used to train the LSTM to predict a specific goal type.
+            suffix: suffix to add to the dataset name (e.g., "with_frame_id" to indicate that the frame_id is included
+                    in the features)
         """
 
         # To convert the goal_type into a hot-one encoding vector. E.g., "continue" -> [0, 0, 1, 0, 0]
@@ -55,6 +57,7 @@ class LSTMDataset(Dataset):
         self.update_hz = update_hz
         self.recompute_dataset = recompute_dataset
         self.fill_occluded_frames_mode = fill_occluded_frames_mode
+        self.suffix = suffix
 
         self._nr_occluded_frames = 0  # for debugging
 
@@ -84,7 +87,7 @@ class LSTMDataset(Dataset):
     def load_dataset(self):
 
         dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
-                                             self.fill_occluded_frames_mode, self.goal_type)
+                                             self.fill_occluded_frames_mode, self.goal_type, self.suffix)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed, frame_ids, group_ids = self.get_dataset()
@@ -149,7 +152,7 @@ class LSTMDataset(Dataset):
                 trajectory_steps_original.loc[
                     trajectory_steps_original[FeatureExtractor.possibly_missing_features[feature]] == True,
                     feature] = MISSING_FEATURE_VALUE
-                
+
             # Get the data in the samples for the features we want.
             trajectory_steps = trajectory_steps_original[self.features_to_use].values.astype(np.float32)
 
