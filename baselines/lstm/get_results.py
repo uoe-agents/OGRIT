@@ -67,7 +67,8 @@ def test_lstm(configs, goal_types):
     true_goal_prob_sem = fraction_observed_grouped.std() / np.sqrt(fraction_observed_grouped.count())
     goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(
         get_scenarios_names(configs["train_scenarios"]), configs["input_type"],
-        get_scenarios_names(configs["test_scenarios"]), configs["update_hz"], configs["fill_occluded_frames_mode"])
+        get_scenarios_names(configs["test_scenarios"]), configs["update_hz"], configs["fill_occluded_frames_mode"],
+        configs["suffix"])
 
     true_goal_prob_sem.to_csv(goal_prob_sem_file_path)
     true_goal_prob.to_csv(goal_prob_file_path)
@@ -100,6 +101,7 @@ if __name__ == "__main__":
     parser.add_argument('--update_hz', type=int, help='take a sample every --update_hz frames in the original episode '
                                                       'frames (e.g., if 25, then take one frame per second)',
                         default=25)
+    parser.add_argument('--suffix', type=str, default="", help='Suffix to add to the model name')
     parser.add_argument('--batch_size', type=int, default=10, help='Batch size')
     parser.add_argument('--max_epochs', type=int, default=100, help='Maximum number of epochs')
     parser.add_argument('--dropout', type=float, default=0.2, help='Dropout for TRAINING. It is 0 for testing.')

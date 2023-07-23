@@ -2,14 +2,15 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+from sklearn.metrics import f1_score
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 from baselines.lstm.datasets.lstm_dataset import LSTMDataset, get_fake_padding
 from baselines.lstm.model.model import LSTMModel
 from baselines.lstm.runs.lstm_writer import LSTMWriter
 from ogrit.core.base import get_lstm_model_path, get_scenarios_names
 from ogrit.core.logger import logger
-from sklearn.metrics import f1_score
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 """
 The LSTM takes in a list of features at each timestep, the same as those that OGRIT gets to evaluate the 
@@ -48,6 +49,7 @@ class FeaturesLSTM:
         self.input_type = configs["input_type"]
         recompute_dataset = configs["recompute_dataset"]
         self.fill_occluded_frames_mode = configs["fill_occluded_frames_mode"]
+        self.suffix = configs["suffix"]
 
         self.goal_type = configs["goal_type"]
 
@@ -56,11 +58,11 @@ class FeaturesLSTM:
             train_dataset = LSTMDataset(training_scenarios, goal_type=self.goal_type, input_type=self.input_type,
                                         split_type="train",
                                         update_hz=self.update_hz, recompute_dataset=recompute_dataset,
-                                        fill_occluded_frames_mode=self.fill_occluded_frames_mode)
+                                        fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix)
             val_dataset = LSTMDataset(training_scenarios, goal_type=self.goal_type, input_type=self.input_type,
                                       split_type="valid",
                                       update_hz=self.update_hz, recompute_dataset=recompute_dataset,
-                                      fill_occluded_frames_mode=self.fill_occluded_frames_mode)
+                                      fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix)
 
             self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -72,7 +74,7 @@ class FeaturesLSTM:
             self.test_scenarios_names = get_scenarios_names(test_scenarios)
             test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, goal_type=self.goal_type,
                                        split_type="test", update_hz=self.update_hz, recompute_dataset=recompute_dataset,
-                                       fill_occluded_frames_mode=self.fill_occluded_frames_mode)
+                                       fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix)
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -88,7 +90,8 @@ class FeaturesLSTM:
         self.model_path = get_lstm_model_path(training_scenarios_names=self.training_scenarios_names,
                                               goal_type=self.goal_type, input_type=self.input_type,
                                               update_hz=self.update_hz,
-                                              fill_occluded_frames_mode=self.fill_occluded_frames_mode)
+                                              fill_occluded_frames_mode=self.fill_occluded_frames_mode,
+                                              suffix=self.suffix, )
 
         self.model = LSTMModel(in_shape=input_size,
                                lstm_hidden_shape=configs["lstm_hidden_size"],
