@@ -50,6 +50,7 @@ class FeaturesLSTM:
         recompute_dataset = configs["recompute_dataset"]
         self.fill_occluded_frames_mode = configs["fill_occluded_frames_mode"]
         self.suffix = configs["suffix"]
+        self.features_used_names = configs["features_used_names"]
 
         self.goal_type = configs["goal_type"]
 
@@ -58,11 +59,13 @@ class FeaturesLSTM:
             train_dataset = LSTMDataset(training_scenarios, goal_type=self.goal_type, input_type=self.input_type,
                                         split_type="train",
                                         update_hz=self.update_hz, recompute_dataset=recompute_dataset,
-                                        fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix)
+                                        fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix,
+                                        features_to_use=self.features_used_names)
             val_dataset = LSTMDataset(training_scenarios, goal_type=self.goal_type, input_type=self.input_type,
                                       split_type="valid",
                                       update_hz=self.update_hz, recompute_dataset=recompute_dataset,
-                                      fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix)
+                                      fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix,
+                                      features_to_use=self.features_used_names)
 
             self.train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
             self.val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -74,7 +77,8 @@ class FeaturesLSTM:
             self.test_scenarios_names = get_scenarios_names(test_scenarios)
             test_dataset = LSTMDataset(test_scenarios, input_type=self.input_type, goal_type=self.goal_type,
                                        split_type="test", update_hz=self.update_hz, recompute_dataset=recompute_dataset,
-                                       fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix)
+                                       fill_occluded_frames_mode=self.fill_occluded_frames_mode, suffix=self.suffix,
+                                       features_to_use=self.features_used_names)
             self.logger.info(f"Test dataset: {test_dataset}")
 
             self.test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=configs["shuffle"])
@@ -91,7 +95,7 @@ class FeaturesLSTM:
                                               goal_type=self.goal_type, input_type=self.input_type,
                                               update_hz=self.update_hz,
                                               fill_occluded_frames_mode=self.fill_occluded_frames_mode,
-                                              suffix=self.suffix, )
+                                              suffix=self.suffix, features_used_names=self.features_used_names)
 
         self.model = LSTMModel(in_shape=input_size,
                                lstm_hidden_shape=configs["lstm_hidden_size"],

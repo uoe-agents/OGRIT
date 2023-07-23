@@ -26,7 +26,7 @@ MISSING_FEATURE_VALUE = -1
 class LSTMDataset(Dataset):
 
     def __init__(self, scenario_names: List[str], input_type, split_type, update_hz, recompute_dataset,
-                 fill_occluded_frames_mode, goal_type, suffix):
+                 fill_occluded_frames_mode, goal_type, suffix, features_to_use):
         """
         Return the trajectories we need to pass the LSTM for given scenarios and features.
 
@@ -71,7 +71,13 @@ class LSTMDataset(Dataset):
         elif input_type == 'relative_position':
             self.features_to_use = ['delta_x_from_possible_goal', 'delta_y_from_possible_goal']
         elif input_type == 'ogrit_features':
-            self.features_to_use = FeatureExtractor.feature_names.keys()
+
+            if features_to_use == "all":
+                self.features_to_use = FeatureExtractor.feature_names.keys()
+            else:
+                self.features_to_use = features_to_use.split(",")
+
+            logger.info(f"Using the following features: {self.features_to_use}")
         else:
             raise ValueError(f"Parameter type should be either 'absolute_position', 'relative_position', "
                              f"'ogrit_features', but got {input_type} instead.")
@@ -87,7 +93,8 @@ class LSTMDataset(Dataset):
     def load_dataset(self):
 
         dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
-                                             self.fill_occluded_frames_mode, self.goal_type)
+                                             self.fill_occluded_frames_mode, self.goal_type, self.suffix,
+                                             self.features_to_use)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed, frame_ids, group_ids = self.get_dataset()
@@ -159,12 +166,16 @@ class LSTMDataset(Dataset):
             # Given the different steps in the trajectory, we want to create a sequence by combining the steps into one
             # input for the lstm. The sequence will be a 1-d array with a tuple of features for each step.
             # E.g., if the trajectory has 2 time-steps, each with 3 features,
-            # the sequence will [(f1, f2, f3), (f1, f2, f3)]
+            # the sequence will [(f1, f2, f3), (f
+            # 1, f2, f3)]
             frame_ids_traj = trajectory_steps_original["frame_id"].values
             if self.fill_occluded_frames_mode == "fake_pad":
                 trajectory = self.fill_occluded_frames(trajectory_steps, frame_ids_traj, self.update_hz)
             else:
-                trajectory = torch.tensor([tuple(step) for step in trajectory_steps])
+                if len(self.features_to_use) != 1:
+                    trajectory = torch.tensor([tuple(step) for step in trajectory_steps])
+                else:
+                    trajectory = torch.tensor(trajectory_steps)
 
             trajectories.append(trajectory)
 

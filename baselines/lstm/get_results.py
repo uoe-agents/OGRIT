@@ -68,7 +68,7 @@ def test_lstm(configs, goal_types):
     goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(
         get_scenarios_names(configs["train_scenarios"]), configs["input_type"],
         get_scenarios_names(configs["test_scenarios"]), configs["update_hz"], configs["fill_occluded_frames_mode"],
-        configs["suffix"])
+        configs["suffix"], configs["features_used_names"])
 
     true_goal_prob_sem.to_csv(goal_prob_sem_file_path)
     true_goal_prob.to_csv(goal_prob_file_path)
@@ -118,6 +118,8 @@ if __name__ == "__main__":
                              '- "remove" (default): remove the occluded frames'
                              '- "fake_pad": pad the occluded frames with fake values (e.g., -1 for x, y, heading)'
                              '- "use_frame_id": add "frame_id" to the input features (i.e. "tell" the LSTM which frames are occluded)')
+    parser.add_argument('--features_used_names', type=str, default="all",
+                        help='comma-separated list of features to use. E.g., "x,y,heading"')
 
     # Parse the arguments into a dictionary
     configs = parser.parse_args()
