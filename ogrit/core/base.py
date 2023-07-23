@@ -8,7 +8,7 @@ def get_all_scenarios():
 
 #### CONSTANTS ####
 LSTM_PADDING_VALUE = 0
-FAKE_LSTM_PADDING = -1  # used to pad the LSTM input when we have occluded frames
+FAKE_LSTM_PADDING = -2  # used to pad the LSTM input when we have occluded frames
 
 
 #### PATH CONVENTIONS ####
