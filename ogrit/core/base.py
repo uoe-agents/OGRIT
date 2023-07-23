@@ -43,10 +43,9 @@ def get_lstm_results_path(training_scenarios_names, input_type, test_scenarios_n
     return goal_prob_file, goal_prob_sem_file
 
 
-def get_lstm_dataset_path(scenario_names, input_type, split_type, update_hz, fill_occluded_frames_mode, goal_type,
-                          suffix):
+def get_lstm_dataset_path(scenario_names, input_type, split_type, update_hz, fill_occluded_frames_mode, goal_type):
     """ Get the path to the LSTM dataset file. """
-    return get_lstm_dir() + f"/datasets/{'_'.join(scenario_names)}_{goal_type}_{input_type}_{split_type}_{update_hz}Hz_{fill_occluded_frames_mode}_{suffix}.pt"
+    return get_lstm_dir() + f"/datasets/{'_'.join(scenario_names)}_{goal_type}_{input_type}_{split_type}_{update_hz}Hz_{fill_occluded_frames_mode}.pt"
 
 
 def get_dataset_split_path():

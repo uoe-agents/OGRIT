@@ -87,7 +87,7 @@ class LSTMDataset(Dataset):
     def load_dataset(self):
 
         dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
-                                             self.fill_occluded_frames_mode, self.goal_type, self.suffix)
+                                             self.fill_occluded_frames_mode, self.goal_type)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed, frame_ids, group_ids = self.get_dataset()
