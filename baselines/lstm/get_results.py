@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from model.train_test import FeaturesLSTM
+from baselines.lstm.model.train_test import FeaturesLSTM
 from ogrit.core.base import get_lstm_results_path, get_scenarios_names
 from ogrit.core.data_processing import get_multi_scenario_dataset
 from ogrit.core.logger import logger

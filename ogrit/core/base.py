@@ -39,6 +39,9 @@ def get_lstm_results_path(training_scenarios_names, input_type, test_scenarios_n
     def get_lstm_base_path(x=''):
         return get_results_dir() + f"/{test_scenarios_names}_lstm_{input_type}_on_{training_scenarios_names}_{update_hz}Hz_{fill_occluded_frames_mode}{suffix}{f'_{features_used_names}' if features_used_names != 'all' else ''}_true_goal_prob_{x}.csv"
 
+    if features_used_names != 'all':
+        features_used_names = '_'.join(features_used_names.split(','))
+
     goal_prob_file = get_lstm_base_path()
     goal_prob_sem_file = get_lstm_base_path('sem')
     return goal_prob_file, goal_prob_sem_file
@@ -47,6 +50,10 @@ def get_lstm_results_path(training_scenarios_names, input_type, test_scenarios_n
 def get_lstm_dataset_path(scenario_names, input_type, split_type, update_hz, fill_occluded_frames_mode, goal_type,
                           suffix, features_used_names):
     """ Get the path to the LSTM dataset file. """
+
+    if features_used_names != 'all':
+        features_used_names = '_'.join(features_used_names.split(','))
+        
     return get_lstm_dir() + f"/datasets/{'_'.join(scenario_names)}_{goal_type}_{input_type}_{split_type}_{update_hz}Hz_{fill_occluded_frames_mode}{suffix}{f'_{features_used_names}' if features_used_names != 'all' else ''}.pt"
 
 

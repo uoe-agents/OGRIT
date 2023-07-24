@@ -6,6 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from ogrit.core.base import get_base_dir, get_lstm_results_path
 
 parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
@@ -45,8 +46,8 @@ label_map = {'generalised_grit': 'Oracle',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
-             'lstm_ogrit_features': 'LSTM OGRIT features',
-             'lstm_relative_position': 'LSTM relative position',
+             'lstm_ogrit_features_all': 'LSTM OGRIT features',
+             'lstm_relative_position_all': 'LSTM relative position',
              'lstm_absolute_position': 'LSTM abs',
              'sogrit': 'S-OGRIT',
              'ogrit_oracle': 'OGRIT-oracle',
@@ -57,7 +58,19 @@ label_map = {'generalised_grit': 'Oracle',
              'igp2': 'IGP2',
              'occlusion_grit_rdb5': 'OGRIT rdb5',
              'occlusion_grit_old_features': 'old features',
-             'occlusion_grit_new_features': 'new features'}
+             'occlusion_grit_new_features': 'new features',
+             'occlusion_gritall_rdbs_angle_to_goal': 'ogrti w/ angle_to_goal',
+             'occlusion_grit_all_rdbs_angle_to_goal_remove_goal_passed': 'ogrit w/ angle_to_goal + remove last passed goal',
+             'occlusion_grit_all_rdbs_angle_to_goal_angle_ch123s': 'angle_change1/2/3s',
+             'occlusion_grit_all_rdbs_abs_angle_to_goal_remove_goal_passed': 'abs_angle_to_goal',
+             'occlusion_grit_all_rdbs_negative_abs_angle_to_goal_remove_goal_passed': 'neg_abs_angle_to_goal',
+             'lstm_ogrit_features_occluded_features_no_angle_to_goal': 'lstm no_angle_to_goal',
+             'lstm_ogrit_features_angle_to_goal_in_correct_lane': 'lstm only angle_to_goal + correct lane',
+             'lstm_ogrit_features_speed_in_correct_lane': 'lstm only speed + correct lane',
+             'lstm_ogrit_features_path_to_goal_length_in_correct_lane': 'lstm only path_to_goal + correct lane',
+             'lstm_ogrit_features_angle_in_lane_in_correct_lane': 'lstm only angle in lane + correct lane',
+             'lstm_ogrit_features_old': 'old LSTM w/o angle to goal but no occluded features'
+             }
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
@@ -135,7 +148,7 @@ if plot_normalised_entropy:
 
 # plot true goal probability
 if plot_true_goal_prob:
-    plt.rcParams["figure.figsize"] = (10, 10)
+    plt.rcParams["figure.figsize"] = (15, 15)
 
     fig, axes = plt.subplots(2, 2)
 
@@ -165,7 +178,7 @@ if plot_true_goal_prob:
                 continue
 
             if "lstm" in model_name:
-                _, input_type, update_hz, fill_occluded_frames_mode = model_name.split("-")
+                _, input_type, update_hz, fill_occluded_frames_mode, features_used_names = model_name.split("-")
                 update_hz = int(update_hz)
                 try:
 
@@ -180,16 +193,20 @@ if plot_true_goal_prob:
                         test_scenario_variants[
                             scenario_name] if args.lstm_train_scenario == "variants" else scenario_name,
                         update_hz,
-                        fill_occluded_frames_mode)
+                        fill_occluded_frames_mode,
+                        suffix="",
+                        features_used_names=features_used_names, )
                     true_goal_prob_sem = pd.read_csv(goal_prob_sem_file_path)
                     true_goal_prob = pd.read_csv(goal_prob_file_path)
                 except FileNotFoundError:
                     continue
             else:
                 try:
+
+                    temp_name = "neuweiler" if args.scenarios == "variant4" else scenario_name
                     true_goal_prob_sem = pd.read_csv(
-                        results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
-                    true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
+                        results_dir + f'/{temp_name}_{model_name}_true_goal_prob_sem.csv')
+                    true_goal_prob = pd.read_csv(results_dir + f'/{temp_name}_{model_name}_true_goal_prob.csv')
                 except FileNotFoundError:
                     continue
 
@@ -204,7 +221,7 @@ if plot_true_goal_prob:
 
             if "lstm" in model_name:
                 label = label_map[
-                            f"lstm_{input_type}"] + f" ({1 if update_hz == 25 else 25} Hz) - {fill_occluded_frames_mode[:3]}"
+                    f"lstm_{input_type}{f'_{features_used_names}' if features_used_names != '' else ''}"]
             else:
                 label = label_map[model_name]
             p = plt.plot(np.array(true_goal_prob.fraction_observed), np.array(true_goal_prob.true_goal_prob),
@@ -221,7 +238,8 @@ if plot_true_goal_prob:
                              color=p[0].get_color())
         plt.ylim([0.0, 1.0])
         if scenario_idx == 0:
-            plt.legend()
+            # plot legend in small font
+            plt.legend(fontsize=8)
     plt.savefig(get_base_dir() + '/images/true_goal_prob_ogrit.pdf', bbox_inches='tight')
 
 # plot cross entropy

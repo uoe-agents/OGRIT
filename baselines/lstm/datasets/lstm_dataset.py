@@ -59,6 +59,8 @@ class LSTMDataset(Dataset):
         self.fill_occluded_frames_mode = fill_occluded_frames_mode
         self.suffix = suffix
 
+        self.features_to_use_names = features_to_use
+
         self._nr_occluded_frames = 0  # for debugging
 
         self.scenario_names = scenario_names
@@ -94,7 +96,7 @@ class LSTMDataset(Dataset):
 
         dataset_path = get_lstm_dataset_path(self.scenario_names, self.input_type, self.split_type, self.update_hz,
                                              self.fill_occluded_frames_mode, self.goal_type, self.suffix,
-                                             self.features_to_use)
+                                             self.features_to_use_names)
         if not os.path.exists(dataset_path) or self.recompute_dataset:
             logger.info(f"Creating dataset {dataset_path}...")
             trajectories, targets, lengths, fractions_observed, frame_ids, group_ids = self.get_dataset()
