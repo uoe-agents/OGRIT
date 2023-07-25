@@ -349,30 +349,39 @@ class FeatureExtractor:
                     lanes.append(lane)
                 prev_lane = lane
 
-        points = {}
+        points_dict = {}
         start_lane = path[0]
+        id = 0
         for lane in lanes:
             # choose the front points in the start lane
             if lane == start_lane:
                 start_point = state.position
                 start_lane_dist = start_lane.distance_at(start_point)
                 midline_start = start_lane.midline
-                for coord in midline_start.coords:
-                    if start_lane.distance_at(coord) > start_lane_dist:
-                        points[lane.id] = coord
+                x = []
+                y = []
+                for inx in range(len(midline_start.coords.xy[0])):
+                    point = np.array([midline_start.coords.xy[0][inx], midline_start.coords.xy[1][inx]])
+                    if start_lane.distance_at(point) > start_lane_dist:
+                        x.append(midline_start.coords.xy[0][inx])
+                        y.append(midline_start.coords.xy[1][inx])
+                points_dict[id] = (x, y)
             else:
                 midline = lane.midline
-                points[lane.id] = midline.coords
+                points_dict[id] = midline.coords.xy
+            id += 1
 
-        return self.get_points_curvature(points)
+        return self.get_points_curvature(points_dict)
 
     @staticmethod
     def get_points_curvature(points: Dict) -> float:
         cur = []
         for ps in points.values():
+            if len(ps[0]) < 3:
+                continue
             # first derivatives
-            dx = np.gradient(ps[:, 0])
-            dy = np.gradient(ps[:, 1])
+            dx = np.gradient(ps[0])
+            dy = np.gradient(ps[1])
 
             # second derivatives
             d2x = np.gradient(dx)
