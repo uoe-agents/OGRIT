@@ -130,6 +130,7 @@ class FeatureExtractor:
         angular_velocity = self.get_angular_velocity(agent_id, frames, fps=fps)
         angular_acc = self.get_angular_acc(agent_id, frames, fps=fps)
         path_curvature_to_goal = self.get_path_curvature_to_goal(current_state, lane_path)
+        angle_to_exit = self.angle_to_exit(current_state, lane_path)
 
         goal_type = goal.goal_type
 
@@ -500,6 +501,20 @@ class FeatureExtractor:
     def angle_to_goal(state, goal):
         goal_heading = np.arctan2(goal.goal.center.y - state.position[1], goal.goal.center.x - state.position[0])
         return heading_diff(goal_heading, state.heading)
+
+    @staticmethod
+    def angle_to_exit(state, path):
+        goal_lane = path[-1]
+        goal_midline = goal_lane.midline
+        headings = []
+        for idx in range(len(goal_midline.coords) - 1):
+            current_coord = goal_midline.coords[idx]
+            next_coord = goal_midline.coords[idx+1]
+            heading = np.arctan2(next_coord[1] - current_coord[1], next_coord[0] - current_coord[0])
+            headings.append(heading)
+        headings_ave = np.average(headings)
+
+        return heading_diff(headings_ave, state.heading)
 
     @staticmethod
     def get_junction_lane(lane_path: List[Lane]) -> Union[Lane, None]:
