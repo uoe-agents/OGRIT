@@ -29,6 +29,7 @@ class FeatureExtractor:
     MISSING = True
     NON_MISSING = False
 
+    # Include here the features that you want to use in the decision tree.
     feature_names = {'path_to_goal_length': 'scalar',
                      'in_correct_lane': 'binary',
                      'speed': 'scalar',
@@ -51,6 +52,10 @@ class FeatureExtractor:
                      # 'dist_travelled_3s': 'scalar'
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
+                     'angle_to_goal': 'scalar',
+                     'angular_velocity': 'scalar',
+                     'angular_acc': 'scalar',
+                     'path_curvature_to_goal': 'scalar'
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -121,6 +126,11 @@ class FeatureExtractor:
         angle_in_lane = self.angle_in_lane(current_state, current_lane)
         road_heading = self.road_heading(lane_path)
         exit_number = self.exit_number(initial_state, lane_path)
+        angle_to_goal = self.angle_to_goal(current_state, goal)
+        angular_velocity = self.get_angular_velocity(agent_id, frames, fps=fps)
+        angular_acc = self.get_angular_acc(agent_id, frames, fps=fps)
+        path_curvature_to_goal = self.get_path_curvature_to_goal(current_state, lane_path)
+
         goal_type = goal.goal_type
 
         vehicle_in_front_id, vehicle_in_front_dist = self.vehicle_in_front(agent_id, lane_path, current_frame)
@@ -175,8 +185,12 @@ class FeatureExtractor:
                     'dist_travelled_3s': dist_travelled_3s,
                     'roundabout_uturn': roundabout_uturn,
                     'roundabout_slip_road': roundabout_slip_road,
+                    'angle_to_goal': angle_to_goal,
+                    'angular_velocity': angular_velocity,
+                    'angular_acc': angular_acc,
+                    'path_curvature_to_goal': path_curvature_to_goal,
 
-                    # Note: x, y, heading below are used for the LSTM baseline and not by OGRIT
+                    # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
                     'x': current_state.position[0],
                     'y': current_state.position[1],
                     'heading': current_state.heading}
@@ -243,6 +257,26 @@ class FeatureExtractor:
         return heading_change
 
     @staticmethod
+    def get_angular_velocity(agent_id: int, frames: List[Dict[int, AgentState]], fps=25) -> float:
+        if len(frames) < 2:
+            return 0.
+        current_heading = frames[-1][agent_id].heading
+        previous_heading = frames[-2][agent_id].heading
+        angular_velocity = (current_heading - previous_heading) / fps
+        return angular_velocity
+
+    @staticmethod
+    def get_angular_acc(agent_id: int, frames: List[Dict[int, AgentState]], fps=25) -> float:
+        if len(frames) < 3:
+            return 0.
+        current_heading = frames[-1][agent_id].heading
+        previous_heading = frames[-2][agent_id].heading
+        previous_previous_heading = frames[-3][agent_id].heading
+        current_angular_velocity = (current_heading - previous_heading) / fps
+        previous_angular_velocity = (previous_heading - previous_previous_heading) / fps
+        return (current_angular_velocity - previous_angular_velocity) / fps
+
+    @staticmethod
     def get_dist_travelled(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
         if frames_ago + 1 > len(frames):
             return 0.
@@ -301,6 +335,53 @@ class FeatureExtractor:
     def path_to_goal_length(cls, state: AgentState, goal: TypedGoal, path: List[Lane]) -> float:
         end_point = goal.goal.center
         return cls.path_to_point_length(state, end_point, path)
+
+    def get_path_curvature_to_goal(self, state: AgentState, path: List[Lane]) -> float:
+        # delete the lane change lane to avoid repeat
+        lanes = []
+        if len(path) > 1:
+            prev_lane = None
+            for idx in range(len(path)):
+                lane = path[idx]
+                lane_change = prev_lane is not None and prev_lane.lane_section == lane.lane_section
+                if not lane_change:
+                    lanes.append(lane)
+                prev_lane = lane
+
+        points = {}
+        start_lane = path[0]
+        for lane in lanes:
+            # choose the front points in the start lane
+            if lane == start_lane:
+                start_point = state.position
+                start_lane_dist = start_lane.distance_at(start_point)
+                midline_start = start_lane.midline
+                for coord in midline_start.coords:
+                    if start_lane.distance_at(coord) > start_lane_dist:
+                        points[lane.id] = coord
+            else:
+                midline = lane.midline
+                points[lane.id] = midline.coords
+
+        return self.get_points_curvature(points)
+
+    @staticmethod
+    def get_points_curvature(points: Dict) -> float:
+        cur = []
+        for ps in points.values():
+            # first derivatives
+            dx = np.gradient(ps[:, 0])
+            dy = np.gradient(ps[:, 1])
+
+            # second derivatives
+            d2x = np.gradient(dx)
+            d2y = np.gradient(dy)
+
+            # calculation of curvature from the typical formula
+            curvature = np.abs(dx * d2y - d2x * dy) / (dx * dx + dy * dy) ** 1.5
+            curvature_ave = np.average(curvature)
+            cur.append(curvature_ave)
+        return np.average(cur)
 
     @classmethod
     def vehicle_in_front(cls, target_agent_id: int, lane_path: List[Lane], frame: Dict[int, AgentState]):
@@ -417,7 +498,7 @@ class FeatureExtractor:
 
     @staticmethod
     def angle_to_goal(state, goal):
-        goal_heading = np.arctan2(goal[1] - state.y, goal[0] - state.x)
+        goal_heading = np.arctan2(goal.goal.center.y - state.position[1], goal.goal.center.x - state.position[0])
         return heading_diff(goal_heading, state.heading)
 
     @staticmethod
