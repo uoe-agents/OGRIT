@@ -129,7 +129,7 @@ class FeatureExtractor:
         angle_to_goal = self.angle_to_goal(current_state, goal)
         angular_velocity = self.get_angular_velocity(agent_id, frames, fps=fps)
         angular_acc = self.get_angular_acc(agent_id, frames, fps=fps)
-        path_curvature_to_goal = self.get_path_curvature_to_goal(current_state, lane_path)
+        path_curvature_to_goal = self.path_curvature_to_goal(path_to_goal_length, angle_to_goal)
         angle_to_exit = self.angle_to_exit(current_state, lane_path)
 
         goal_type = goal.goal_type
@@ -337,6 +337,10 @@ class FeatureExtractor:
         end_point = goal.goal.center
         return cls.path_to_point_length(state, end_point, path)
 
+    @staticmethod
+    def path_curvature_to_goal(path_to_goal_length, angle_to_goal) -> float:
+        return np.abs(2 * (angle_to_goal / path_to_goal_length))
+
     def get_path_curvature_to_goal(self, state: AgentState, path: List[Lane]) -> float:
         # delete the lane change lane to avoid repeat
         lanes = []
@@ -518,7 +522,7 @@ class FeatureExtractor:
         headings = []
         for idx in range(len(goal_midline.coords) - 1):
             current_coord = goal_midline.coords[idx]
-            next_coord = goal_midline.coords[idx+1]
+            next_coord = goal_midline.coords[idx + 1]
             heading = np.arctan2(next_coord[1] - current_coord[1], next_coord[0] - current_coord[0])
             headings.append(heading)
         headings_ave = np.average(headings)
