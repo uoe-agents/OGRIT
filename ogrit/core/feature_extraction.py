@@ -53,6 +53,8 @@ class FeatureExtractor:
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
                      'angle_to_goal': 'scalar',
+                     'angular_velocity': 'scalar',
+                     'angular_acc': 'scalar',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
@@ -124,6 +126,8 @@ class FeatureExtractor:
         road_heading = self.road_heading(lane_path)
         exit_number = self.exit_number(initial_state, lane_path)
         angle_to_goal = self.angle_to_goal(current_state, goal)
+        angular_velocity = self.get_angular_velocity(agent_id, frames, fps=fps)
+        angular_acc = self.get_angular_acc(agent_id, frames, fps=fps)
 
         goal_type = goal.goal_type
 
@@ -180,6 +184,8 @@ class FeatureExtractor:
                     'roundabout_uturn': roundabout_uturn,
                     'roundabout_slip_road': roundabout_slip_road,
                     'angle_to_goal': angle_to_goal,
+                    'angular_velocity': angular_velocity,
+                    'angular_acc': angular_acc,
 
                     # Note: x, y, heading below are used for the absolute position LSTM baseline and not by OGRIT
                     'x': current_state.position[0],
@@ -246,7 +252,27 @@ class FeatureExtractor:
         current_heading = frames[-1][agent_id].heading
         heading_change = heading_diff(initial_heading, current_heading)
         return heading_change
-        
+
+    @staticmethod
+    def get_angular_velocity(agent_id: int, frames: List[Dict[int, AgentState]], fps=25) -> float:
+        if len(frames) < 2:
+            return 0.
+        current_heading = frames[-1][agent_id].heading
+        previous_heading = frames[-2][agent_id].heading
+        angular_velocity = (current_heading - previous_heading) / fps
+        return angular_velocity
+
+    @staticmethod
+    def get_angular_acc(agent_id: int, frames: List[Dict[int, AgentState]], fps=25) -> float:
+        if len(frames) < 3:
+            return 0.
+        current_heading = frames[-1][agent_id].heading
+        previous_heading = frames[-2][agent_id].heading
+        previous_previous_heading = frames[-3][agent_id].heading
+        current_angular_velocity = (current_heading - previous_heading) / fps
+        previous_angular_velocity = (previous_heading - previous_previous_heading) / fps
+        return (current_angular_velocity - previous_angular_velocity) / fps
+
     @staticmethod
     def get_dist_travelled(agent_id: int, frames: List[Dict[int, AgentState]], frames_ago: int) -> float:
         if frames_ago + 1 > len(frames):
