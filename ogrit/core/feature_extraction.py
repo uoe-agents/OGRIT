@@ -53,8 +53,6 @@ class FeatureExtractor:
                      'roundabout_slip_road': 'binary',
                      'roundabout_uturn': 'binary',
                      'angle_to_goal': 'scalar',
-                     'angular_velocity': 'scalar',
-                     'angular_acc': 'scalar',
                      }
 
     possibly_missing_features = {'exit_number': 'exit_number_missing',
