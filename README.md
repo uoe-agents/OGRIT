@@ -1,29 +1,29 @@
-#OGRIT
+# OGRIT
 
 1) Install IGP2, as specified on https://github.com/uoe-agents/IGP2.
+   Note: please install the `ogrit` branch of IGP2. Therefore the suggested sequence of steps is as follows:
+   ```
+   git clone https://github.com/uoe-agents/IGP2.git
+   cd IGP2
+   git checkout ogrit
+   pip install -e .
+   ```
 
-
-One of the requirements of IGP2 is `carla`. This, though, is not a requirement for OGRIT. To run on machines that cannot 
-install `carla`, do the following:
-- Remove `carla==0.9.12` from `IGP2/requirements.txt`
-- Remove `from igp2 import` (line 17) from `IGP2/igp2/__init__.py`
-- Install IGP2 as per point 1 above
-
-2) Install OGRIT with pip: 
+3) Install OGRIT with pip: 
     ```
     cd OGRIT
     pip install -e .
     ```
 
-3) Set up the required folders by running:
+4) Set up the required folders by running:
    ```
    python ogrit/core/base.py
    ```
    
-4) Copy the data from the [inD](https://www.ind-dataset.com/) dataset into `OGRIT/scenarios/data/ind`, and from the [rounD](https://www.round-dataset.com/) dataset into `OGRIT/scenarios/data/round`.
+5) Copy the data from the [inD](https://www.ind-dataset.com/) dataset into `OGRIT/scenarios/data/ind`, and from the [rounD](https://www.round-dataset.com/) dataset into `OGRIT/scenarios/data/round`.
 
 
-5) Extract the occlusions. You can either:
+6) Extract the occlusions. You can either:
    1) Download the folders `bendplatz_pickle`, `frankenburg_pickle`, `heckstrasse_pickle` and `neuweiler_pickle` 
    from the from the [inDO and rounDO datasets](link_see also below). Then, unzip them and copy the files inside them in the `OGRIT/occlusions`
    folder.
@@ -33,7 +33,7 @@ install `carla`, do the following:
        ```
    
 
-6) Preprocess the data and extract the base and indicator features:
+7) Preprocess the data and extract the base and indicator features:
    ```
    python scripts/preprocess_data.py
    ```
@@ -43,7 +43,7 @@ as an example to extract the base and indicator features. You need to create a s
 More instructions are given in the example file mentioned.
 
 
-7) Train OGRIT and the baseline (G-GRIT). Then calculate the evaluation metrics on the test set:
+8) Train OGRIT and the baseline (G-GRIT). Then calculate the evaluation metrics on the test set:
 
     ```
     python scripts/train_occlusion_grit.py
@@ -70,8 +70,8 @@ For example, to get the occlusions in `frankenburg` episode `3`, you can run the
 python scripts/extract_occlusions_one_episode.py --scenario frankenburg --episode_idx 3 --debug
 ```
 
-### b) Visualize the occlusions contained in the [inDO and rounDO datasets](link_see also below)
-To visualise the occlusions for one of the episodes contained in the [inDO and rounDO datasets](link_see also below),
+### b) Visualize the occlusions contained in the [inDO, rounDO and OpenDDO datasets](https://doi.org/10.7488/ds/3498)
+To visualise the occlusions for one of the episodes contained in the [inDO, rounDO and OpenDDO datasets](https://doi.org/10.7488/ds/3498),
 follow steps 1-4 of the `OGRIT` section above. 
 
 Then, if the episode data is in the JSON format run the following command:
