@@ -44,24 +44,50 @@ def get_box(vehicle, x=None, y=None, heading=None):
 def plot_map(scenario_map, ego_id, scenario_config=None, frame: Dict[int, AgentState] = None):
     if scenario_config is not None:
         ip.plot_map(scenario_map, markings=False, midline=False, scenario_config=scenario_config,
-                    plot_background=True, ignore_roads=True, plot_goals=True, plot_buildings=True)
+                    plot_background=True, ignore_roads=True, plot_goals=False, plot_buildings=True)
     else:
         ip.plot_map(scenario_map, markings=False, midline=False)
 
     if frame:
         for aid, state in frame.items():
-            color = OBSTACLES_COLOR if aid != ego_id else EGO_COLOR
-            plt.text(*state.position, aid)
-            plot_area(Polygon(get_box(state).boundary), color=color)
+            color = OBSTACLES_COLOR
+
+            if aid == ego_id:
+                continue
+
+            plot_area(Polygon(get_box(state).boundary), color=color, alpha=0.8)
+            # plt.text(*state.position, aid, zorder=10)
 
 
-def plot_area(polygon, color="r", alpha=.5, linewidth=None, ax=None):
+def plot_ego(frame, ego_id):
+    for aid, state in frame.items():
+
+        if aid != ego_id:
+            continue
+
+        color = EGO_COLOR
+        plot_area(Polygon(get_box(state).boundary), color=color, alpha=1)
+        # plt.text(*state.position, aid, zorder=10)
+
+
+def plot_goals(scenario_config):
+    if scenario_config is None:
+        raise ValueError("scenario_config must be provided to draw buildings")
+    else:
+        goals = scenario_config.goals
+
+        for goal in goals:
+            plt.plot(*goal, color="r", marker='o', ms=10, zorder=15)
+
+
+def plot_area(polygon, color="r", alpha=.5, linewidth=None, ax=None, zebra=False):
     """
     Given a polygon, plot the boundaries and shade the interior.
     """
     if ax is None:
         ax = plt.gca()
-    ax.add_patch(PolygonPatch(polygon, color=color, alpha=alpha, fill=True, linewidth=linewidth))
+
+    ax.add_patch(PolygonPatch(polygon, color=color, alpha=alpha, fill=True, linewidth=linewidth, zorder=5))
 
 
 def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int, int]]] = None,
@@ -79,8 +105,6 @@ def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int
                            occlusions (e.g., because they are too far away).
     """
 
-    plot_ego_position(ego_position)
-
     if occlusion_lines is not None:
         # Plot the line that go from the ego to the obstacles and shade the area occluded by the obstacle.
         occluded_areas = []
@@ -92,8 +116,8 @@ def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int
             ((x1, y1), (x3, y3)), ((x2, y2), (x4, y4)) = occlusion_line
 
             # Plot the line segment going from the ego vehicle to the vertices of the obstacle.
-            plt.plot([x0, x1], [y0, y1], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
-            plt.plot([x0, x2], [y0, y2], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA)
+            plt.plot([x0, x1], [y0, y1], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA, zorder=1)
+            plt.plot([x0, x2], [y0, y2], color=OCCLUSIONS_COLOR, alpha=OCCLUDED_AREA_ALPHA, zorder=1)
 
             occluded_areas.append(Polygon([(x1, y1), (x2, y2), (x4, y4), (x3, y3)]))
 
@@ -122,19 +146,17 @@ def plot_occlusions(ego_position: np.array, occlusion_lines: List[List[Tuple[int
 
 
 def plot_area_from_list(geometries, color="r", alpha=0.5, ax=None):
-    if ax is None:
-        ax = plt.gca()
     geometries = unary_union(geometries)
     if not geometries.is_empty:
         if isinstance(geometries, Polygon):
-            plot_area(geometries, color=color, alpha=alpha, ax=ax)
+            plot_area(geometries, color=color, alpha=alpha)
         elif isinstance(geometries, MultiPolygon):
             for geometry in geometries.geoms:
-                plot_area(geometry, color=color, alpha=alpha, ax=ax)
+                plot_area(geometry, color=color, alpha=alpha)
 
 
 def plot_ego_position(ego_position):
-    plt.plot(*ego_position, marker="x", color=EGO_COLOR, markersize=10)
+    plt.plot(*ego_position, marker="x", color=OCCLUSIONS_COLOR, markersize=10, zorder=15)
 
 
 def show_plot():
