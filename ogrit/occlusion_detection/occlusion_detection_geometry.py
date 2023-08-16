@@ -6,16 +6,17 @@ from itertools import combinations
 from typing import List
 
 import numpy as np
-import ogrit.occlusion_detection.visualisation_tools as util
 from igp2.data.scenario import InDScenario, ScenarioConfig
 from igp2.opendrive.map import Map
-from ogrit.core.base import get_scenarios_dir, get_occlusions_dir
-from ogrit.core.data_processing import get_episode_frames
-from ogrit.core.logger import logger
-from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
 from shapely.geometry import Point, MultiPoint, Polygon, MultiPolygon
 from shapely.ops import unary_union
 from tqdm import tqdm
+
+import ogrit.occlusion_detection.visualisation_tools as util
+from ogrit.core.base import get_scenarios_dir, get_occlusions_file_name
+from ogrit.core.data_processing import get_episode_frames
+from ogrit.core.logger import logger
+from ogrit.occlusion_detection.occlusion_line import OcclusionLine as Line
 
 # After how many meters can't the vehicle see anything
 OCCLUSION_RADIUS = 100
@@ -53,7 +54,7 @@ class OcclusionDetector2D:
         self.compute_occlusions_roads = compute_occlusions_roads
         self.compute_occlusions_lanes = compute_occlusions_lanes
 
-    def extract_occlusions(self, save_format="p"):
+    def extract_occlusions(self, file_extension, save_format="p"):
         """
         Args:
             save_format: enter "json" to store the occlusion data in json format, or leave empty to store them into
@@ -62,7 +63,8 @@ class OcclusionDetector2D:
 
         self.save_format = save_format
 
-        if os.path.exists(self._get_occlusions_file_name()):
+        if os.path.exists(get_occlusions_file_name(scenario_name=self.scenario_name, episode_idx=self.episode_idx,
+                                                   file_extension=file_extension)):
             logger.error(f"Occlusions already exist for scenario {self.scenario_name} episode {self.episode_idx}")
             return
 
@@ -73,7 +75,7 @@ class OcclusionDetector2D:
 
         for frame_id, frame in enumerate(tqdm(episode_frames)):
             all_occlusion_data[frame_id] = self.get_occlusions_frame(frame)
-        self._save_occlusions(all_occlusion_data)
+        self._save_occlusions(all_occlusion_data, file_extension)
 
     def _get_format(self, polygon: MultiPolygon):
         """
@@ -101,19 +103,20 @@ class OcclusionDetector2D:
             raise ValueError('You can only store the occlusions either in pickle (save_format="p") " \
                              "or JSON (save_format="json"')
 
-    def _save_occlusions(self, data_to_store):
+    def _save_occlusions(self, data_to_store, file_extension):
 
-        occlusions_file_name = self._get_occlusions_file_name()
+        occlusions_file_name = get_occlusions_file_name(scenario_name=self.scenario_name, episode_idx=self.episode_idx,
+                                                        file_extension=file_extension)
 
         if self.save_format == "p":
             with open(occlusions_file_name, 'wb') as file:
                 pickle.dump(data_to_store, file, protocol=5)
         elif self.save_format == "json":
             with open(occlusions_file_name, 'w') as file:
-                json.dump(data_to_store, file)
-
-    def _get_occlusions_file_name(self):
-        return get_occlusions_dir() + f"/{self.scenario_name}_e{self.episode_idx}.{self.save_format}"
+                if "txt" in occlusions_file_name:
+                    json.dump(data_to_store, file, ensure_ascii=False)
+                else:
+                    json.dump(data_to_store, file)
 
     def get_occlusions_frame(self, frame):
         frame_occlusions = {}
@@ -141,10 +144,15 @@ class OcclusionDetector2D:
             ego_occluded_lanes = self.get_occlusions_ego_by_road(ego_position, obstacles)
 
             if self.debug and self.save_format == "p":
-                util.plot_map(self.scenario_map, self.scenario_config, frame=frame)
+                util.plot_map(self.scenario_map, ego_id=ego_id, scenario_config=self.scenario_config, frame=frame)
                 util.plot_occlusions(ego_position, self.occlusion_lines, ego_occluded_lanes,
                                      non_visible_areas=self.occlusions_far_away)
+
+                util.plot_goals(scenario_config=self.scenario_config)
+                util.plot_ego(frame, ego_id)
+
                 self.occlusion_lines = []
+
                 util.show_plot()
 
             frame_occlusions[ego_id] = ego_occluded_lanes

@@ -23,7 +23,12 @@ def main():
     parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
                                                         'or "p" for pickle', default="p")
 
+    parser.add_argument('--file_extension', type=str, help='File extension for the occlusion data. If not specified, '
+                                                           'the save_format will be used', default=None)
+
     args = parser.parse_args()
+
+    file_extension = args.save_format if args.file_extension is None else args.file_extension
 
     create_folders()
 
@@ -34,7 +39,7 @@ def main():
                                              compute_occlusions_lanes=args.compute_occlusions_lanes)
 
     start = datetime.now()
-    occlusion_detector.extract_occlusions(save_format=args.save_format)
+    occlusion_detector.extract_occlusions(file_extension=file_extension, save_format=args.save_format)
     logger.info(
         f'Extracting occlusions for scenario {args.scenario} episode {args.episode_idx} took {datetime.now() - start}')
 

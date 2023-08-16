@@ -53,8 +53,12 @@ def get_lstm_dataset_path(scenario_names, input_type, split_type, update_hz, fil
 
     if features_used_names != 'all':
         features_used_names = '_'.join(features_used_names.split(','))
-        
+
     return get_lstm_dir() + f"/datasets/{'_'.join(scenario_names)}_{goal_type}_{input_type}_{split_type}_{update_hz}Hz_{fill_occluded_frames_mode}{suffix}{f'_{features_used_names}' if features_used_names != 'all' else ''}.pt"
+
+
+def get_occlusions_file_name(scenario_name, episode_idx, file_extension):
+    return get_occlusions_dir() + f"/{scenario_name}_e{episode_idx}.{file_extension}"
 
 
 def get_dataset_split_path():

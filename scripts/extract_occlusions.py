@@ -8,7 +8,7 @@ from ogrit.occlusion_detection.occlusion_detection_geometry import OcclusionDete
 
 
 def prepare_episode_occlusion_dataset(params):
-    scenario_name, episode_idx, debug, save_format, compute_occlusions_roads, compute_occlusions_lanes = params
+    scenario_name, episode_idx, debug, save_format, compute_occlusions_roads, compute_occlusions_lanes, file_extension = params
 
     print('scenario {} episode {}'.format(scenario_name, episode_idx))
 
@@ -16,7 +16,7 @@ def prepare_episode_occlusion_dataset(params):
                                              compute_occlusions_roads=compute_occlusions_roads,
                                              compute_occlusions_lanes=compute_occlusions_lanes)
 
-    occlusion_detector.extract_occlusions(save_format)
+    occlusion_detector.extract_occlusions(file_extension=file_extension, save_format=save_format)
     print('finished scenario {} episode {}'.format(scenario_name, episode_idx))
 
 
@@ -35,8 +35,12 @@ def main():
                         help="if set, we also store the occlusions on each lane.", action='store_true')
     parser.add_argument('--save_format', type=str, help='Format in which to save the occlusion data. Either "json" '
                                                         'or "p" for pickle', default="p")
+    parser.add_argument('--file_extension', type=str, help='File extension for the occlusion data. If not specified, '
+                                                           'the save_format will be used', default=None)
 
     args = parser.parse_args()
+
+    file_extension = args.save_format if args.file_extension is None else args.file_extension
 
     create_folders()
 
@@ -50,7 +54,7 @@ def main():
         scenario_config = ScenarioConfig.load(f"scenarios/configs/{scenario_name}.json")
         for episode_idx in range(len(scenario_config.episodes)):
             params_list.append((scenario_name, episode_idx, args.debug, args.save_format, args.compute_occlusions_roads,
-                                args.compute_occlusions_lanes))
+                                args.compute_occlusions_lanes, file_extension))
 
     with Pool(args.workers) as p:
         p.map(prepare_episode_occlusion_dataset, params_list)

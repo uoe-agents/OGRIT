@@ -4,13 +4,12 @@ import pickle
 from igp2.data import ScenarioConfig, InDScenario
 from igp2.opendrive.map import Map
 
-from ogrit.core.base import get_occlusions_dir, get_scenarios_dir, set_working_dir
 import ogrit.occlusion_detection.visualisation_tools as visualizer
+from ogrit.core.base import get_scenarios_dir, set_working_dir, get_occlusions_file_name
 from ogrit.core.data_processing import get_episode_frames
 
-
 parser = argparse.ArgumentParser(description='Process the dataset')
-parser.add_argument('--scenario', type=str, help='Name of scenario to process', default="bendplatz")
+parser.add_argument('--scenario', type=str, help='Name of scenario to process', default="heckstrasse")
 parser.add_argument('--episode_idx', type=int, help='Name of scenario to process', default=0)
 parser.add_argument('--frame_id', type=int, help='Frame id of a specific frame to visualize', default=None)
 parser.add_argument('--plot_type', type=str, help='the end results should be the same no matter the input. '
@@ -21,6 +20,8 @@ parser.add_argument('--plot_type', type=str, help='the end results should be the
                                                   '     "road" to plot the occlusions for each road '
                                                   '     "lane" to plot the occlusions for each lane',
                     default="ego")
+parser.add_argument('--file_extension', type=str, help='File extension for the occlusion data. If not specified, '
+                                                       '.p will be used', default=None)
 
 
 def main():
@@ -40,6 +41,7 @@ def main():
     """
 
     args = parser.parse_args()
+    file_extension = ".p" if args.file_extension is None else args.file_extension
 
     # Update the working directory to load all the file correctly.
     set_working_dir()
@@ -51,7 +53,8 @@ def main():
     episode = scenario.load_episode(args.episode_idx)
 
     # Read the json file containing the occlusions.
-    with open(get_occlusions_dir() + f'/{args.scenario}_e{args.episode_idx}.p', 'rb') as f:
+    with open(get_occlusions_file_name(scenario_name=args.scenario, episode_idx=args.episode_idx,
+                                       file_extension=file_extension), 'rb') as f:
         occlusions = pickle.load(f)
 
     # Visualize the occlusions for every frame in the episode
@@ -69,7 +72,7 @@ def main():
             if episode.agents[ego_id].parked():
                 continue
 
-            visualizer.plot_map(scenario_map, scenario_config, frame)
+            visualizer.plot_map(scenario_map=scenario_map, ego_id=ego_id, scenario_config=scenario_config, frame=frame)
             visualizer.plot_ego_position(frame[ego_id].position)
 
             if args.plot_type == "ego":
