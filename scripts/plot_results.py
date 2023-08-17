@@ -12,9 +12,6 @@ from ogrit.core.base import get_base_dir, get_lstm_results_path
 parser = argparse.ArgumentParser(description='Train decision trees for goal recognition')
 parser.add_argument('--models', type=str, help='List of models, comma separated', default='occlusion_grit')
 parser.add_argument('--scenarios', type=str, help='List of scenarios, comma separated', default='heckstrasse')
-parser.add_argument('--lstm_train_scenario', type=str,
-                    help='Use the LSTM model trained on this scenario(s) to evaluate the test --scenarios. Own = use the same scenario as the testing one',
-                    default='own')
 args = parser.parse_args()
 
 matplotlib.rcParams['pdf.fonttype'] = 42
@@ -23,73 +20,38 @@ matplotlib.rcParams['ps.fonttype'] = 42
 plt.style.use('ggplot')
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 
-# which model(s) we used to train the scenario(s) we are evaluating
 model_names = args.models.split(',')
 scenario_names = args.scenarios.split(',')
 
-if args.lstm_train_scenario == "own":
-    lstm_train_scenario = {s: s for s in scenario_names}
-elif args.lstm_train_scenario == "variants":
-    lstm_train_scenario = {"variant1": 'rdb2_rdb3_rdb6_rdb7',
-                           "variant2": 'rdb2_rdb3_rdb4_rdb6_rdb7',
-                           "variant3": 'rdb2_rdb3_rdb4_rdb5_rdb6_rdb7',
-                           "variant4": 'rdb1_rdb2_rdb3_rdb4_rdb5_rdb6_rdb7'}
-else:
-    lstm_train_scenario = {s: args.lstm_train_scenario for s in scenario_names}
+# What scenarios we used to train the LSTM. Usually the train and test are the same, but in the generalization
+# experiment we train on rdb1,rb2,rb3,rb4,rdb5,rb6,rb7 but test on neuweiler.
+lstm_train_scenario = {s: s for s in scenario_names}
+lstm_train_scenario["generalization"] = "rdb1_rdb2_rdb3_rdb4_rdb5_rdb6_rdb7"
+
+lstm_test_scenario = {s: s for s in scenario_names}
+lstm_test_scenario["generalization"] = "neuweiler"
 
 label_map = {'generalised_grit': 'Oracle',
              'occlusion_grit': 'OGRIT',
-             'occlusion_grit_loocv': 'OGRIT-LOOCV',
-             'occlusion_baseline': 'truncated G-GRIT',
-             'no_possibly_missing_features_ogrit': 'OGRIT baseline',
-             'uniform_prior_baseline': 'OGRIT-no-DT',
              'grit_uniform_prior': 'GRIT',
              'grit': 'GRIT',
              'lstm': 'LSTM',
-             'lstm_ogrit_features_all': 'LSTM OGRIT features',
-             'lstm_relative_position_all': 'LSTM relative position',
-             'lstm_absolute_position': 'LSTM abs',
-             'sogrit': 'S-OGRIT',
              'ogrit_oracle': 'OGRIT-oracle',
-             'trained_trees': 'GRIT',
-             'truncated_grit': 'Truncated GRIT',
-             'no_possibly_missing_features_grit': 'GRIT',
-             'grit_no_missing_uniform': 'GRIT',
              'igp2': 'IGP2',
-             'occlusion_grit_rdb5': 'OGRIT rdb5',
-             'occlusion_grit_old_features': 'old features',
-             'occlusion_grit_new_features': 'new features',
-             'occlusion_gritall_rdbs_angle_to_goal': 'ogrti w/ angle_to_goal',
-             'occlusion_grit_all_rdbs_angle_to_goal_remove_goal_passed': 'ogrit w/ angle_to_goal + remove last passed goal',
-             'occlusion_grit_all_rdbs_angle_to_goal_angle_ch123s': 'angle_change1/2/3s',
-             'occlusion_grit_all_rdbs_abs_angle_to_goal_remove_goal_passed': 'abs_angle_to_goal',
-             'occlusion_grit_all_rdbs_negative_abs_angle_to_goal_remove_goal_passed': 'neg_abs_angle_to_goal',
-             'lstm_ogrit_features_occluded_features_no_angle_to_goal': 'lstm no_angle_to_goal',
-             'lstm_ogrit_features_angle_to_goal_in_correct_lane': 'lstm only angle_to_goal + correct lane',
-             'lstm_ogrit_features_speed_in_correct_lane': 'lstm only speed + correct lane',
-             'lstm_ogrit_features_path_to_goal_length_in_correct_lane': 'lstm only path_to_goal + correct lane',
-             'lstm_ogrit_features_angle_in_lane_in_correct_lane': 'lstm only angle in lane + correct lane',
-             'lstm_ogrit_features_old': 'old LSTM w/o angle to goal but no occluded features'
              }
 
 title_map = {'heckstrasse': 'Heckstrasse',
              'bendplatz': 'Bendplatz',
              'frankenburg': 'Frankenburg',
              'neuweiler': 'Neuweiler',
-             'neukoellnerstrasse': 'Neukoellner Strasse',
              'rdb1': 'Rdb1',
              'rdb2': 'Rdb2',
              'rdb3': 'Rdb3',
              'rdb4': 'Rdb4',
              'rdb5': 'Rdb5',
              'rdb6': 'Rdb6',
-             'rdb7': 'Rdb7', }
-
-if args.lstm_train_scenario == "variants":
-    title_map = {"variant1": 'Variant 1',
-                 "variant2": 'Variant 2',
-                 "variant3": 'Variant 3',
-                 "variant4": 'Variant 4'}
+             'rdb7': 'Rdb7',
+             'generalization': 'Cross-Dataset', }
 
 plot_accuracy = False
 plot_normalised_entropy = False
@@ -182,16 +144,10 @@ if plot_true_goal_prob:
                 update_hz = int(update_hz)
                 try:
 
-                    test_scenario_variants = {"variant1": "neuweiler_rdb4_rdb5",
-                                              "variant2": "neuweiler_rdb5",
-                                              "variant3": "neuweiler",
-                                              "variant4": "neuweiler"}
-
                     goal_prob_file_path, goal_prob_sem_file_path = get_lstm_results_path(
                         lstm_train_scenario[scenario_name],
                         input_type,
-                        test_scenario_variants[
-                            scenario_name] if args.lstm_train_scenario == "variants" else scenario_name,
+                        lstm_test_scenario[scenario_name],
                         update_hz,
                         fill_occluded_frames_mode,
                         suffix="",
@@ -202,11 +158,9 @@ if plot_true_goal_prob:
                     continue
             else:
                 try:
-
-                    temp_name = "neuweiler" if args.scenarios == "variant4" else scenario_name
                     true_goal_prob_sem = pd.read_csv(
-                        results_dir + f'/{temp_name}_{model_name}_true_goal_prob_sem.csv')
-                    true_goal_prob = pd.read_csv(results_dir + f'/{temp_name}_{model_name}_true_goal_prob.csv')
+                        results_dir + f'/{scenario_name}_{model_name}_true_goal_prob_sem.csv')
+                    true_goal_prob = pd.read_csv(results_dir + f'/{scenario_name}_{model_name}_true_goal_prob.csv')
                 except FileNotFoundError:
                     continue
 
@@ -220,8 +174,7 @@ if plot_true_goal_prob:
                 line_style = '-'
 
             if "lstm" in model_name:
-                label = label_map[
-                    f"lstm_{input_type}{f'_{features_used_names}' if features_used_names != '' else ''}"]
+                label = label_map["lstm"]
             else:
                 label = label_map[model_name]
             p = plt.plot(np.array(true_goal_prob.fraction_observed), np.array(true_goal_prob.true_goal_prob),
