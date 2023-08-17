@@ -61,7 +61,7 @@ If you find this code useful, please reference in your paper:
    More instructions are given in the example file mentioned.
 
 
-7) Train OGRIT and the baseline (G-GRIT). Then calculate the evaluation metrics on the test set:
+8) Train OGRIT and the baseline (G-GRIT). Then calculate the evaluation metrics on the test set:
 
     ```
     python scripts/train_occlusion_grit.py
@@ -70,7 +70,7 @@ If you find this code useful, please reference in your paper:
     python scripts/plot_results.py
     ```
 
-8) To train the LSTM baselines, use the following code:
+9) To train the LSTM baselines, use the following code:
 
     ```
    # You change the LSTM hyper-parameters, by adding arguments (e.g., --batch_size 32) to the commands below. See the full list of arguments available by running `python baselines/lstm/get_results.py --help`
