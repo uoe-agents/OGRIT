@@ -61,12 +61,13 @@ If you find this code useful, please reference in your paper:
    More instructions are given in the example file mentioned.
 
 
-8) Train OGRIT and the baseline (G-GRIT). Then calculate the evaluation metrics on the test set:
+8) Train OGRIT and the baselines. Then calculate the evaluation metrics on the test set:
 
     ```
     python scripts/train_occlusion_grit.py
-    python scripts/train_generalised_decision_trees.py
-    python scripts/evaluate_models_from_features.py --models occlusion_grit,generalised_grit,occlusion_baseline
+    python scripts/train_grit.py
+    python scripts/train_ogrit_oracle.py
+    python scripts/evaluate_models_from_features.py --models occlusion_grit,ogrit_oracle,grit
     python scripts/plot_results.py
     ```
 
